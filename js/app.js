@@ -4,12 +4,15 @@ import {
   html, haptic, capName, useNow, Icon, Ring, RingStack, openSheet, closeAllSheets, SheetHost, SheetBar, Page, Segmented, Toggle,
   Group, Row, Field, LineChart, Legend, Empty, toast,
 } from './ui.js';
-import { MILESTONES, HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, quitPresets, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
+import { MILESTONES, HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, quitPresets, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS, WISH_IDEAS, MOOD_COLORS } from './content.js';
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, sendTest, startPushSync, stopPushSync, deviceState, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from './sync.js';
 import { AuthScreen, DayZero, consumeNewSignup, CodeInput, Resend, EyeButton } from './onboarding.js';
 import { InstallBanner, openInstallGuide, canInstall, installEnv, maybeWelcomeInstalled } from './install.js';
+import { checkMilestones, celebrate, CelebrationHost, openShareSheet, cardFor } from './celebrate.js';
+import { BuddiesSection, openBuddies, startShareSync, stopShareSync, resetBuddies } from './social.js';
+import { openAdmin } from './admin.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -108,6 +111,9 @@ function Home({ s, go }) {
           <span class="row-main"><span class="sos-t">Craving? Tap here</span><span class="sos-s">Five minutes of guided breathing. It will pass.</span></span>
           <span class="row-chev">${Icon.chevron()}</span>
         </button>
+        <button class="sup-slip" onClick=${() => openSlip()}>
+          <span class="sup-slip-e">🌱</span><span class="row-main">Slipped up? <b>Reset without the guilt</b></span><span class="row-chev">${Icon.chevron()}</span>
+        </button>
         ${s.reasons.length > 0
           ? html`<button class="sup-why" onClick=${openReasons}>
               <span class="why-k">Remember why</span>
@@ -120,11 +126,14 @@ function Home({ s, go }) {
       </div>
     </section>`}
 
+    <${BuddiesSection} />
+
     ${monthly > 0 && html`<section class="group">
       <h2 class="group-h">Money saved</h2>
-      <button class="card money-card tap" onClick=${() => go('progress')}>
+      <button class="card money-card tap" onClick=${openWishlist}>
         <${MoneyTicker} quits=${s.quits} />
         <div class="mc-sub">${S.money(monthly, 0)} a month back in your pocket · ${S.money(monthly * 12, 0)} a year</div>
+        <${WishLine} s=${s} />
       </button>
     </section>`}
 
@@ -319,15 +328,11 @@ function CheckIn({ s }) {
       })}
     <//>`}
 
-    ${recent.length > 0 && html`<${Group} header="Recent">
-      ${recent.map((k) => {
-        const c = s.checkins[k];
-        return html`<${Row} key=${k} icon=${c.mood ? MOODS[c.mood - 1].e : '·'} iconBg="var(--fill)"
-          title=${k === todayKey ? 'Today' : S.fmtDate(k, { weekday: 'short', day: 'numeric', month: 'short' })}
-          sub=${[...s.quits.map((q) => (c[q.id] != null ? `${q.label} ${c[q.id]}/10` : null)), c.sleep ? `Sleep ${SLEEP[c.sleep - 1].toLowerCase()}` : null].filter(Boolean).join(' · ') || 'No details'}
-          chevron onClick=${() => { haptic(); setDay(k); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />`;
-      })}
-    <//>`}
+    <section class="group">
+      <h2 class="group-h">Calendar</h2>
+      <${CheckinCalendar} s=${s} day=${day} onPick=${(k) => { setDay(k); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+      <p class="group-f">Tap a day to see or change that check-in.</p>
+    </section>
   <//>`;
 }
 
@@ -479,7 +484,7 @@ function openGoalEditor(goal) { openSheet((close) => html`<${GoalEditor} goal=${
 function GoalEditor({ goal = {}, close }) {
   const isEdit = !!goal.id;
   const [f, setF] = useState(() => ({
-    name: '', emoji: '🎯', color: '#3B9BFF', category: 'habits', type: 'habit', perWeek: 7, period: '2027', end: '2027-12-31',
+    name: '', emoji: '🎯', color: '#3B9BFF', category: 'habits', type: 'habit', perWeek: 7, remindAt: '', period: '2027', end: '2027-12-31',
     mode: 'sum', auto: '', unit: '', target: '', startValue: '', quitId: S.getState().quits[0]?.id || '', ...goal,
   }));
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
@@ -533,6 +538,12 @@ function GoalEditor({ goal = {}, close }) {
             <i></i>
             <button type="button" disabled=${f.perWeek >= 7} onClick=${() => { haptic(); set({ perWeek: Math.min(7, f.perWeek + 1) }); }} aria-label="More often"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
           </div>
+        </div>`}
+        ${f.type === 'habit' && html`<div class="row">
+          <span class="row-main"><span class="row-title">Reminder</span>
+            <span class="row-sub">${f.remindAt ? (f.perWeek >= 7 ? 'Every day, unless it’s ticked' : 'Only on days you still need it') : 'A nudge at a time you choose'}</span></span>
+          ${f.remindAt && html`<input type="time" class="time-in" value=${f.remindAt} onChange=${(e) => e.target.value && set({ remindAt: e.target.value })} />`}
+          <${Toggle} on=${!!f.remindAt} label="Reminder" onChange=${(v) => set({ remindAt: v ? '18:00' : '' })} />
         </div>`}
         ${f.type === 'numeric' && html`
           <div class="pad"><${Segmented} small options=${[{ value: 'sum', label: 'Add up' }, { value: 'level', label: 'Reach' }, { value: 'money', label: '£ Saved' }, { value: 'weight', label: 'Weight' }]}
@@ -708,17 +719,7 @@ function Progress({ s, go }) {
       </div>
     </section>`}
 
-    ${trig.length > 0 && html`<section class="group">
-      <h2 class="group-h">What sets cravings off</h2>
-      <div class="card pad bars">
-        ${trig.map(([name, n]) => html`<div class="bar-row">
-          <span class="bar-l">${name}</span>
-          <span class="bar-t"><i style="width:${(n / trig[0][1]) * 100}%"></i></span>
-          <b>${n}</b>
-        </div>`)}
-        <p class="tiny muted">From ${s.cravings.length} craving${s.cravings.length === 1 ? '' : 's'} logged with SOS. Most common time: ${peakHour}.</p>
-      </div>
-    </section>`}
+    <${CravingPatterns} s=${s} />
 
     <section class="group">
       <div class="group-h-row"><h2 class="group-h">Weight</h2><button class="link sm" onClick=${openWeightSheet}>Log weight</button></div>
@@ -795,7 +796,13 @@ function Profile({ s }) {
     <${Group} header="Staying quit">
       <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" sub=${s.reasons.length ? `${s.reasons.length} reason${s.reasons.length === 1 ? '' : 's'} · shown during SOS` : 'Why you quit, for the hard moments'} chevron onClick=${openReasons} />
       ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" sub="What’s improving, stage by stage" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
+      <${Row} icon="🤝" iconBg="#FF9F0A" title="Buddies" sub=${s.shareStreaks ? 'Sharing your streaks' : 'Quit with friends and cheer each other on'} chevron onClick=${openBuddies} />
+      ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="What it could buy" sub=${s.wishlist.length ? `${s.wishlist.length} thing${s.wishlist.length === 1 ? '' : 's'} you’re saving for` : 'Turn money saved into something real'} chevron onClick=${openWishlist} />`}
     <//>
+
+    ${user.isAdmin && html`<${Group} header="Admin">
+      <${Row} icon="🛠️" iconBg="#8E8E93" title="Admin" sub="People, email delivery and password resets" chevron onClick=${openAdmin} />
+    <//>`}
 
     <${NotifySettings} s=${s} />
 
@@ -882,6 +889,7 @@ function Account({ close }) {
       <//>
       <${Group}>
         <${Row} icon="🔑" iconBg="#8E8E93" title="Change password" chevron onClick=${openPassword} />
+        <${Row} icon="📱" iconBg="#30D158" title="Logged-in devices" chevron onClick=${openSessions} />
         <${Row} icon="↪" iconBg="#3B9BFF" title="Log out" chevron onClick=${doLogout} />
       <//>
       <${Group} footer="Deletes your account and all your data from Novum’s server. This can’t be undone.">
@@ -982,7 +990,7 @@ function DeleteAccount({ close }) {
     closeAllSheets();
     A.setSession(null);
     S.closeUser({ wipe: true });
-    if (uid) forgetMeta(uid);
+    if (uid) { forgetMeta(uid); A.setTrust(uid, null); }
     try { localStorage.removeItem(`novum.push:${uid}`); } catch { /* ignore */ }
     history.replaceState(null, '', location.pathname);
     window.scrollTo(0, 0);
@@ -1126,12 +1134,6 @@ function QuitEditor({ id, close }) {
   };
   const elapsed = S.quitElapsed(q);
   const best = Math.max(q.best || 0, elapsed);
-  const restart = () => confirmSheet({
-    title: 'Restart counter', danger: true,
-    text: `A slip isn’t a failure. Most people who quit for good had a few tries first. Your best run (${Math.floor(best / DAY)} days) stays on record, and the counter starts again from now.`,
-    confirm: 'Restart from now',
-    onConfirm: () => { S.restartQuit(id); close(); toast('Counter restarted. You’ve got this.'); },
-  });
   const remove = () => confirmSheet({
     title: `Remove ${q.label}`, danger: true,
     text: `This removes the ${q.label.toLowerCase()} counter, its milestones and its money tracking. Check-ins and goals stay.`,
@@ -1154,7 +1156,9 @@ function QuitEditor({ id, close }) {
         <div><b>${(q.resets || []).length}</b><span>restarts</span></div>
       </div>
       ${healthFor(q) && html`<button class="btn btn-plain block" onClick=${() => openTimeline(id)}>See the health timeline</button>`}
-      <button class="btn btn-plain danger block" onClick=${restart}>I slipped. Restart the counter</button>
+      ${(q.resets || []).length > 0 && q.monthly > 0 && html`<p class="muted center tiny">Saved overall, slips included: <b>${S.money(S.lifetimeSaved(q), 0)}</b></p>`}
+      ${elapsed > 0 && html`<button class="btn btn-tinted block" onClick=${() => openShareSheet(cardFor([q], elapsed / DAY, S.savedFor(q, elapsed)))}>Share my streak</button>`}
+      ${elapsed > 0 && html`<button class="btn btn-plain block" onClick=${() => { close(); setTimeout(() => openSlip(id), 350); }}>I slipped</button>`}
       <button class="btn btn-plain danger block" onClick=${remove}>Remove from Novum</button>
     </div>`;
 }
@@ -1340,6 +1344,292 @@ function Reasons({ close }) {
     </div>`;
 }
 
+/* ============ I SLIPPED ============ */
+// A kind reset: log what set it off, keep the best run on record, and show what you've still saved.
+function openSlip(id) { openSheet((close) => html`<${Slip} id=${id} close=${close} />`, { tall: true }); }
+function Slip({ id, close }) {
+  const s = S.getState();
+  const started = s.quits.filter((q) => S.quitStart(q) <= new Date());
+  const [qid, setQid] = useState(id && started.some((q) => q.id === id) ? id : started[0]?.id);
+  const [when, setWhen] = useState('now');
+  const [at, setAt] = useState(S.toLocalInput(new Date()));
+  const [trig, setTrig] = useState([]);
+  const [note, setNote] = useState('');
+  const [done, setDone] = useState(null);
+  const q = s.quits.find((x) => x.id === qid);
+  if (!q) return html`<${SheetBar} title="Slipped up" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body"><p class="muted center sheet-intro">There’s no running counter to reset yet.</p></div>`;
+
+  if (done) return html`
+    <${SheetBar} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body slip-done">
+      <div class="wiz-emoji">🌱</div>
+      <h2 class="auth-title center">Fresh start</h2>
+      <p class="wiz-sub center">Your ${q.label.toLowerCase()} counter starts again now. That’s all a slip is: a restart, not a reset of you.</p>
+      <div class="stats3">
+        <div><b>${Math.floor(done.best / DAY)}</b><span>best run (days)</span></div>
+        <div><b>${S.money(done.life, 0)}</b><span>saved overall</span></div>
+        <div><b>1 day</b><span>next milestone</span></div>
+      </div>
+      <button class="btn btn-primary block big" onClick=${() => { close(); setTimeout(openSos, 300); }}>Breathe for a minute</button>
+      <button class="btn btn-plain block big" onClick=${close}>I’m okay</button>
+    </div>`;
+
+  const atDate = when === 'now' ? new Date() : S.parseLocal(at);
+  const validAt = when === 'now' || (!Number.isNaN(atDate.getTime()) && atDate <= new Date() && atDate >= S.quitStart(q));
+  const runMs = Math.max(0, (validAt ? atDate : new Date()) - S.quitStart(q));
+  const best = Math.max(q.best || 0, runMs);
+  const pastMs = S.lifetimeMs(q) - S.quitElapsed(q);
+  const life = S.savedFor(q, pastMs + runMs);
+  const toggle = (t) => { haptic(6); setTrig(trig.includes(t) ? trig.filter((x) => x !== t) : [...trig, t]); };
+  const confirm = () => {
+    if (!validAt) return;
+    S.restartQuit(q.id, { at: atDate, triggers: trig, note: note.trim() });
+    haptic(15);
+    setDone({ best, life });
+  };
+  return html`
+    <${SheetBar} title="Slipped up" left=${html`<button class="link" onClick=${close}>Cancel</button>`} />
+    <div class="sheet-body">
+      <div class="slip-hero">
+        <div class="wiz-emoji">🤍</div>
+        <h2 class="auth-title center">A slip isn’t starting over</h2>
+        <p class="wiz-sub center">Most people who quit for good had a few goes first. What matters is the next hour, not the last one.</p>
+      </div>
+      ${started.length > 1 && html`<${Group} header="Which one">
+        <div class="pad"><${Segmented} options=${started.map((x) => ({ value: x.id, label: `${x.emoji} ${x.label}` }))} value=${qid} onChange=${setQid} /></div>
+      <//>`}
+      <${Group} header="When" footer=${!validAt ? html`<span class="err">Pick a time after your quit date and not in the future.</span>` : ''}>
+        <div class="pad"><${Segmented} options=${[{ value: 'now', label: 'Just now' }, { value: 'earlier', label: 'Earlier' }]} value=${when} onChange=${setWhen} /></div>
+        ${when === 'earlier' && html`<${Field} label="At"><input type="datetime-local" value=${at} max=${S.toLocalInput(new Date())} onInput=${(e) => setAt(e.target.value)} /><//>`}
+      <//>
+      <${Group} header="What set it off?" footer="Optional. Spotting patterns is how next time goes differently. They show up in Progress.">
+        <div class="chip-row">${TRIGGERS.map((t) => html`<button class="chip big ${trig.includes(t) ? 'on' : ''}" aria-pressed=${trig.includes(t)} onClick=${() => toggle(t)}>${t}</button>`)}</div>
+      <//>
+      <${Group} header="Anything else?">
+        <div class="note-wrap"><textarea class="note" rows="2" maxlength="280" placeholder="What happened, how you felt, what might help next time…" value=${note} onInput=${(e) => setNote(e.target.value)}></textarea></div>
+      <//>
+      <div class="card pad slip-keep">
+        <div><span>🏅</span><span>Your best run of <b>${Math.floor(best / DAY)} day${Math.floor(best / DAY) === 1 ? '' : 's'}</b> stays on record.</span></div>
+        ${q.monthly > 0 && html`<div><span>💷</span><span>You’ve still saved <b>${S.money(life, 0)}</b> overall. That doesn’t go anywhere.</span></div>`}
+      </div>
+      <button class="btn btn-primary block big" disabled=${!validAt} onClick=${confirm}>Restart my counter</button>
+    </div>`;
+}
+
+/* ============ WHAT YOUR MONEY COULD BUY ============ */
+const savedNow = (s, now = Date.now()) => s.quits.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q, now)), 0);
+function WishLine({ s }) {
+  const now = useNow(60000);
+  const saved = savedNow(s, now);
+  const items = [...s.wishlist].sort((a, b) => a.price - b.price);
+  if (!items.length) return html`<div class="wish-line add">🎁 What could it buy? <b>Add something to save for</b></div>`;
+  const got = items.filter((w) => w.price <= saved);
+  const next = items.find((w) => w.price > saved);
+  return html`<div class="wish-line">
+    ${got.length > 0 && html`<div class="wl-got">✓ That’s ${got[got.length - 1].emoji} ${got[got.length - 1].name}${got.length > 1 ? ` and ${got.length - 1} more` : ''}</div>`}
+    ${next && html`<div class="wl-next"><span>Next: ${next.emoji} ${next.name}</span><b>${Math.floor((saved / next.price) * 100)}%</b></div>
+      <div class="wl-bar"><i style="width:${Math.min(100, (saved / next.price) * 100)}%"></i></div>`}
+  </div>`;
+}
+function openWishlist() { openSheet((close) => html`<${Wishlist} close=${close} />`, { tall: true }); }
+function Wishlist({ close }) {
+  const s = S.getState();
+  const now = useNow(1000);
+  const saved = savedNow(s, now);
+  const [emoji, setEmoji] = useState('🎁');
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const items = [...s.wishlist].sort((a, b) => a.price - b.price);
+  const have = new Set(s.wishlist.map((w) => w.name.toLowerCase()));
+  const add = (w) => { haptic(10); S.update((d) => { d.wishlist.push({ id: S.uid(), emoji: w.emoji || '🎁', name: w.name.trim().slice(0, 40), price: +w.price }); }); };
+  const valid = name.trim() && parseFloat(price) > 0;
+  return html`
+    <${SheetBar} title="What it could buy" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body">
+      <div class="wish-hero"><div class="kicker">Saved by quitting</div><div class="mc-big">${S.money(saved)}</div>
+        <p class="muted">Money you’d have spent. Put some aside and treat yourself when you hit one.</p></div>
+      ${items.length > 0 && html`<${Group} header="Saving for">
+        ${items.map((w) => {
+          const pct = Math.min(1, saved / w.price);
+          return html`<div class="row wish-row" key=${w.id}>
+            <span class="row-ic" style="background:var(--fill-2)">${w.emoji}</span>
+            <span class="row-main"><span class="row-title">${w.name}</span>
+              <span class="row-sub">${pct >= 1 ? '✓ You could buy this now' : `${S.money(w.price - saved, 0)} to go · ${Math.floor(pct * 100)}%`}</span>
+              <span class="wl-bar"><i style="width:${pct * 100}%;${pct >= 1 ? 'background:var(--green)' : ''}"></i></span></span>
+            <span class="row-detail">${S.money(w.price, 0)}</span>
+            <button class="icon-btn muted" aria-label=${`Remove ${w.name}`} onClick=${() => S.update((d) => { d.wishlist = d.wishlist.filter((x) => x.id !== w.id); })}>${Icon.trash()}</button>
+          </div>`;
+        })}
+      <//>`}
+      <${Group} header="Add your own">
+        <div class="wish-add">
+          <input class="wish-emoji" aria-label="Emoji" maxlength="4" value=${emoji} onInput=${(e) => setEmoji(e.target.value)} />
+          <input placeholder="e.g. Festival ticket" maxlength="40" value=${name} onInput=${(e) => setName(e.target.value)} />
+          <span class="wish-price">£<input type="number" inputmode="decimal" placeholder="0" value=${price} onInput=${(e) => setPrice(e.target.value)} /></span>
+          <button class="btn btn-primary sm" disabled=${!valid} onClick=${() => { add({ emoji, name, price: parseFloat(price) }); setName(''); setPrice(''); setEmoji('🎁'); }}>Add</button>
+        </div>
+      <//>
+      ${WISH_IDEAS.some((w) => !have.has(w.name.toLowerCase())) && html`<${Group} header="Ideas" footer="Rough prices. Add one, then delete and re-add it with your own price if it’s different.">
+        ${WISH_IDEAS.filter((w) => !have.has(w.name.toLowerCase())).map((w) => html`<button class="row tap" key=${w.name} onClick=${() => add(w)}>
+          <span class="row-ic" style="background:var(--fill-2)">${w.emoji}</span>
+          <span class="row-main"><span class="row-title">${w.name}</span></span>
+          <span class="row-detail">${S.money(w.price, 0)}</span>
+          <span class="add-pill">${Icon.plus()}</span>
+        </button>`)}
+      <//>`}
+    </div>`;
+}
+
+/* ============ CHECK-IN CALENDAR ============ */
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function CheckinCalendar({ s, day, onPick }) {
+  const today = S.dayKey();
+  const [month, setMonth] = useState(day.slice(0, 7));
+  useEffect(() => { setMonth(day.slice(0, 7)); }, [day.slice(0, 7)]);
+  const [y, m] = month.split('-').map(Number);
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const dim = new Date(y, m, 0).getDate();
+  const shift = (n) => { const d = new Date(y, m - 1 + n, 1); const k = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; if (k <= today.slice(0, 7)) { haptic(); setMonth(k); } };
+  const logged = Object.keys(s.checkins).filter((k) => k.startsWith(month) && s.checkins[k].mood).length;
+  return html`<div class="card cal">
+    <div class="cal-top">
+      <button class="icon-btn" onClick=${() => shift(-1)} aria-label="Previous month">${Icon.left()}</button>
+      <div class="cal-t"><b>${MONTH_NAMES[m - 1]} ${y}</b><span>${logged} check-in${logged === 1 ? '' : 's'}</span></div>
+      <button class="icon-btn" onClick=${() => shift(1)} disabled=${month >= today.slice(0, 7)} aria-label="Next month">${Icon.chevron()}</button>
+    </div>
+    <div class="cal-grid">
+      ${['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => html`<span class="cal-wd" key=${'w' + i}>${d}</span>`)}
+      ${Array.from({ length: lead }, (_, i) => html`<span key=${'b' + i}></span>`)}
+      ${Array.from({ length: dim }, (_, i) => {
+        const k = `${month}-${pad2(i + 1)}`;
+        const c = s.checkins[k];
+        const mood = c?.mood;
+        const future = k > today;
+        return html`<button key=${k} class="cal-d ${mood ? 'has' : ''} ${k === today ? 'today' : ''} ${k === day ? 'sel' : ''}" disabled=${future}
+          style=${mood ? `--mc:${MOOD_COLORS[mood - 1]}` : ''} aria-label=${`${S.fmtDate(k, { weekday: 'long', day: 'numeric', month: 'long' })}${mood ? `, ${MOODS[mood - 1].l}` : ''}`}
+          onClick=${() => { haptic(); onPick(k); }}>${i + 1}${c?.note ? html`<i class="cal-note"></i>` : ''}</button>`;
+      })}
+    </div>
+    <div class="cal-key">${MOODS.map((md, i) => html`<span key=${md.v}><i style="background:${MOOD_COLORS[i]}"></i>${md.l}</span>`)}</div>
+  </div>`;
+}
+
+/* ============ CRAVING PATTERNS ============ */
+const BLOCKS = ['12–4am', '4–8am', '8am–12', '12–4pm', '4–8pm', '8pm–12'];
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+function CravingPatterns({ s }) {
+  // when: SOS cravings and slips, by weekday and time of day
+  const times = [
+    ...s.cravings.map((c) => new Date(c.t)),
+    ...s.quits.flatMap((q) => (q.resets || []).map((r) => S.parseLocal(r.to))),
+  ];
+  const grid = Array.from({ length: 7 }, () => Array(6).fill(0));
+  times.forEach((d) => { grid[(d.getDay() + 6) % 7][Math.floor(d.getHours() / 4)]++; });
+  const max = Math.max(1, ...grid.flat());
+  let peak = null;
+  grid.forEach((row, w) => row.forEach((n, b) => { if (n && (!peak || n > peak.n)) peak = { n, w, b }; }));
+
+  // what: SOS triggers and slip triggers
+  const trigCount = {};
+  s.cravings.forEach((c) => (c.triggers || []).forEach((t) => { trigCount[t] = (trigCount[t] || 0) + 1; }));
+  s.quits.forEach((q) => (q.resets || []).forEach((r) => (r.triggers || []).forEach((t) => { trigCount[t] = (trigCount[t] || 0) + 1; })));
+  const trig = Object.entries(trigCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  // sleep: average craving the day after each kind of night
+  const bySleep = SLEEP.map(() => []);
+  Object.values(s.checkins).forEach((c) => {
+    if (!c.sleep) return;
+    const v = s.quits.map((q) => c[q.id]).filter((x) => typeof x === 'number');
+    if (v.length) bySleep[c.sleep - 1].push(v.reduce((a, b) => a + b, 0) / v.length);
+  });
+  const avgs = bySleep.map((v) => (v.length ? v.reduce((a, b) => a + b, 0) / v.length : null));
+  const poor = [...bySleep[0], ...bySleep[1]], good = [...bySleep[3], ...bySleep[4]];
+  const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length;
+  const sleepInsight = poor.length >= 2 && good.length >= 2
+    ? `After good sleep your cravings average ${mean(good).toFixed(1)}/10, against ${mean(poor).toFixed(1)}/10 after a bad night.`
+    : null;
+  const hasSleep = avgs.filter((x) => x != null).length >= 2;
+
+  if (times.length < 3 && !trig.length && !hasSleep) return null;
+  return html`
+    ${times.length >= 3 && html`<section class="group">
+      <h2 class="group-h">When cravings hit</h2>
+      <div class="card pad heatmap">
+        <div class="heat-grid">
+          <span></span>${BLOCKS.map((b) => html`<span class="heat-h" key=${b}>${b}</span>`)}
+          ${grid.map((row, w) => html`<span class="heat-w" key=${'w' + w}>${WD[w]}</span>${row.map((n, b) => html`<i key=${w + '-' + b} title=${`${WD[w]} ${BLOCKS[b]}: ${n}`}
+            style=${`--a:${n ? 0.18 + (n / max) * 0.82 : 0}`} class=${n ? 'on' : ''}>${n || ''}</i>`)}`)}
+        </div>
+        <p class="tiny muted">${peak ? `Your toughest time is ${WD[peak.w]} ${BLOCKS[peak.b]}. Plan something for then.` : ''} From ${times.length} craving${times.length === 1 ? '' : 's'} and slips you logged.</p>
+      </div>
+    </section>`}
+
+    ${trig.length > 0 && html`<section class="group">
+      <h2 class="group-h">What sets cravings off</h2>
+      <div class="card pad bars">
+        ${trig.map(([name, n]) => html`<div class="bar-row" key=${name}>
+          <span class="bar-l">${name}</span>
+          <span class="bar-t"><i style="width:${(n / trig[0][1]) * 100}%"></i></span>
+          <b>${n}</b>
+        </div>`)}
+        <p class="tiny muted">From Craving SOS and any slips you logged.</p>
+      </div>
+    </section>`}
+
+    ${hasSleep && html`<section class="group">
+      <h2 class="group-h">Sleep and cravings</h2>
+      <div class="card pad bars">
+        ${SLEEP.map((l, i) => avgs[i] != null && html`<div class="bar-row" key=${l}>
+          <span class="bar-l">${l} sleep</span>
+          <span class="bar-t"><i style="width:${(avgs[i] / 10) * 100}%;background:#BF5AF2"></i></span>
+          <b>${avgs[i].toFixed(1)}</b>
+        </div>`)}
+        <p class="tiny muted">${sleepInsight || 'Average craving (out of 10) on days after each kind of night. Keep logging sleep to see a pattern.'}</p>
+      </div>
+    </section>`}`;
+}
+
+/* ============ LOGGED-IN DEVICES ============ */
+const agoText = (t) => {
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 2) return 'active now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr${h === 1 ? '' : 's'} ago`;
+  const d = Math.floor(h / 24);
+  return `${d} day${d === 1 ? '' : 's'} ago`;
+};
+function openSessions() { openSheet((close) => html`<${Sessions} close=${close} />`, { tall: true }); }
+function Sessions({ close }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState('');
+  const load = async () => { setErr(''); try { setD(await A.sessions()); } catch (e) { setErr(e.message); } };
+  useEffect(() => { load(); }, []);
+  const end = async (x) => { haptic(); try { await A.endSession(x.id); toast(`Logged out of ${x.device}`); load(); } catch (e) { toast(e.message); } };
+  const endOthers = () => confirmSheet({
+    title: 'Log out other devices', confirm: 'Log out others',
+    text: 'Every other phone or computer is logged out and will need your password (and an email code) to get back in. This one stays logged in.',
+    onConfirm: async () => { try { await A.endOtherSessions(); toast('Other devices logged out'); load(); } catch (e) { toast(e.message); } },
+  });
+  const others = d ? d.sessions.filter((x) => !x.current).length : 0;
+  return html`
+    <${SheetBar} title="Logged-in devices" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body">
+      ${err && html`<p class="auth-err center">${err}</p>`}
+      ${!d && !err && html`<p class="muted center sheet-intro">Loading…</p>`}
+      ${d && html`<${Group} footer=${d.trusted ? `${d.trusted} device${d.trusted === 1 ? ' is' : 's are'} remembered, so ${d.trusted === 1 ? 'it skips' : 'they skip'} the login code for 30 days.` : 'If you don’t recognise a device, log it out and change your password.'}>
+        ${d.sessions.map((x) => html`<div class="row" key=${x.id}>
+          <span class="row-ic" style="background:${x.current ? '#30D158' : 'var(--fill-2)'}">${/iPhone|Android|iPad/.test(x.device) ? '📱' : '💻'}</span>
+          <span class="row-main"><span class="row-title">${x.device}</span>
+            <span class="row-sub">${x.current ? 'This device' : `Last active ${agoText(x.lastSeen)}`} · since ${S.fmtDate(new Date(x.createdAt), { day: 'numeric', month: 'short' })}</span></span>
+          ${!x.current && html`<button class="link sm danger" onClick=${() => end(x)}>Log out</button>`}
+        </div>`)}
+      <//>
+      ${others > 0 && html`<button class="btn btn-plain danger block" onClick=${endOthers}>Log out all other devices</button>`}`}
+    </div>`;
+}
+
 /* ============ NOTIFICATIONS ============ */
 function NotifySettings({ s }) {
   const n = s.notifyPrefs;
@@ -1400,6 +1690,17 @@ function NotifySettings({ s }) {
         ${n.habits && html`<input type="time" class="time-in" value=${n.habitsAt} onChange=${(e) => e.target.value && setN({ habitsAt: e.target.value })} />`}
         <${Toggle} on=${n.habits} label="Habit nudges" onChange=${(v) => setN({ habits: v })} />
       </div>
+      <div class="row">
+        <span class="row-ic" style="background:#5AC8FA">📊</span>
+        <span class="row-main"><span class="row-title">Weekly recap</span><span class="row-sub">Sundays: check-ins, cravings and money saved</span></span>
+        ${n.recap && html`<input type="time" class="time-in" value=${n.recapAt} onChange=${(e) => e.target.value && setN({ recapAt: e.target.value })} />`}
+        <${Toggle} on=${n.recap} label="Weekly recap" onChange=${(v) => setN({ recap: v })} />
+      </div>
+      <div class="row">
+        <span class="row-ic" style="background:#FF9F0A">🤝</span>
+        <span class="row-main"><span class="row-title">Buddies</span><span class="row-sub">Buddy requests and cheers</span></span>
+        <${Toggle} on=${n.buddies} label="Buddy notifications" onChange=${(v) => setN({ buddies: v })} />
+      </div>
       <${Row} icon="📨" iconBg="#3B9BFF" title="Send a test notification" sub="Arrives after 10 seconds. Close Novum or open another app to see the banner" chevron onClick=${test} />`}
   <//>`;
 }
@@ -1441,6 +1742,17 @@ function App({ s }) {
   useEffect(() => { const t = setTimeout(maybeWelcomeInstalled, 700); return () => clearTimeout(t); }, []);
   const Screen = { home: Home, checkin: CheckIn, goals: Goals, progress: Progress, profile: Profile }[tab];
   const needCheckin = !s.checkins[S.dayKey()]?.mood;
+  // New milestones get a celebration (checked on open, then every minute)
+  useEffect(() => {
+    const run = () => celebrate(checkMilestones());
+    const t = setTimeout(run, 1200);
+    const iv = setInterval(run, 60000);
+    return () => { clearTimeout(t); clearInterval(iv); };
+  }, []);
+  // Badge on the Novum icon until today's check-in is done
+  useEffect(() => {
+    try { if ('setAppBadge' in navigator) (needCheckin ? navigator.setAppBadge() : navigator.clearAppBadge()).catch(() => {}); } catch { /* not supported */ }
+  }, [needCheckin]);
   return html`<div class="app">
     <main class="screen" key=${tab}><${Screen} s=${s} go=${go} /></main>
     <${TabBar} tab=${tab} go=${go} dot=${needCheckin} />
@@ -1466,7 +1778,7 @@ function Root() {
 
   const uid = session?.user?.id;
   useEffect(() => {
-    if (!uid) { stopSync(); stopPushSync(); S.closeUser({ wipe: false }); setReady(true); return; }
+    if (!uid) { stopSync(); stopPushSync(); stopShareSync(); resetBuddies(); S.closeUser({ wipe: false }); setReady(true); return; }
     S.openUser(uid);
     // New account on a device that already had pre-account Novum data: bring it across
     if (consumeNewSignup()) {
@@ -1480,6 +1792,7 @@ function Root() {
     setReady(S.getState().setupDone);
     Promise.resolve(startSync(uid)).finally(() => setReady(true));
     startPushSync();
+    startShareSync();
     A.refreshMe().catch(() => { /* offline or expired: handled by api.js */ });
   }, [uid]);
 
@@ -1488,7 +1801,7 @@ function Root() {
   else if (!ready) body = html`<div class="boot">NOVUM</div>`;
   else if (!s.setupDone) body = html`<${DayZero} user=${session.user} />`;
   else body = html`<${App} s=${s} />`;
-  return html`${body}<${SheetHost} /><${UpdateBanner} />`;
+  return html`${body}<${CelebrationHost} /><${SheetHost} /><${UpdateBanner} />`;
 }
 
 render(html`<${Root} />`, document.getElementById('app'));

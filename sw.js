@@ -1,6 +1,6 @@
 // Novum service worker: precache the app shell, serve cache-first, refresh in the background.
 // Bump VERSION when you deploy changes so old caches are cleared.
-const VERSION = 'novum-v15';
+const VERSION = 'novum-v16';
 const ASSETS = [
   './',
   'index.html',
@@ -16,6 +16,9 @@ const ASSETS = [
   'js/sync.js',
   'js/onboarding.js',
   'js/install.js',
+  'js/celebrate.js',
+  'js/social.js',
+  'js/admin.js',
   'vendor/preact-htm.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -41,13 +44,16 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('push', (e) => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(data.title || 'Novum', {
+  const show = self.registration.showNotification(data.title || 'Novum', {
     body: data.body || '',
     tag: data.tag,
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
     data: { url: data.url || './' },
-  }));
+  });
+  // Check-in reminders put a badge on the Novum icon until you check in
+  const badge = data.badge && self.navigator.setAppBadge ? self.navigator.setAppBadge(data.badge).catch(() => {}) : null;
+  e.waitUntil(Promise.all([show, badge]));
 });
 
 // Tap a notification: focus the open app (or open it) on the right tab

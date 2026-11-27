@@ -156,3 +156,26 @@ export const MOODS = [
   { v: 4, e: '🙂', l: 'Good' },
   { v: 5, e: '😄', l: 'Great' },
 ];
+
+// Ideas for "what your money could buy" (prices are rough UK guides; edit them to suit you)
+export const WISH_IDEAS = [
+  { emoji: '🍔', name: 'A takeaway with mates', price: 25 },
+  { emoji: '🎮', name: 'A new game', price: 60 },
+  { emoji: '👟', name: 'New trainers', price: 90 },
+  { emoji: '🎟️', name: 'Gig or festival tickets', price: 120 },
+  { emoji: '🎧', name: 'Wireless earbuds', price: 130 },
+  { emoji: '🏋️', name: 'A year of gym membership', price: 300 },
+  { emoji: '✈️', name: 'A weekend away', price: 350 },
+  { emoji: '📱', name: 'A new phone', price: 800 },
+];
+
+// Mood colours for the check-in calendar (awful → great)
+export const MOOD_COLORS = ['#FF453A', '#FF9F0A', '#FFD60A', '#7DDB5A', '#30D158'];
+
+// Cheers you can send a buddy (the server words the notification)
+export const CHEER_KINDS = [
+  { kind: 'keepgoing', e: '💪', l: 'Keep going' },
+  { kind: 'proud', e: '🙌', l: 'Proud of you' },
+  { kind: 'strong', e: '🔥', l: 'Stay strong' },
+  { kind: 'heart', e: '💙', l: 'Thinking of you' },
+];

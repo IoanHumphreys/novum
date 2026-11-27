@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { html, haptic, Icon, Segmented, toast, useNow, capName } from './ui.js';
+import { html, haptic, Icon, Segmented, Toggle, toast, useNow, capName } from './ui.js';
 import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
 import { enablePush, pushSupported, isStandalone } from './push.js';
 import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
@@ -63,6 +63,52 @@ export function Resend({ sentAt, onResend }) {
   return html`<button type="button" class="link center-link" disabled=${left > 0} onClick=${onResend}>${left > 0 ? `Send a new code in ${left}s` : 'Didn’t get it? Send a new code'}</button>`;
 }
 
+// Cloudflare Turnstile: an invisible "are you a person" check before the first email goes out.
+// Only switches on when the server has a site key; otherwise it does nothing.
+let tsScript = null;
+function loadTurnstile() {
+  if (window.turnstile) return Promise.resolve(window.turnstile);
+  if (!tsScript) {
+    tsScript = new Promise((ok, no) => {
+      const s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      s.async = true;
+      s.onload = () => ok(window.turnstile);
+      s.onerror = () => { tsScript = null; no(new Error('turnstile')); };
+      document.head.appendChild(s);
+    });
+  }
+  return tsScript;
+}
+function useTurnstile() {
+  const box = useRef();
+  const st = useRef({ key: '', id: null, token: '', waiters: [] });
+  useEffect(() => {
+    let dead = false;
+    A.authConfig().then(async (c) => {
+      if (dead || !c.turnstileSiteKey) return;
+      st.current.key = c.turnstileSiteKey;
+      const ts = await loadTurnstile();
+      if (dead || !box.current) return;
+      st.current.id = ts.render(box.current, {
+        sitekey: c.turnstileSiteKey, appearance: 'interaction-only', theme: 'dark',
+        callback: (t) => { st.current.token = t; st.current.waiters.splice(0).forEach((f) => f(t)); },
+        'expired-callback': () => { st.current.token = ''; },
+        'error-callback': () => { st.current.token = ''; },
+      });
+    }).catch(() => { /* offline or blocked: the server will say if it needs the check */ });
+    return () => { dead = true; try { if (st.current.id != null) window.turnstile?.remove(st.current.id); } catch { /* ignore */ } };
+  }, []);
+  const getToken = () => {
+    const s = st.current;
+    if (!s.key) return Promise.resolve('');
+    if (s.token) return Promise.resolve(s.token);
+    return new Promise((ok) => { s.waiters.push(ok); setTimeout(() => ok(''), 15000); });
+  };
+  const reset = () => { const s = st.current; s.token = ''; try { if (s.id != null) window.turnstile.reset(s.id); } catch { /* ignore */ } };
+  return { box, getToken, reset };
+}
+
 /* ============ welcome ============ */
 export function AuthScreen() {
   // On a phone that hasn't added Novum yet, show how first: signing up inside the Home Screen app means only doing it once
@@ -118,8 +164,11 @@ function SignUp({ back, toLogin }) {
     password: f.password.length >= 8,
   }[step];
 
+  const ts = useTurnstile();
   const sendCode = async () => {
-    const r = await A.sendEmailCode(email, f.firstName.trim());
+    const token = await ts.getToken();
+    let r;
+    try { r = await A.sendEmailCode(email, f.firstName.trim(), token); } finally { ts.reset(); }
     if (r.skipped) { setNoCodes(true); return false; }
     setSentAt(Date.now()); setCode('');
     return true;
@@ -221,6 +270,7 @@ function SignUp({ back, toLogin }) {
         <p class="wiz-fine">Your data is encrypted on Novum’s server and only shown to you after you log in. Delete your account any time in Profile.</p>`}
 
       <${Err}>${err}<//>
+      <div class="ts-box" ref=${ts.box}></div>
       <div class="wiz-actions">
         <button class="btn btn-primary block big" type="submit" disabled=${!valid || busy}>
           ${busy ? ({ password: 'Creating your account…', email: 'Sending code…', code: 'Confirming…' }[step] || 'Checking…')
@@ -305,11 +355,12 @@ function LogInForm({ back, toSignup, forgot }) {
   const [pending, setPending] = useState(null);
   const [code, setCode] = useState('');
   const [sentAt, setSentAt] = useState(0);
+  const [remember, setRemember] = useState(true);
   const codeRef = useAutoFocus(pending?.ticket);
   const verify = async (c = code) => {
     if (busy || c.length !== 6) return;
     setErr(''); setBusy(true);
-    try { await A.loginCode(pending.ticket, c); haptic(20); }
+    try { await A.loginCode(pending.ticket, c, remember); haptic(20); }
     catch (x) {
       setBusy(false); setCode(''); setErr(x.message);
       if (x.status === 401) { setPending(null); setPw(''); }
@@ -321,6 +372,10 @@ function LogInForm({ back, toSignup, forgot }) {
       <div class="wiz-body fwd" key="code">
         <${Q} emoji="📬" title="Check your email." sub=${html`To keep your account safe, we sent a 6-digit code to <b class="wiz-em">${pending.emailHint}</b>. Check spam too.`} />
         <${CodeInput} inputRef=${codeRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
+        <div class="card list remember"><div class="row">
+          <span class="row-main"><span class="row-title">Remember this device</span><span class="row-sub">Skip the code here for 30 days. Your password is still needed.</span></span>
+          <${Toggle} on=${remember} label="Remember this device" onChange=${setRemember} />
+        </div></div>
         <${Resend} sentAt=${sentAt} onResend=${async () => { try { await A.loginResend(pending.ticket); setSentAt(Date.now()); setCode(''); toast('New code sent'); } catch (x) { setErr(x.message); if (x.status === 401) setPending(null); } }} />
         <${Err}>${err}<//>
         <div class="wiz-actions">

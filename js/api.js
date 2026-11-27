@@ -42,31 +42,33 @@ export async function call(method, path, body) {
 }
 
 export async function signup(fields) {
-  const r = await call('POST', '/auth/signup', fields);
+  const r = await call('POST', '/auth/signup', { ...fields, device: deviceLabel() });
   setSession({ token: r.token, user: r.user });
   return r.user;
 }
 // { username: true/false, email: true/false } — true means free to use
 export const checkAvailable = (fields) => call('POST', '/auth/available', fields);
 // Email codes. sendEmailCode → { ok } or { skipped: true } when the server has email turned off
-export const sendEmailCode = (email, firstName) => call('POST', '/auth/email-code', { email, firstName });
+export const sendEmailCode = (email, firstName, turnstile) => call('POST', '/auth/email-code', { email, firstName, turnstile });
 export const verifyEmailCode = (email, code) => call('POST', '/auth/email-verify', { email, code });
 export const requestReset = (email) => call('POST', '/auth/reset-request', { email });
 export async function resetPassword(email, code, password) {
-  const r = await call('POST', '/auth/reset', { email, code, password });
+  const r = await call('POST', '/auth/reset', { email, code, password, device: deviceLabel() });
   setSession({ token: r.token, user: r.user });
   return r.user;
 }
 // Step 1: password. Returns { codeRequired, ticket, emailHint } when the server wants an email code.
 export async function login(loginId, password) {
-  const r = await call('POST', '/auth/login', { login: loginId, password });
+  // Devices you chose to remember skip the email code (the password is still checked)
+  const r = await call('POST', '/auth/login', { login: loginId, password, device: deviceLabel(), trust: trustTokens() });
   if (r.codeRequired) return r;
   setSession({ token: r.token, user: r.user });
   return r;
 }
 // Step 2: the 6-digit code from the email
-export async function loginCode(ticket, code) {
-  const r = await call('POST', '/auth/login-code', { ticket, code });
+export async function loginCode(ticket, code, remember = false) {
+  const r = await call('POST', '/auth/login-code', { ticket, code, remember, device: deviceLabel() });
+  if (r.deviceToken) setTrust(r.user.id, r.deviceToken);
   setSession({ token: r.token, user: r.user });
   return r.user;
 }
@@ -91,3 +93,43 @@ export const changePassword = (current, next) => call('POST', '/me/password', { 
 // Delete: password → code emailed (unless email is off on the server) → delete
 export const deleteCode = (password) => call('POST', '/me/delete-code', { password });
 export const deleteAccount = (password, code) => call('DELETE', '/me', { password, code });
+
+/* ---------- this device ---------- */
+// A friendly name for the logged-in devices list, e.g. "iPhone · Home Screen app"
+export function deviceLabel() {
+  const ua = navigator.userAgent;
+  const ipad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const kind = ipad ? 'iPad' : /iPhone|iPod/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android phone' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows PC' : 'Computer';
+  const app = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const browser = /CriOS|Chrome/.test(ua) && !/Edg/.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /EdgiOS|Edg/.test(ua) ? 'Edge' : /Safari/.test(ua) ? 'Safari' : 'Browser';
+  return `${kind} · ${app ? 'Home Screen app' : browser}`;
+}
+// "Remember this device": one token per account, kept only on this device
+const TRUST_KEY = 'novum.trust';
+const readTrust = () => { try { return JSON.parse(localStorage.getItem(TRUST_KEY)) || {}; } catch { return {}; } };
+export const trustTokens = () => Object.values(readTrust()).filter(Boolean).slice(0, 5);
+export const myTrustToken = (userId) => readTrust()[userId] || '';
+export function setTrust(userId, token) {
+  const t = readTrust();
+  if (token) t[userId] = token; else delete t[userId];
+  try { localStorage.setItem(TRUST_KEY, JSON.stringify(t)); } catch { /* ignore */ }
+}
+
+/* ---------- logged-in devices ---------- */
+export const sessions = () => call('GET', '/me/sessions');
+export const endSession = (id) => call('POST', '/me/sessions/end', { id });
+export const endOtherSessions = () => call('POST', '/me/sessions/end-others', { keepTrust: myTrustToken(getSession()?.user?.id) });
+
+/* ---------- buddies ---------- */
+export const buddies = () => call('GET', '/buddies');
+export const buddyRequest = (username) => call('POST', '/buddies/request', { username });
+export const buddyRespond = (username, accept) => call('POST', '/buddies/respond', { username, accept });
+export const buddyRemove = (username) => call('POST', '/buddies/remove', { username });
+export const cheer = (username, kind) => call('POST', '/buddies/cheer', { username, kind });
+export const putShareCard = (card) => call('PUT', '/me/share', { card });
+
+/* ---------- admin ---------- */
+export const adminOverview = () => call('GET', '/admin/overview');
+export const adminResetPassword = (userId) => call('POST', '/admin/reset-password', { userId });
+
+export const authConfig = () => call('GET', '/auth/config');

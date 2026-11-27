@@ -46,7 +46,13 @@ export function settingsPayload(s) {
     prefs: s.notifyPrefs,
     quits: s.quits.map((q) => ({ id: q.id, label: q.label, emoji: q.emoji, startMs: S.quitStart(q).getTime(), monthly: q.monthly })),
     lastCheckin: Object.keys(s.checkins).filter((k) => s.checkins[k].mood).sort().pop() || null,
-    habits: s.goals.filter((g) => g.type === 'habit').map((g) => ({ name: g.name, emoji: g.emoji, perWeek: g.perWeek || 7, ticks: (g.ticks || []).filter((k) => k >= since) })),
+    habits: s.goals.filter((g) => g.type === 'habit').map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, perWeek: g.perWeek || 7, remindAt: g.remindAt || '', ticks: (g.ticks || []).filter((k) => k >= since) })),
+    // For the Sunday recap: last 2 weeks of moods (m) and average craving (c), nothing else
+    days: Object.fromEntries(Object.keys(s.checkins).filter((k) => k >= since).map((k) => {
+      const c = s.checkins[k];
+      const v = s.quits.map((q) => c[q.id]).filter((x) => typeof x === 'number');
+      return [k, { m: c.mood || 0, c: v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : null }];
+    })),
   };
 }
 

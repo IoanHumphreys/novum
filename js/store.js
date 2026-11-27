@@ -28,7 +28,7 @@ export const money = (n, dp = 2) => '£' + n.toLocaleString('en-GB', { minimumFr
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 /* ---------- default state ---------- */
-export const DEFAULT_PREFS = { milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00' };
+export const DEFAULT_PREFS = { milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00', recap: true, recapAt: '19:00', buddies: true };
 
 export function defaultState() {
   return {
@@ -42,6 +42,11 @@ export function defaultState() {
     reasons: [],
     // { id, t, quitIds, triggers, beaten, secs }
     cravings: [],
+    // things you're saving for: { id, emoji, name, price }
+    wishlist: [],
+    // milestones already celebrated: { '<quitId>@<start>': days }
+    celebrated: {},
+    shareStreaks: false, // show my streaks to buddies
     notifyPrefs: { ...DEFAULT_PREFS },
     createdAt: new Date().toISOString(),
     savedAt: 0,
@@ -68,6 +73,7 @@ export function migrate(s) {
     profile: { ...d.profile, ...(s.profile || {}) },
     quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],
+    wishlist: s.wishlist || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };
 }
@@ -138,15 +144,32 @@ export function splitDuration(ms) {
   return { d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 };
 }
 // Money saved by a quit inside a [from, to] window (ms timestamps)
-// "I slipped": keep the best run, log the reset, start again from now
-export function restartQuit(id) {
+// "I slipped": keep the best run, log the reset (with what set it off), start again from `at`
+export function restartQuit(id, { at = new Date(), triggers = [], note = '' } = {}) {
   update((d) => {
     const x = d.quits.find((y) => y.id === id);
     if (!x) return;
-    x.best = Math.max(x.best || 0, quitElapsed(x));
-    x.resets = [...(x.resets || []), { from: x.start, to: toLocalInput(new Date()) }];
-    x.start = toLocalInput(new Date());
+    const when = at > new Date() ? new Date() : at;
+    const run = Math.max(0, when - quitStart(x));
+    x.best = Math.max(x.best || 0, run);
+    x.resets = [...(x.resets || []), { from: x.start, to: toLocalInput(when), triggers, note: String(note).slice(0, 280) }];
+    x.start = toLocalInput(when);
   });
+}
+// Every quit-free run added up, so a slip never wipes out what you've saved
+export function lifetimeMs(q, now = Date.now()) {
+  const past = (q.resets || []).reduce((a, r) => a + Math.max(0, parseLocal(r.to) - parseLocal(r.from)), 0);
+  return past + quitElapsed(q, now);
+}
+export const lifetimeSaved = (q, now = Date.now()) => savedFor(q, lifetimeMs(q, now));
+export const bestRun = (q, now = Date.now()) => Math.max(q.best || 0, quitElapsed(q, now));
+// Days in a row with a check-in, counting back from today (or yesterday if today isn't done yet)
+export function checkinStreak(s, today = new Date()) {
+  let d = parseDay(dayKey(today));
+  if (!s.checkins[dayKey(d)]?.mood) d = addDays(d, -1);
+  let n = 0;
+  while (s.checkins[dayKey(d)]?.mood) { n++; d = addDays(d, -1); }
+  return n;
 }
 export function savedInWindow(q, from, to, now = Date.now()) {
   const a = Math.max(from, quitStart(q).getTime());
