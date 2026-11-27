@@ -1,6 +1,13 @@
 // Runs before the app: blocks zooming and registers the service worker (offline + notifications).
 // Kept in its own file so the Content Security Policy can forbid inline scripts.
 
+// Anti-clickjacking: if another site loads Novum inside a frame, hide everything and try to break out.
+// (GitHub Pages can't send the frame-ancestors header that would block this outright.)
+if (window.top !== window.self) {
+  document.documentElement.style.display = 'none';
+  try { window.top.location.replace(window.location.href); } catch { /* the browser blocked it: the page stays hidden */ }
+}
+
 // No pinch or double-tap zoom: Safari ignores user-scalable=no, so block its gesture events too
 ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
