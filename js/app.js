@@ -1035,7 +1035,7 @@ function NotifySettings({ s }) {
   };
   const test = async () => {
     setErr('');
-    try { await sendTest(); toast('Test sent. Check your notifications'); } catch (e) { setErr(e.message); }
+    try { await sendTest(10); toast('Arrives in 10s. Leave Novum now'); } catch (e) { setErr(e.message); }
   };
   let footer;
   if (!configured) footer = 'Notifications need the free Novum push server. Follow the guide in the novum-push folder, then add its address to js/config.js.';
@@ -1068,7 +1068,7 @@ function NotifySettings({ s }) {
         ${n.habits && html`<input type="time" class="time-in" value=${n.habitsAt} onChange=${(e) => e.target.value && setN({ habitsAt: e.target.value })} />`}
         <${Toggle} on=${n.habits} label="Habit nudges" onChange=${(v) => setN({ habits: v })} />
       </div>
-      <${Row} icon="📨" iconBg="#3B9BFF" title="Send a test notification" chevron onClick=${test} />`}
+      <${Row} icon="📨" iconBg="#3B9BFF" title="Send a test notification" sub="Arrives after 10 seconds. Close Novum or open another app to see the banner" chevron onClick=${test} />`}
   <//>`;
 }
 

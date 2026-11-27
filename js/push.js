@@ -69,9 +69,9 @@ export async function disablePush() {
   S.update((d) => { d.notify.enabled = false; });
 }
 
-export async function sendTest() {
+export async function sendTest(delaySec = 0) {
   const s = S.getState();
-  await api('/test', { id: s.notify.deviceId });
+  await api('/test', { id: s.notify.deviceId, delaySec });
 }
 
 // Debounced background sync whenever relevant data changes
