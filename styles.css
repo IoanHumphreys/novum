@@ -377,7 +377,8 @@ input[type='range'].unset::-webkit-slider-thumb { background: #8a93a6; }
 /* ---------- progress ---------- */
 .glance { padding: 18px; }
 .glance-top { display: flex; align-items: center; gap: 18px; }
-.gl-c { display: flex; flex-direction: column; align-items: center; }
+.gl-ring { flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.gl-c { display: flex; align-items: baseline; gap: 6px; }
 .gl-c b { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
 .gl-c span { font-size: 12px; color: var(--text-2); }
 .gl-legend { flex: 1; display: grid; gap: 8px; }
