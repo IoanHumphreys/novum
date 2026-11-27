@@ -79,5 +79,7 @@ export function stopSync() {
 }
 // Push any pending changes now (used before logging out)
 export async function flush() { clearTimeout(timer); if (uid && readMeta().dirty) await syncNow(); }
-export function forgetMeta(userId) { try { localStorage.removeItem(metaKey(userId)); } catch { /* ignore */ } }
+// Called when an account's data is wiped from this phone (log out with wipe, or account deleted).
+// Also drops the saved activity feed (see activity.js).
+export function forgetMeta(userId) { try { localStorage.removeItem(metaKey(userId)); localStorage.removeItem(`novum.activity.${userId}`); } catch { /* ignore */ } }
 export const hasPending = () => uid ? readMeta().dirty : false;

@@ -1,10 +1,10 @@
 import { render, useState, useEffect, useLayoutEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
-import { html, haptic, Icon, SheetHost } from './ui.js';
+import { html, haptic, Icon, SheetHost, lazy } from './ui.js';
 import { startPushSync, stopPushSync, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync } from './sync.js';
-import { AuthScreen, DayZero, consumeNewSignup } from './onboarding.js';
+import { consumeNewSignup } from './authkit.js';
 import { maybeWelcomeInstalled } from './install.js';
 import { checkMilestones, celebrate, CelebrationHost } from './celebrate.js';
 import { startShareSync, stopShareSync, resetBuddies } from './social.js';
@@ -14,9 +14,15 @@ import { CheckIn } from './tabs/checkin.js';
 import { Goals } from './tabs/goals.js';
 import { Progress } from './tabs/progress.js';
 import { Profile } from './tabs/me.js';
-import { openActivity, resetActivity } from './activity.js';
+import { openActivity, resetActivity, reloadActivityCache } from './activity.js';
 import { openSos } from './sos.js';
-import { WrappedHost } from './wrapped.js';
+import { WrappedHost } from './wrapped-card.js';
+
+// The sign-up, log-in and setup screens are only needed when logged out or setting up, so their code
+// (the biggest file in the app) loads then, not on every start. The splash shows while it loads.
+const splash = () => html`<div class="boot">NOVUM</div>`;
+const AuthScreen = lazy(() => import('./onboarding.js'), 'AuthScreen', splash);
+const DayZero = lazy(() => import('./onboarding.js'), 'DayZero', splash);
 
 const TABS = [
   { id: 'home', label: 'Home', icon: Icon.home },
@@ -57,7 +63,8 @@ window.addEventListener('error', (e) => report(`${(e.filename || '').split('/').
 window.addEventListener('unhandledrejection', (e) => report('promise', e.reason?.message || String(e.reason || ''), e.reason?.stack));
 
 function App({ s }) {
-  const initial = location.hash.slice(1);
+  // #reset comes from "This wasn't me" in a new-login email: when logged in, Profile has the password and devices settings
+  const initial = location.hash === '#reset' ? 'profile' : location.hash.slice(1);
   const [tab, setTab] = useState(TABS.some((t) => t.id === initial) ? initial : 'home');
   useEffect(() => {
     if (initial === 'activity') { history.replaceState(null, '', '#home'); setTimeout(openActivity, 400); }
@@ -67,8 +74,18 @@ function App({ s }) {
   const go = (t) => {
     if (t === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     scrolls.current[tab] = window.scrollY;
-    haptic(); setTab(t);
+    haptic();
     history.replaceState(null, '', '#' + t);
+    // Smooth switch: the old tab fades out and the new one slides in from the side you tapped (iOS 18+ and
+    // recent Chrome; others switch instantly, as before). Skipped when Reduce Motion is on.
+    if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) { setTab(t); return; }
+    const ids = TABS.map((x) => x.id);
+    document.documentElement.dataset.tabDir = ids.indexOf(t) > ids.indexOf(tab) ? 'fwd' : 'back';
+    // Preact draws the new tab a moment after setTab; wait for that before the "after" snapshot
+    const vt = document.startViewTransition(() => { setTab(t); return new Promise((r) => setTimeout(r, 0)); });
+    // Tapping tabs quickly cancels the previous transition, which is fine: don't report it as an error
+    const ignore = () => {};
+    vt.ready.catch(ignore); vt.finished.catch(ignore); vt.updateCallbackDone.catch(ignore);
   };
   useLayoutEffect(() => { window.scrollTo(0, scrolls.current[tab] || 0); onScroll(); }, [tab]);
   // Notification taps navigate to e.g. #checkin
@@ -123,6 +140,7 @@ function Root() {
   useEffect(() => {
     if (!uid) { stopSync(); stopPushSync(); stopShareSync(); stopProfileSync(); resetBuddies(); resetActivity(); S.closeUser({ wipe: false }); setReady(true); return; }
     S.openUser(uid);
+    reloadActivityCache();
     // New account on a device that already had pre-account Novum data: bring it across
     if (consumeNewSignup()) {
       const legacy = S.legacyState();

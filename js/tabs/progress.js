@@ -7,7 +7,7 @@ import { DAY, pad2, NEW_YEAR, SLEEP } from '../shared.js';
 import { Goals, openNewYear } from './goals.js';
 import { openWeightSheet } from './me.js';
 import { LungCard } from '../lungs.js';
-import { WrappedCard } from '../wrapped.js';
+import { WrappedCard } from '../wrapped-card.js';
 
 /* ============ PROGRESS ============ */
 export function Progress({ s, go }) {

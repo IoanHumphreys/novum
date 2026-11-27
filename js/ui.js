@@ -327,3 +327,23 @@ export function Skeleton({ rows = 3, avatar = false }) {
     ${avatar && html`<i class="sk sk-av"></i>`}<span class="row-main"><i class="sk sk-l" style=${`width:${55 + ((i * 17) % 35)}%`}></i><i class="sk sk-s"></i></span>
   </div>`)}</div>`;
 }
+
+/* ---------- load a screen's code only when it's first shown ---------- */
+// const Game = lazy(() => import('./game.js'), 'FlowGame') gives a component that fetches game.js the first
+// time it renders (shows `fallback` meanwhile), then behaves exactly like FlowGame. load() can also be
+// called early to warm it up. The service worker keeps every file cached, so this works offline too.
+export function lazy(importer, name, fallback = null) {
+  let Comp = null;
+  let promise = null;
+  const load = () => (promise ||= importer().then((m) => { Comp = m[name]; return Comp; }).catch((e) => { promise = null; throw e; }));
+  function Lazy(props) {
+    const [, setReady] = useState(!!Comp);
+    const [failed, setFailed] = useState(false);
+    useEffect(() => { if (!Comp) load().then(() => setReady(true), () => setFailed(true)); }, []);
+    if (Comp) return html`<${Comp} ...${props} />`;
+    if (failed) return html`<div class="lazy-fail" role="alert">Couldn’t open this. Check your connection and try again.</div>`;
+    return typeof fallback === 'function' ? fallback(props) : fallback;
+  }
+  Lazy.load = load;
+  return Lazy;
+}

@@ -7,17 +7,40 @@ import { CHEER_KINDS } from './content.js';
 import { Avatar, openPerson } from './profile.js';
 import { refreshBuddies } from './social.js';
 
-let data = { items: [], unread: 0, loaded: false };
+// The last feed that loaded is kept on the phone (per account), so it shows instantly on open,
+// offline, or when the server can't be reached.
+const cacheKey = () => { const id = A.getSession()?.user?.id; return id ? `novum.activity.${id}` : ''; };
+function readCache() {
+  try { const c = JSON.parse(localStorage.getItem(cacheKey()) || 'null'); return c && Array.isArray(c.items) ? c : null; } catch { return null; }
+}
+function writeCache(d) {
+  try { if (cacheKey()) localStorage.setItem(cacheKey(), JSON.stringify({ items: d.items, unread: d.unread, at: Date.now() })); } catch { /* storage full: not important */ }
+}
+const fresh = () => { const c = readCache(); return c ? { items: c.items, unread: c.unread, loaded: true, cachedAt: c.at } : { items: [], unread: 0, loaded: false }; };
+
+let data = fresh();
 let loadedAt = 0;
+let pending = null;
 const subs = new Set();
 const emit = () => subs.forEach((f) => f(data));
-export async function refreshActivity() {
-  try { data = { ...(await A.activity()), loaded: true, error: '' }; loadedAt = Date.now(); }
-  catch (e) { data = { ...data, loaded: true, error: e.offline ? 'You’re offline.' : 'Couldn’t load your activity right now.' }; }
-  emit();
-  return data;
+export function refreshActivity() {
+  // One request at a time: the bell, the sheet and the timer can all ask at once
+  if (pending) return pending;
+  data = { ...data, refreshing: true }; emit();
+  pending = (async () => {
+    try { data = { ...(await A.activity()), loaded: true, error: '' }; loadedAt = Date.now(); writeCache(data); }
+    catch (e) { data = { ...data, loaded: true, error: e.offline ? 'You’re offline.' : 'Couldn’t load your activity right now.' }; }
+    data = { ...data, refreshing: false };
+    pending = null;
+    emit();
+    return data;
+  })();
+  return pending;
 }
+// Logged out: clear the screen (the saved feed stays, like the rest of the account's data on this phone)
 export function resetActivity() { data = { items: [], unread: 0, loaded: false }; loadedAt = 0; emit(); }
+// After logging in as someone (else), show that account's saved feed
+export function reloadActivityCache() { data = fresh(); loadedAt = 0; emit(); }
 export function useActivity() {
   const [d, setD] = useState(data);
   useEffect(() => {
@@ -80,8 +103,12 @@ function Activity({ close }) {
   return html`
     <${SheetBar} title="Activity" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
+      ${d.error && d.items.length > 0 && html`<div class="act-stale" role="status">
+        <span>📡 ${d.error === 'You’re offline.' ? 'You’re offline.' : 'Couldn’t refresh.'} Showing your last update.</span>
+        <button class="link sm" disabled=${d.refreshing} onClick=${() => { haptic(); refreshActivity(); }}>${d.refreshing ? 'Trying…' : 'Try again'}</button>
+      </div>`}
       ${!d.loaded ? html`<${Skeleton} rows=${5} avatar />`
-      : d.error && d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">📡</div><b>${d.error}</b><button class="btn btn-tinted sm mt12" onClick=${() => refreshActivity()}>Try again</button></div>`
+      : d.error && d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">📡</div><b>${d.error}</b><p class="muted">Your cheers and requests are safe. They’ll show up once Novum can reach the server.</p><button class="btn btn-tinted sm mt12" disabled=${d.refreshing} onClick=${() => { haptic(); refreshActivity(); }}>${d.refreshing ? 'Trying…' : 'Try again'}</button></div>`
       : d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">🔔</div><b>Nothing yet</b><p class="muted">Cheers, requests and buddy milestones will show up here.</p></div>`
       : html`<${Group}>
         ${d.items.map((x) => html`<div class="act ${x.read ? '' : 'new'}" key=${x.id}>

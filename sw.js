@@ -1,6 +1,6 @@
 // Novum service worker: precache the app shell, serve cache-first, refresh in the background.
 // Bump VERSION when you deploy changes so old caches are cleared.
-const VERSION = 'novum-v24';
+const VERSION = 'novum-v25';
 // Cartoon avatars from DiceBear are kept here (separately, so updates don't wipe them) for instant, offline loading
 const AVATARS = 'novum-avatars';
 const ASSETS = [
@@ -29,6 +29,9 @@ const ASSETS = [
   'js/lungs.js',
   'js/game.js',
   'js/wrapped.js',
+  'js/wrapped-card.js',
+  'js/lungtest.js',
+  'js/authkit.js',
   'js/quits.js',
   'js/sos.js',
   'js/tabs/home.js',

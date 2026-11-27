@@ -1,14 +1,16 @@
 // Craving SOS (guided breathing and distractions) and My reasons.
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
-import { html, haptic, useNow, Icon, openSheet, SheetBar, Toggle, Group, toast } from './ui.js';
+import { html, haptic, useNow, Icon, openSheet, SheetBar, Toggle, Group, toast, lazy } from './ui.js';
 import { TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
 import { DAY, pad2, fmtLeft, milestoneInfo } from './shared.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
 import { useBuddies } from './social.js';
 import { Avatar } from './profile.js';
-import { FlowGame } from './game.js';
+
+// The puzzle's code loads the first time someone opens it (it's cached for offline use either way)
+const FlowGame = lazy(() => import('./game.js'), 'FlowGame', () => html`<div class="lazy-wait" role="status">Loading the puzzle…</div>`);
 
 /* ============ CRAVING SOS ============ */
 export const SOS_SECS = 300;

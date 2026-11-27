@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import { html, haptic, toast } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
+import { wrappedYear, closeWrapped } from './wrapped-card.js';
 import { MOODS } from './content.js';
 import { Avatar } from './profile.js';
 import { openImageShare } from './celebrate.js';
@@ -11,13 +12,6 @@ import { openImageShare } from './celebrate.js';
 const DAY = 864e5;
 const lc = (t) => (t ? t[0].toLowerCase() + t.slice(1) : t);
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-// Which year to show, and whether it's the proper end-of-year moment (December and January)
-export function wrappedYear(now = new Date()) {
-  if (now.getMonth() === 11) return { year: now.getFullYear(), season: true };
-  if (now.getMonth() === 0) return { year: now.getFullYear() - 1, season: true };
-  return { year: now.getFullYear(), season: false };
-}
 
 // Time quit-free inside [from, to], counting every run (slips included)
 function freeMsIn(q, from, to, now) {
@@ -126,17 +120,7 @@ export function buildSlides(s, year, server, user, now = Date.now()) {
 }
 
 /* ---------- the story viewer ---------- */
-let open = null;
-const subs = new Set();
-export function openWrapped() { open = { at: Date.now() }; subs.forEach((f) => f(open)); }
-const closeWrapped = () => { open = null; subs.forEach((f) => f(open)); };
-export function WrappedHost() {
-  const [o, setO] = useState(open);
-  useEffect(() => { subs.add(setO); return () => subs.delete(setO); }, []);
-  return o ? html`<${Wrapped} key=${o.at} />` : null;
-}
-
-function Wrapped() {
+export function Wrapped() {
   const { year } = wrappedYear();
   const user = A.getSession()?.user || {};
   const [server, setServer] = useState(undefined);
@@ -219,15 +203,4 @@ async function drawSlide(sl, year) {
   if (sl.grid) sl.grid.forEach(([k, val], n) => { ctx.font = `800 64px ${FONT}`; ctx.fillText(String(val), W / 2, 1380 + n * 120); ctx.font = `600 34px ${FONT}`; ctx.globalAlpha = 0.7; ctx.fillText(k, W / 2, 1420 + n * 120); ctx.globalAlpha = 1; });
   ctx.font = `800 38px ${FONT}`; ctx.fillText('novumdaily.com', W / 2, 1830);
   return new Promise((ok) => cv.toBlob((b) => ok(b), 'image/png'));
-}
-
-/* ---------- Progress card ---------- */
-export function WrappedCard() {
-  const { year, season } = wrappedYear();
-  if (!season) return html`<button class="wr-peek" onClick=${() => { haptic(); openWrapped(); }}>✨ Peek at your ${year} Wrapped so far</button>`;
-  return html`<button class="card wr-card tap" onClick=${() => { haptic(); openWrapped(); }}>
-    <div class="wr-card-k">Novum Wrapped</div><div class="wr-card-y">${year}</div>
-    <div class="wr-card-s">Your year in quitting, cravings beaten, money saved and the people who had your back.</div>
-    <span class="btn btn-primary sm">Watch it</span>
-  </button>`;
 }

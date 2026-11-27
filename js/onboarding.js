@@ -9,12 +9,10 @@ import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, insta
 import { openPrivacy } from './privacy.js';
 import { Avatar, openAvatarPicker } from './profile.js';
 import { Banner, openBannerPicker, PALETTES } from './banner.js';
+import { EyeButton, CodeInput, Resend, setNewSignup } from './authkit.js';
+export { EyeButton, CodeInput, Resend, consumeNewSignup } from './authkit.js';
 
 export const MIN_AGE = 16;
-
-// Set just before a sign-up so the app can bring over pre-account data on this device
-let newSignup = false;
-export const consumeNewSignup = () => { const v = newSignup; newSignup = false; return v; };
 
 const USERNAME_RE = /^[a-zA-Z0-9_.]{3,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -43,30 +41,7 @@ function useAutoFocus(dep) {
 function BigInput({ inputRef, ...props }) {
   return html`<input class="wiz-in" ref=${inputRef} ...${props} />`;
 }
-// Show/Hide for password fields. Toggles on touch-down and keeps the field focused: on iPhone a normal tap
-// first closes the keyboard, the page jumps, and the tap lands on nothing.
-export function EyeButton({ on, set }) {
-  return html`<button type="button" class="tf-eye" aria-pressed=${on} aria-label=${on ? 'Hide password' : 'Show password'}
-    onPointerDown=${(e) => { e.preventDefault(); haptic(6); set(!on); }}
-    onMouseDown=${(e) => e.preventDefault()}
-    onClick=${(e) => { if (e.detail === 0) set(!on); }}>${on ? 'Hide' : 'Show'}</button>`;
-}
 function Err({ children }) { return children ? html`<p class="wiz-err" role="alert">${children}</p>` : null; }
-
-// Six boxes over one hidden input; iOS can autofill the code straight from Mail
-export function CodeInput({ value, onChange, onComplete, inputRef }) {
-  return html`<label class="code">
-    <input ref=${inputRef} class="code-in" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" aria-label="6-digit code"
-      value=${value} onInput=${(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); onChange(v); if (v.length === 6) { haptic(10); onComplete?.(v); } }} />
-    <span class="code-boxes" aria-hidden="true">${Array.from({ length: 6 }, (_, k) => html`<i class=${`${k < value.length ? 'filled' : ''} ${k === Math.min(value.length, 5) ? 'cur' : ''}`}>${value[k] || ''}</i>`)}</span>
-  </label>`;
-}
-// "Send again" with a 30-second cooldown
-export function Resend({ sentAt, onResend }) {
-  const now = useNow(1000);
-  const left = Math.max(0, 30 - Math.floor((now - sentAt) / 1000));
-  return html`<button type="button" class="link center-link" disabled=${left > 0} onClick=${onResend}>${left > 0 ? `Send a new code in ${left}s` : 'Didn’t get it? Send a new code'}</button>`;
-}
 
 // Cloudflare Turnstile: an invisible "are you a person" check before the first email goes out.
 // Only switches on when the server has a site key; otherwise it does nothing.
@@ -117,7 +92,9 @@ function useTurnstile() {
 /* ============ welcome ============ */
 export function AuthScreen() {
   // On a phone that hasn't added Novum yet, show how first: signing up inside the Home Screen app means only doing it once
-  const [mode, setMode] = useState(guideFirst() ? 'install' : 'welcome');
+  // novumdaily.com/#reset (the "This wasn't me" button in new-login emails) goes straight to Forgot password
+  const [mode, setMode] = useState(location.hash === '#reset' ? 'reset' : guideFirst() ? 'install' : 'welcome');
+  if (mode === 'reset') return html`<${LogIn} startReset back=${() => { history.replaceState(null, '', location.pathname); setMode('welcome'); }} toSignup=${() => setMode('signup')} />`;
   if (mode === 'install') return html`<div class="auth ig-screen"><${InstallGuide} skipLabel=${installEnv().kind === 'inapp' ? 'Continue here anyway' : 'Continue in the browser'} onSkip=${() => { skipGuide(); setMode('welcome'); }} /></div>`;
   if (mode === 'signup') return html`<${SignUp} back=${() => setMode('welcome')} toLogin=${() => setMode('login')} />`;
   if (mode === 'login') return html`<${LogIn} back=${() => setMode('welcome')} toSignup=${() => setMode('signup')} />`;
@@ -227,11 +204,11 @@ function SignUp({ back, toLogin }) {
   const submitAll = async () => {
     setBusy(true); setErr('');
     try {
-      newSignup = true;
+      setNewSignup(true);
       await A.signup({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: uname, email, password: f.password, emailToken, dob: f.dob, consent });
       haptic(20);
     } catch (x) {
-      newSignup = false;
+      setNewSignup(false);
       setBusy(false);
       const m = x.message.toLowerCase();
       const back = x.data?.needsEmailCode ? at('email') : x.data?.tooYoung ? at('dob') : m.includes('username') ? at('username') : m.includes('email') ? at('email') : -1;
@@ -329,8 +306,8 @@ function SignUp({ back, toLogin }) {
 }
 
 /* ============ log in ============ */
-function LogIn({ back, toSignup }) {
-  const [resetting, setResetting] = useState(false);
+function LogIn({ back, toSignup, startReset = false }) {
+  const [resetting, setResetting] = useState(startReset);
   if (resetting) return html`<${ResetPassword} back=${() => setResetting(false)} />`;
   return html`<${LogInForm} back=${back} toSignup=${toSignup} forgot=${() => setResetting(true)} />`;
 }

@@ -421,7 +421,6 @@ input[type='range'].unset::-webkit-slider-thumb { background: #8a93a6; }
 .insight { margin: 8px 6px 2px; font-size: 14px; color: var(--text-2); }
 
 /* ---------- profile ---------- */
-.profile-card { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; text-align: left; }
 .avatar { width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 800; color: #fff;
   background: linear-gradient(140deg, var(--accent-2), var(--accent) 60%, #1a4fd6); flex: none; }
 .pc-name { font-size: 22px; font-weight: 700; }
@@ -545,42 +544,42 @@ input[type='range'].unset::-webkit-slider-thumb { background: #8a93a6; }
 .hs-tip-ic { font-size: 24px; flex: none; }
 .hs-ic { display: inline-flex; vertical-align: -4px; color: var(--accent); }
 .hs-ic .ic { width: 18px; height: 18px; }
-.auth-head { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 18px -10px; }
-.auth-head p { margin: 4px 0 0; font-size: 15px; }
+
+
 .auth-title { font-size: 30px; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; margin: 6px 0 0; }
 .auth-title.center { text-align: center; }
 .auth-err { color: var(--red); font-size: 15px; margin: 12px 4px 0; line-height: 1.4; }
-.auth-fine { font-size: 13px; color: var(--text-2); text-align: center; margin: 14px 12px 4px; line-height: 1.45; }
-.tf-card { padding: 4px 16px; }
+
+
 .tf { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; position: relative; }
-.tf + .tf, .tf-pair + .tf, .tf + .tf-pair { border-top: 0.5px solid var(--sep); }
-.tf-l { font-size: 13px; font-weight: 600; color: var(--text-2); }
-.tf-i { width: 100%; border: 0; outline: 0; background: transparent; font-size: 17px; min-height: 32px; padding: 0; color: var(--text); }
-.tf-i::placeholder { color: var(--text-3); }
-.tf-i[type='date'], .tf-i[type='datetime-local'] { -webkit-appearance: none; appearance: none; color: var(--accent); }
-.tf-h { font-size: 13px; color: var(--text-2); }
-.tf.bad .tf-l { color: var(--red); }
+.tf + .tf { border-top: 0.5px solid var(--sep); }
+
+
+
+
+
+
 .tf-row { display: flex; align-items: center; gap: 8px; }
 .tf-eye { color: var(--accent); font-size: 15px; min-height: 44px; padding: 0 4px; }
-.tf-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.dz-top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: 0 -10px 12px; }
-.dz-badge { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); padding-left: 10px; }
-.dz-dots { display: flex; gap: 6px; padding-right: 10px; }
-.dz-dots i { width: 22px; height: 5px; border-radius: 3px; background: var(--fill-2); transition: background 0.3s; }
-.dz-dots i.on { background: var(--accent); }
-.dz-sub { font-size: 16px; line-height: 1.45; margin: 10px 0 20px; }
-.dz-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 22px 4px 8px; }
-.dz-label > span { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
-.dz-label .seg { width: 150px; }
-.dz-calc { text-align: center; color: var(--text-2); font-size: 15px; margin: 16px 0 0; }
-.dz-note { font-size: 15px; line-height: 1.45; margin: 16px 4px 0; }
+
+
+
+
+
+
+
+
+
+
+
+
 .dz-q { margin-bottom: 12px; }
 .dz-q-h { display: flex; align-items: center; gap: 10px; padding: 14px 0 6px; font-size: 17px; }
 .dz-ideas { padding: 16px 0 0; }
 .dz-ready { text-align: center; padding: 24px 0 20px; }
 .dz-ready .ny-year { font-size: 56px; }
 .dz-ready p { font-size: 16px; margin: 8px 0 0; }
-.dz-foot { margin-top: auto; padding-top: 24px; }
+
 .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .pick {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-height: 92px; padding: 14px;
@@ -732,6 +731,15 @@ input[type='number'] { -moz-appearance: textfield; }
 .page > :nth-child(n + 8) { animation-delay: 200ms; }
 
 /* ---------- tab bar ---------- */
+/* Switching tabs (startViewTransition in app.js): the page cross-fades with a small slide; the tab bar stays put */
+::view-transition-old(root) { animation: 0.16s ease-in both vtOut; }
+::view-transition-new(root) { animation: 0.26s var(--spring) both vtIn; }
+[data-tab-dir='back']::view-transition-new(root) { animation-name: vtInBack; }
+@keyframes vtOut { to { opacity: 0; } }
+@keyframes vtIn { from { opacity: 0; transform: translateX(14px); } }
+@keyframes vtInBack { from { opacity: 0; transform: translateX(-14px); } }
+.tabbar { view-transition-name: tabbar; }
+::view-transition-group(tabbar) { animation: none; }
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   display: flex; justify-content: center;
@@ -1169,6 +1177,10 @@ input:autofill { background: transparent; }
 .act-done { margin-top: 6px; font-size: 13px; color: var(--green); font-weight: 600; }
 .act-empty { text-align: center; padding: 40px 20px; }
 .act-empty b { display: block; font-size: 18px; margin-top: 6px; }
+.act-empty p { margin: 6px auto 0; max-width: 280px; font-size: 14px; }
+/* Couldn't refresh, but the last feed is still showing */
+.act-stale { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--fill); font-size: 13px; color: var(--text-2); }
+.act-stale .link { flex: none; }
 
 /* ---------- SOS: ask buddies ---------- */
 .sos-ask { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; margin-top: 12px; border-radius: var(--r-md); text-align: left;
@@ -1316,3 +1328,8 @@ input:autofill { background: transparent; }
 @media (prefers-reduced-motion: reduce) { .wr-slide > *, .wr-bars i.now::after { animation: none !important; } .lung-orb { transition: none; } }
 .wr-share { text-align: center; }
 .wr-big.txt { font-size: 54px; letter-spacing: -0.03em; }
+
+/* ---------- screens whose code loads on first open (lazy() in ui.js) ---------- */
+.lazy-wait { padding: 48px 20px; text-align: center; color: var(--text-2); font-size: 15px; animation: lazyIn 0.3s 0.15s both; }
+.lazy-fail { margin: 24px 16px; padding: 16px; border-radius: var(--r-md); background: var(--fill); text-align: center; color: var(--text-2); font-size: 15px; }
+@keyframes lazyIn { from { opacity: 0; } }

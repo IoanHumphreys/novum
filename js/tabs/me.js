@@ -6,7 +6,7 @@ import { healthFor, ADDICTIONS } from '../content.js';
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, stopPushSync, deviceState } from '../push.js';
 import * as A from '../api.js';
 import { stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from '../sync.js';
-import { CodeInput, Resend, EyeButton } from '../onboarding.js';
+import { CodeInput, Resend, EyeButton } from '../authkit.js';
 import { openInstallGuide, canInstall, installEnv } from '../install.js';
 import { openBuddies, refreshBuddies } from '../social.js';
 import { refreshActivity } from '../activity.js';
