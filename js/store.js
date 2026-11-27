@@ -37,6 +37,10 @@ export function defaultState() {
     ],
     checkins: {},
     goals: [],
+    reasons: [],
+    // { id, t, quitIds, triggers, beaten, secs }
+    cravings: [],
+    notify: { enabled: false, deviceId: '', milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00' },
     createdAt: new Date().toISOString(),
   };
 }
@@ -54,7 +58,13 @@ function load() {
 }
 function migrate(s) {
   const d = defaultState();
-  return { ...d, ...s, profile: { ...d.profile, ...(s.profile || {}) }, quits: s.quits || d.quits, checkins: s.checkins || {}, goals: s.goals || [] };
+  return {
+    ...d, ...s,
+    profile: { ...d.profile, ...(s.profile || {}) },
+    quits: s.quits || d.quits, checkins: s.checkins || {}, goals: s.goals || [],
+    reasons: s.reasons || [], cravings: s.cravings || [],
+    notify: { ...d.notify, ...(s.notify || {}) },
+  };
 }
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('Novum: save failed', e); }
@@ -91,6 +101,16 @@ export function splitDuration(ms) {
   return { d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600), m: Math.floor((s % 3600) / 60), s: s % 60 };
 }
 // Money saved by a quit inside a [from, to] window (ms timestamps)
+// "I slipped": keep the best run, log the reset, start again from now
+export function restartQuit(id) {
+  update((d) => {
+    const x = d.quits.find((y) => y.id === id);
+    if (!x) return;
+    x.best = Math.max(x.best || 0, quitElapsed(x));
+    x.resets = [...(x.resets || []), { from: x.start, to: toLocalInput(new Date()) }];
+    x.start = toLocalInput(new Date());
+  });
+}
 export function savedInWindow(q, from, to, now = Date.now()) {
   const a = Math.max(from, quitStart(q).getTime());
   const b = Math.min(to, now);

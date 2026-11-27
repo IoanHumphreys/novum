@@ -4,7 +4,8 @@ import {
   html, haptic, useNow, Icon, Ring, RingStack, openSheet, SheetHost, SheetBar, Page, Segmented, Toggle,
   Group, Row, Field, LineChart, Legend, Empty, toast,
 } from './ui.js';
-import { MILESTONES, HEALTH, HEALTH_NOTE, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS } from './content.js';
+import { MILESTONES, HEALTH, HEALTH_NOTE, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
+import { pushConfigured, pushSupported, isStandalone, isIOS, permission, enablePush, disablePush, sendTest, startPushSync } from './push.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -83,6 +84,12 @@ function Home({ s, go }) {
     <div class="stack">
       ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} now=${now} />`)}
     </div>
+
+    <${SosButton} />
+    ${s.reasons.length > 0 && html`<button class="why tap" onClick=${openReasons}>
+      <span class="why-k">Remember why</span>
+      <span class="why-t">“${s.reasons[Math.floor(now / 864e5) % s.reasons.length].text}”</span>
+    </button>`}
 
     <button class="card money-card tap" onClick=${() => go('profile')}>
       <div class="mc-l">
@@ -223,6 +230,8 @@ function CheckIn({ s }) {
           <span class="mood-e">${m.e}</span><span class="mood-l">${m.l}</span></button>`)}
       </div>
     <//>
+
+    <${SosButton} compact />
 
     <${Group} header="Cravings" footer="0 = none, 10 = the strongest you’ve felt. Cravings usually pass within 5–10 minutes.">
       ${s.quits.map((q) => html`<div class="slider-row">
@@ -563,6 +572,15 @@ function Progress({ s, go }) {
     return ch < 0 ? `Cravings are down ${-ch}% compared with your first check-ins.` : ch > 0 ? `Cravings are up ${ch}% on your first check-ins. Tough patches are normal. Keep going.` : 'Cravings are holding steady.';
   })();
 
+  // craving triggers, most common first
+  const trigCount = {};
+  s.cravings.forEach((c) => (c.triggers || []).forEach((t) => { trigCount[t] = (trigCount[t] || 0) + 1; }));
+  const trig = Object.entries(trigCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const hours = Array(24).fill(0);
+  s.cravings.forEach((c) => { hours[new Date(c.t).getHours()]++; });
+  const ph = hours.indexOf(Math.max(...hours));
+  const peakHour = `${pad2(ph)}:00–${pad2((ph + 1) % 24)}:00`;
+
   // monthly consistency in 2027 (days with a check-in or a habit tick)
   const activeDays = new Set([...Object.keys(s.checkins), ...s.goals.flatMap((g) => g.ticks || [])]);
   const months = Array.from({ length: 12 }, (_, m) => {
@@ -599,6 +617,8 @@ function Progress({ s, go }) {
       <div class="tile"><span class="tile-k">🎯 Goals</span><b>${complete}/${s.goals.length}</b><span class="tile-u">complete</span></div>
       <div class="tile"><span class="tile-k">🔥 Best streak</span><b>${bestStreak}</b><span class="tile-u">on a habit</span></div>
       <div class="tile"><span class="tile-k">✍️ Check-ins</span><b>${Object.keys(s.checkins).length}</b><span class="tile-u">logged</span></div>
+      <div class="tile"><span class="tile-k">🛡️ Cravings beaten</span><b>${s.cravings.filter((c) => c.beaten).length}</b><span class="tile-u">with SOS</span></div>
+      <div class="tile"><span class="tile-k">⏱️ SOS time</span><b>${Math.round(s.cravings.reduce((a, c) => a + (c.secs || 0), 0) / 60)}</b><span class="tile-u">minutes ridden out</span></div>
     </div>
 
     <div class="pad-x mt16"><${Segmented} options=${[{ value: 14, label: '2 weeks' }, { value: 30, label: '30 days' }, { value: 90, label: '90 days' }]} value=${range} onChange=${setRange} /></div>
@@ -619,6 +639,18 @@ function Progress({ s, go }) {
         ${insight && html`<p class="insight">${insight}</p>`}
       </div>
     </section>
+
+    ${trig.length > 0 && html`<section class="group">
+      <h2 class="group-h">What sets cravings off</h2>
+      <div class="card pad bars">
+        ${trig.map(([name, n]) => html`<div class="bar-row">
+          <span class="bar-l">${name}</span>
+          <span class="bar-t"><i style="width:${(n / trig[0][1]) * 100}%"></i></span>
+          <b>${n}</b>
+        </div>`)}
+        <p class="tiny muted">From ${s.cravings.length} craving${s.cravings.length === 1 ? '' : 's'} logged with SOS. Most common time: ${peakHour}.</p>
+      </div>
+    </section>`}
 
     <section class="group">
       <div class="group-h-row"><h2 class="group-h">Weight</h2><button class="link sm" onClick=${openWeightSheet}>Log weight</button></div>
@@ -676,9 +708,12 @@ function Profile({ s }) {
         detail=${`${S.money(q.monthly, 0)}/mo`} chevron onClick=${() => openQuitEditor(q.id)} />`)}
     <//>
 
-    <${Group} header="Health">
+    <${Group} header="Staying quit">
+      <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" sub=${s.reasons.length ? `${s.reasons.length} reason${s.reasons.length === 1 ? '' : 's'} · shown during SOS` : 'Why you quit, for the hard moments'} chevron onClick=${openReasons} />
       <${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" sub="What’s improving, stage by stage" chevron onClick=${() => openTimeline('vape')} />
     <//>
+
+    <${NotifySettings} s=${s} />
 
     <${Group} header="Your data" footer="Everything stays on this phone. Export a backup now and then, especially before changing phone or clearing Safari data.">
       <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export backup" sub="Saves a .json file" chevron onClick=${doExport} />
@@ -782,10 +817,7 @@ function QuitEditor({ id, close }) {
     title: 'Restart counter', danger: true,
     text: `A slip isn’t a failure. Most people who quit for good had a few tries first. Your best run (${Math.floor(best / DAY)} days) stays on record, and the counter starts again from now.`,
     confirm: 'Restart from now',
-    onConfirm: () => {
-      S.update((d) => { const x = d.quits.find((y) => y.id === id); x.best = Math.max(x.best || 0, S.quitElapsed(x)); x.resets = [...(x.resets || []), { from: x.start, to: S.toLocalInput(new Date()) }]; x.start = S.toLocalInput(new Date()); });
-      close(); toast('Counter restarted. You’ve got this.');
-    },
+    onConfirm: () => { S.restartQuit(id); close(); toast('Counter restarted. You’ve got this.'); },
   });
   const m = parseFloat(monthly) || 0;
   return html`
@@ -834,6 +866,212 @@ function Timeline({ initial, close }) {
     </div>`;
 }
 
+/* ============ CRAVING SOS ============ */
+const SOS_SECS = 300;
+const BREATH = ['Breathe in', 'Hold', 'Breathe out']; // 4s, 4s, 6s = 14s cycle
+
+function SosButton({ compact }) {
+  return html`<button class="sos tap ${compact ? 'compact' : ''}" onClick=${openSos}>
+    <span class="sos-ic">🫁</span>
+    <span class="row-main"><span class="sos-t">Craving? Tap here</span>
+      ${!compact && html`<span class="sos-s">Breathe through it for 5 minutes. It will pass.</span>`}</span>
+    <span class="row-chev">${Icon.chevron()}</span>
+  </button>`;
+}
+
+function openSos() { openSheet((close) => html`<${Sos} close=${close} />`, { tall: true }); }
+
+function Sos({ close }) {
+  const s = S.getState();
+  const [t0] = useState(Date.now());
+  const now = useNow(250);
+  const [step, setStep] = useState('ride');
+  const [beaten, setBeaten] = useState(true);
+  const [quitIds, setQuitIds] = useState(s.quits.map((q) => q.id));
+  const [triggers, setTriggers] = useState([]);
+  const [restart, setRestart] = useState([]);
+  const [secs, setSecs] = useState(0);
+  const el = (now - t0) / 1000;
+  const left = Math.max(0, SOS_SECS - Math.floor(el));
+  const cyc = el % 14;
+  const phase = cyc < 4 ? 0 : cyc < 8 ? 1 : 2;
+  const lastPhase = useRef(phase);
+  useEffect(() => { if (step === 'ride' && lastPhase.current !== phase) { lastPhase.current = phase; haptic(phase === 0 ? 12 : 6); } }, [phase]);
+
+  // Cards that rotate under the breathing circle
+  const [cards] = useState(() => {
+    const sel = s.quits;
+    const saved = sel.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q)), 0);
+    const tips = [...DISTRACTIONS].sort(() => Math.random() - 0.5).slice(0, 4);
+    const reasons = s.reasons.map((r) => ({ k: 'Your reason', e: '💙', t: r.text }));
+    const others = [{ k: 'Money saved', e: '💷', t: `${S.money(saved)} so far. This craving wants to take that back.` }];
+    sel.forEach((q) => {
+      const d = S.quitElapsed(q) / DAY;
+      const mi = milestoneInfo(d);
+      others.push({ k: `${q.label}-free`, e: q.emoji, t: `${Math.floor(d)} days in.${mi.next ? ` ${mi.next.label} in ${fmtLeft(mi.next.days - d)}. Don’t reset the clock for five minutes of nothing.` : ''}` });
+    });
+    tips.forEach((x) => others.push({ k: 'Try this now', e: x.e, t: x.t }));
+    // alternate: reason, other, reason, other…
+    const out = [];
+    for (let i = 0; i < Math.max(reasons.length, others.length); i++) {
+      if (reasons[i]) out.push(reasons[i]);
+      if (others[i]) out.push(others[i]);
+    }
+    return out;
+  });
+  const card = cards[Math.floor(el / 9) % cards.length];
+
+  const finish = (b) => { haptic(15); setBeaten(b); setSecs(Math.round(el)); setStep('log'); };
+  const toggleIn = (list, set, v) => { haptic(); set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]); };
+  const save = () => {
+    const total = s.cravings.filter((c) => c.beaten).length + (beaten ? 1 : 0);
+    S.update((d) => d.cravings.push({ id: S.uid(), t: Date.now(), quitIds, triggers, beaten, secs }));
+    restart.forEach((id) => S.restartQuit(id));
+    close();
+    toast(beaten ? `Craving beaten. That’s ${total} 🛡️` : restart.length ? 'Counter restarted. Go again.' : 'Logged. Keep going.');
+  };
+
+  if (step === 'log') {
+    return html`
+      <${SheetBar} title=${beaten ? 'Craving beaten' : 'That’s okay'} right=${html`<button class="link b" onClick=${save}>Save</button>`} />
+      <div class="sheet-body">
+        <div class="sos-done">
+          <div class="sos-done-e">${beaten ? '🛡️' : '🤝'}</div>
+          <h2>${beaten ? 'You rode it out.' : 'One slip doesn’t undo the work.'}</h2>
+          <p class="muted">${beaten
+            ? `${secs < 60 ? 'Under a minute' : `${Math.round(secs / 60)} minute${Math.round(secs / 60) === 1 ? '' : 's'}`} and it passed. Every craving you beat makes the next one weaker.`
+            : 'Most people who quit for good slipped along the way. What matters is the next choice. Logging it honestly helps you spot the pattern.'}</p>
+        </div>
+        <${Group} header="Which craving?">
+          <div class="chip-row">${s.quits.map((q) => html`<button class="chip big ${quitIds.includes(q.id) ? 'on' : ''}" style="--c:${q.color}" onClick=${() => toggleIn(quitIds, setQuitIds, q.id)}>${q.emoji} ${q.label}</button>`)}</div>
+        <//>
+        <${Group} header="What set it off?" footer="Pick any that fit. Progress shows your most common triggers.">
+          <div class="chip-row">${TRIGGERS.map((t) => html`<button class="chip big ${triggers.includes(t) ? 'on' : ''}" style="--c:#3B9BFF" onClick=${() => toggleIn(triggers, setTriggers, t)}>${t}</button>`)}</div>
+        <//>
+        ${!beaten && html`<${Group} header="Counter" footer="Only restart if you actually used. Thinking about it, or a close call, doesn’t count.">
+          ${s.quits.filter((q) => quitIds.includes(q.id)).map((q) => html`<div class="row" key=${q.id}>
+            <span class="row-ic" style="background:${q.color}">${q.emoji}</span>
+            <span class="row-main"><span class="row-title">Restart ${q.label.toLowerCase()} counter</span><span class="row-sub">Best run is kept on record</span></span>
+            <${Toggle} on=${restart.includes(q.id)} label=${`Restart ${q.label}`} onChange=${() => toggleIn(restart, setRestart, q.id)} />
+          </div>`)}
+        <//>`}
+        <button class="btn btn-primary block big" onClick=${save}>Save</button>
+      </div>`;
+  }
+
+  const mm = Math.floor(left / 60), ss = pad2(left % 60);
+  return html`
+    <${SheetBar} title="Craving SOS" left=${html`<button class="link" onClick=${close}>Close</button>`} />
+    <div class="sheet-body sos-body">
+      <div class="breath-stage">
+        <div class="breath-ring"></div>
+        <div class="breath"></div>
+        <div class="breath-label">${BREATH[phase]}</div>
+      </div>
+      <div class="sos-timer">${left > 0 ? html`<b>${mm}:${ss}</b><span>Cravings peak and fade within 5–10 minutes. Ride the wave.</span>`
+        : html`<b>Done</b><span>Five minutes. How’s the craving now?</span>`}</div>
+      <div class="card sos-card" key=${card.t}>
+        <span class="sos-card-e">${card.e}</span>
+        <div><div class="sos-card-k">${card.k}</div><div class="sos-card-t">${card.t}</div></div>
+      </div>
+      ${s.reasons.length === 0 && html`<button class="link sm center-link" onClick=${openReasons}>Add your reasons for quitting, so they show up here</button>`}
+      <div class="sos-actions">
+        <button class="btn btn-primary block big ${left === 0 ? 'glow' : ''}" onClick=${() => finish(true)}>I beat it 💪</button>
+        <button class="btn btn-plain block" onClick=${() => finish(false)}>I gave in</button>
+      </div>
+    </div>`;
+}
+
+function openReasons() { openSheet((close) => html`<${Reasons} close=${close} />`, { tall: true }); }
+function Reasons({ close }) {
+  const s = S.getState();
+  const [txt, setTxt] = useState('');
+  const add = (t) => {
+    t = t.trim();
+    if (!t) return;
+    haptic(10);
+    S.update((d) => d.reasons.push({ id: S.uid(), text: t }));
+    setTxt('');
+  };
+  const have = new Set(s.reasons.map((r) => r.text));
+  return html`
+    <${SheetBar} title="My reasons" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body">
+      <p class="muted center sheet-intro">Why did you quit? Write it in your own words. These show up in Craving SOS and on Home, when you need them most.</p>
+      <div class="card entry-add">
+        <input placeholder="I quit because…" value=${txt} maxlength="140" onInput=${(e) => setTxt(e.target.value)} onKeyDown=${(e) => e.key === 'Enter' && add(txt)} />
+        <button class="btn btn-primary sm" disabled=${!txt.trim()} onClick=${() => add(txt)}>Add</button>
+      </div>
+      ${s.reasons.length > 0 && html`<${Group} header="Your reasons">
+        ${s.reasons.map((r) => html`<div class="row" key=${r.id}>
+          <span class="row-ic" style="background:#3B9BFF">💙</span>
+          <span class="row-main"><span class="row-title">${r.text}</span></span>
+          <button class="icon-btn muted" aria-label="Delete reason" onClick=${() => S.update((d) => { d.reasons = d.reasons.filter((x) => x.id !== r.id); })}>${Icon.trash()}</button>
+        </div>`)}
+      <//>`}
+      <${Group} header="Ideas" footer="Tap to add. Edit later by deleting and rewriting in your own words.">
+        ${REASON_IDEAS.filter((t) => !have.has(t)).map((t) => html`<button class="row tap" key=${t} onClick=${() => add(t)}>
+          <span class="row-main"><span class="row-title">${t}</span></span>
+          <span class="add-pill">${Icon.plus()}</span>
+        </button>`)}
+      <//>
+    </div>`;
+}
+
+/* ============ NOTIFICATIONS ============ */
+function NotifySettings({ s }) {
+  const n = s.notify;
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const setN = (patch) => S.update((d) => Object.assign(d.notify, patch));
+  const configured = pushConfigured();
+  const toggleMain = async (on) => {
+    if (busy) return;
+    setErr(''); setBusy(true);
+    try {
+      if (on) { await enablePush(); toast('Notifications on 🔔'); } else { await disablePush(); toast('Notifications off'); }
+    } catch (e) { setErr(e.message); }
+    setBusy(false);
+  };
+  const test = async () => {
+    setErr('');
+    try { await sendTest(); toast('Test sent. Check your notifications'); } catch (e) { setErr(e.message); }
+  };
+  let footer;
+  if (!configured) footer = 'Notifications need the free Novum push server. Follow the guide in the novum-push folder, then add its address to js/config.js.';
+  else if (isIOS() && !isStandalone()) footer = 'On iPhone, notifications only work when Novum is opened from your home screen.';
+  else if (!pushSupported()) footer = 'This browser doesn’t support push notifications.';
+  else if (permission() === 'denied') footer = 'Notifications are blocked. Turn them on in Settings → Notifications → Novum.';
+  else footer = 'Sent by your own Novum server. It only knows your quit times, reminder times and which habits you’ve ticked. Notes and moods stay on this phone.';
+
+  return html`<${Group} header="Notifications" footer=${err ? html`<span class="err">${err}</span>` : footer}>
+    <div class="row">
+      <span class="row-ic" style="background:#FF453A">🔔</span>
+      <span class="row-main"><span class="row-title">Notifications</span>${busy && html`<span class="row-sub">Working…</span>`}</span>
+      ${configured ? html`<${Toggle} on=${n.enabled} label="Notifications" onChange=${toggleMain} />` : html`<span class="row-detail">Not set up</span>`}
+    </div>
+    ${n.enabled && configured && html`
+      <div class="row">
+        <span class="row-ic" style="background:#FFD60A">🏅</span>
+        <span class="row-main"><span class="row-title">Milestones</span><span class="row-sub">1 day, 1 week, 1 month… sent between 9am and 10pm</span></span>
+        <${Toggle} on=${n.milestones} label="Milestones" onChange=${(v) => setN({ milestones: v })} />
+      </div>
+      <div class="row">
+        <span class="row-ic" style="background:#30D158">✍️</span>
+        <span class="row-main"><span class="row-title">Check-in reminder</span><span class="row-sub">Skipped if you’ve already checked in</span></span>
+        ${n.checkin && html`<input type="time" class="time-in" value=${n.checkinAt} onChange=${(e) => e.target.value && setN({ checkinAt: e.target.value })} />`}
+        <${Toggle} on=${n.checkin} label="Check-in reminder" onChange=${(v) => setN({ checkin: v })} />
+      </div>
+      <div class="row">
+        <span class="row-ic" style="background:#BF5AF2">🎯</span>
+        <span class="row-main"><span class="row-title">Habit nudges</span><span class="row-sub">Habits not ticked yet today</span></span>
+        ${n.habits && html`<input type="time" class="time-in" value=${n.habitsAt} onChange=${(e) => e.target.value && setN({ habitsAt: e.target.value })} />`}
+        <${Toggle} on=${n.habits} label="Habit nudges" onChange=${(v) => setN({ habits: v })} />
+      </div>
+      <${Row} icon="📨" iconBg="#3B9BFF" title="Send a test notification" chevron onClick=${test} />`}
+  <//>`;
+}
+
 /* ============ APP SHELL ============ */
 function TabBar({ tab, go, dot }) {
   return html`<nav class="tabbar" aria-label="Main">
@@ -864,6 +1102,12 @@ function App() {
     history.replaceState(null, '', '#' + t);
   };
   useLayoutEffect(() => { window.scrollTo(0, scrolls.current[tab] || 0); onScroll(); }, [tab]);
+  // Notification taps navigate to e.g. #checkin
+  useEffect(() => {
+    const on = () => { const h = location.hash.slice(1); if (TABS.some((t) => t.id === h)) setTab(h); };
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
   const Screen = { home: Home, checkin: CheckIn, goals: Goals, progress: Progress, profile: Profile }[tab];
   const needCheckin = !s.checkins[S.dayKey()]?.mood;
   return html`<div class="app">
@@ -874,3 +1118,4 @@ function App() {
 }
 
 render(html`<${App} />`, document.getElementById('app'));
+startPushSync();

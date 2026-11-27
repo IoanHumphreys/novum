@@ -78,6 +78,31 @@ export const PRESETS = [
   { key: '10k', make: () => ({ name: 'Run a 10K', emoji: '🏆', color: '#FF9F0A', category: 'fitness', type: 'milestone', period: '2027' }) },
 ];
 
+export const TRIGGERS = ['Stress', 'Boredom', 'Friends', 'After food', 'Alcohol', 'Evening', 'Tired', 'Routine', 'Anxious', 'Celebrating', 'Other'];
+
+export const DISTRACTIONS = [
+  { e: '💧', t: 'Drink a full glass of cold water, slowly.' },
+  { e: '🚶', t: 'Walk outside or round the block for five minutes.' },
+  { e: '💪', t: 'Do 20 push-ups or 30 squats. Right now.' },
+  { e: '🪥', t: 'Brush your teeth. Nothing tastes good after.' },
+  { e: '📱', t: 'Text a mate. You don’t have to mention the craving.' },
+  { e: '🍬', t: 'Chew gum or eat something crunchy.' },
+  { e: '🚿', t: 'Splash cold water on your face or take a quick shower.' },
+  { e: '🎧', t: 'Put one song on loud and do nothing else until it ends.' },
+  { e: '🧊', t: 'Hold an ice cube. The cold resets your focus.' },
+  { e: '📝', t: 'Write down exactly what you feel. Naming it shrinks it.' },
+];
+
+export const REASON_IDEAS = [
+  'Save money for things I actually want',
+  'Sleep properly and wake up clear',
+  'Breathe better when I train',
+  'Be in control, not the habit',
+  'Sharper memory and focus for study',
+  'Feel calmer without needing a hit',
+  'Be proud of myself',
+];
+
 export const MOODS = [
   { v: 1, e: '😣', l: 'Awful' },
   { v: 2, e: '😕', l: 'Low' },
