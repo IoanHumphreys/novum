@@ -867,3 +867,18 @@ input[type='number'] { -moz-appearance: textfield; }
 .ig-welcome .btn { width: 100%; }
 
 @media (prefers-reduced-motion: reduce) { .ig-hot, .ig-menu > span.on { animation: none; } }
+
+/* delete account, step 2 */
+.del-code { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding-top: 4px; }
+.del-code .code { width: 100%; margin-top: 14px; }
+.del-code .btn { width: 100%; margin-top: 10px; }
+.tf-row input { flex: 1; min-width: 0; }
+
+/* Autofill: keep Novum's colours instead of the browser's yellow/blue */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text); caret-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset; box-shadow: 0 0 0 1000px var(--card) inset;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+.wiz-in:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px var(--card-2) inset; box-shadow: 0 0 0 1000px var(--card-2) inset; }
+input:autofill { background: transparent; }

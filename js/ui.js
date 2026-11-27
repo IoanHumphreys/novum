@@ -7,6 +7,9 @@ export { html };
 /* ---------- haptics ---------- */
 // Android: Vibration API. iOS 18+: toggling a hidden <input switch> fires a system haptic.
 let hapticLabel;
+// Capital at the start of each word ("mary-jane o'neil" → "Mary-Jane O'neil"); never lowercases anything
+export const capName = (v) => v.replace(/(^|[\s-])(\p{Ll})/gu, (_, a, b) => a + b.toUpperCase());
+
 export function haptic(ms = 8) {
   try {
     if (navigator.vibrate) { navigator.vibrate(ms); return; }
@@ -97,6 +100,7 @@ export function openSheet(render, opts = {}) {
   emitSheets(); haptic(6);
   return () => closeSheet(id);
 }
+export function closeAllSheets() { sheets.forEach((s) => closeSheet(s.id)); }
 export function closeSheet(id) {
   sheets = sheets.map((s) => (s.id === id ? { ...s, closing: true } : s));
   emitSheets();

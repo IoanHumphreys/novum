@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { html, haptic, Icon, Segmented, toast, useNow } from './ui.js';
+import { html, haptic, Icon, Segmented, toast, useNow, capName } from './ui.js';
 import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
 import { enablePush, pushSupported, isStandalone } from './push.js';
 import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
@@ -190,8 +190,8 @@ function SignUp({ back, toLogin }) {
       ${step === 'name' && html`
         <${Q} emoji="👋" title="First, what’s your name?" sub="This is how Novum will greet you." />
         <div class="wiz-pair">
-          <${BigInput} inputRef=${focusRef} placeholder="First name" autocomplete="given-name" enterkeyhint="next" maxlength="50" value=${f.firstName} onInput=${set('firstName')} />
-          <${BigInput} placeholder="Last name" autocomplete="family-name" enterkeyhint="next" maxlength="50" value=${f.lastName} onInput=${set('lastName')} />
+          <${BigInput} inputRef=${focusRef} placeholder="First name" autocomplete="given-name" autocapitalize="words" enterkeyhint="next" maxlength="50" value=${f.firstName} onInput=${(e) => { setErr(''); setF({ ...f, firstName: capName(e.target.value) }); }} />
+          <${BigInput} placeholder="Last name" autocomplete="family-name" autocapitalize="words" enterkeyhint="next" maxlength="50" value=${f.lastName} onInput=${(e) => { setErr(''); setF({ ...f, lastName: capName(e.target.value) }); }} />
         </div>`}
 
       ${step === 'username' && html`

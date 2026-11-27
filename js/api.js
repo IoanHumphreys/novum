@@ -88,4 +88,6 @@ export async function updateMe(fields) {
   return r.user;
 }
 export const changePassword = (current, next) => call('POST', '/me/password', { current, next });
-export const deleteAccount = (password) => call('DELETE', '/me', { password });
+// Delete: password → code emailed (unless email is off on the server) → delete
+export const deleteCode = (password) => call('POST', '/me/delete-code', { password });
+export const deleteAccount = (password, code) => call('DELETE', '/me', { password, code });

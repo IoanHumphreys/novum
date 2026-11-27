@@ -1,14 +1,14 @@
 import { render, useState, useEffect, useLayoutEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import {
-  html, haptic, useNow, Icon, Ring, RingStack, openSheet, SheetHost, SheetBar, Page, Segmented, Toggle,
+  html, haptic, capName, useNow, Icon, Ring, RingStack, openSheet, closeAllSheets, SheetHost, SheetBar, Page, Segmented, Toggle,
   Group, Row, Field, LineChart, Legend, Empty, toast,
 } from './ui.js';
 import { MILESTONES, HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, quitPresets, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, sendTest, startPushSync, stopPushSync, deviceState, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from './sync.js';
-import { AuthScreen, DayZero, consumeNewSignup, CodeInput, Resend } from './onboarding.js';
+import { AuthScreen, DayZero, consumeNewSignup, CodeInput, Resend, EyeButton } from './onboarding.js';
 import { InstallBanner, openInstallGuide, canInstall, installEnv, maybeWelcomeInstalled } from './install.js';
 
 const DAY = 864e5;
@@ -875,8 +875,8 @@ function Account({ close }) {
     <${SheetBar} title="Account" left=${html`<button class="link" onClick=${close}>Close</button>`} right=${html`<button class="link b" disabled=${!changed || busy} onClick=${save}>${busy ? 'Saving…' : 'Save'}</button>`} />
     <div class="sheet-body">
       <${Group} header="Your details" footer=${msg?.err ? html`<span class="err">${msg.err}</span>` : `Member since ${user.createdAt ? S.fmtDate(new Date(user.createdAt)) : '–'}`}>
-        <${Field} label="First name"><input autocomplete="given-name" value=${f.firstName} onInput=${set('firstName')} /><//>
-        <${Field} label="Last name"><input autocomplete="family-name" value=${f.lastName} onInput=${set('lastName')} /><//>
+        <${Field} label="First name"><input autocomplete="given-name" autocapitalize="words" value=${f.firstName} onInput=${(e) => setF({ ...f, firstName: capName(e.target.value) })} /><//>
+        <${Field} label="Last name"><input autocomplete="family-name" autocapitalize="words" value=${f.lastName} onInput=${(e) => setF({ ...f, lastName: capName(e.target.value) })} /><//>
         <${Field} label="Username"><input autocapitalize="none" autocorrect="off" spellcheck="false" value=${f.username} onInput=${set('username')} /><//>
         <${Row} title="Email" detail=${user.email} chevron onClick=${openChangeEmail} />
       <//>
@@ -966,30 +966,75 @@ function PasswordSheet({ close }) {
 function openDeleteAccount() { openSheet((close) => html`<${DeleteAccount} close=${close} />`); }
 function DeleteAccount({ close }) {
   const [pw, setPw] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const go = async () => {
-    setBusy(true); setErr('');
+  const [codeFor, setCodeFor] = useState(null); // { emailHint } once the code is sent
+  const [code, setCode] = useState('');
+  const [sentAt, setSentAt] = useState(0);
+  const codeRef = useRef();
+  useEffect(() => { if (codeFor) setTimeout(() => codeRef.current?.focus({ preventScroll: true }), 350); }, [codeFor]);
+
+  // Gone: stop everything on this phone, clear its data and go back to the welcome screen
+  const finish = async () => {
     const uid = A.getSession()?.user?.id;
+    stopPushSync(); stopSync();
+    closeAllSheets();
+    A.setSession(null);
+    S.closeUser({ wipe: true });
+    if (uid) forgetMeta(uid);
+    try { localStorage.removeItem(`novum.push:${uid}`); } catch { /* ignore */ }
+    history.replaceState(null, '', location.pathname);
+    window.scrollTo(0, 0);
+    toast('Account deleted');
+  };
+  const del = async (c = code) => {
+    if (busy) return;
+    setBusy(true); setErr('');
     try {
       try { await disablePush(); } catch { /* ignore */ }
-      await A.deleteAccount(pw);
-      stopPushSync(); stopSync();
-      A.setSession(null);
-      S.closeUser({ wipe: true });
-      if (uid) forgetMeta(uid);
-      close();
-      toast('Account deleted');
-    } catch (e) { setErr(e.message); setBusy(false); }
+      await A.deleteAccount(pw, c);
+      haptic(20);
+      await finish();
+    } catch (e) {
+      setBusy(false); setCode('');
+      setErr(e.message);
+      if (e.data?.needsCode) setCodeFor(codeFor || { emailHint: 'your email' });
+    }
   };
+  // Step 1: check the password and email a code
+  const sendCode = async () => {
+    if (busy || !pw) return;
+    setBusy(true); setErr('');
+    try {
+      const r = await A.deleteCode(pw);
+      if (r.skipped) { setBusy(false); return del(''); }
+      setCodeFor({ emailHint: r.emailHint }); setSentAt(Date.now()); setCode('');
+    } catch (e) { setErr(e.message); }
+    setBusy(false);
+  };
+
   return html`
-    <${SheetBar} title="Delete account" left=${html`<button class="link" onClick=${close}>Cancel</button>`} />
+    <${SheetBar} title="Delete account" left=${html`<button class="link" onClick=${codeFor ? () => { setCodeFor(null); setErr(''); setCode(''); } : close}>${codeFor ? 'Back' : 'Cancel'}</button>`} />
     <div class="sheet-body">
-      <p class="confirm-text">This permanently deletes your account, counters, check-ins, goals and notes from Novum. Export a copy first if you might want it.</p>
-      <${Group} footer=${err ? html`<span class="err">${err}</span>` : ''}>
-        <${Field} label="Password"><input type="password" autocomplete="current-password" value=${pw} onInput=${(e) => setPw(e.target.value)} /><//>
-      <//>
-      <button class="btn btn-danger block" disabled=${!pw || busy} onClick=${go}>${busy ? 'Deleting…' : 'Delete my account'}</button>
+      ${!codeFor ? html`
+        <p class="confirm-text">This permanently deletes your account, counters, check-ins, goals and notes from Novum. Export a copy first if you might want it.</p>
+        <${Group} header="Step 1 of 2 · Your password" footer=${err ? html`<span class="err">${err}</span>` : 'Then we’ll email you a code to make sure it’s really you.'}>
+          <${Field} label="Password"><div class="tf-row"><input type=${showPw ? 'text' : 'password'} autocomplete="current-password" value=${pw}
+            onInput=${(e) => { setErr(''); setPw(e.target.value); }} onKeyDown=${(e) => e.key === 'Enter' && sendCode()} />
+            <${EyeButton} on=${showPw} set=${setShowPw} /></div><//>
+        <//>
+        <button class="btn btn-danger block" disabled=${!pw || busy} onClick=${sendCode}>${busy ? 'Checking…' : 'Continue'}</button>`
+      : html`
+        <div class="del-code">
+          <div class="wiz-emoji">📬</div>
+          <h2 class="auth-title center">Check your email</h2>
+          <p class="wiz-sub center">Step 2 of 2. We sent a 6-digit code to <b class="wiz-em">${codeFor.emailHint}</b>. Enter it to delete your account for good.</p>
+          <${CodeInput} inputRef=${codeRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} />
+          <${Resend} sentAt=${sentAt} onResend=${async () => { try { await A.deleteCode(pw); setSentAt(Date.now()); setCode(''); toast('New code sent'); } catch (e) { setErr(e.message); } }} />
+          ${err && html`<p class="auth-err center">${err}</p>`}
+          <button class="btn btn-danger block" disabled=${code.length !== 6 || busy} onClick=${() => del()}>${busy ? 'Deleting…' : 'Delete my account'}</button>
+        </div>`}
     </div>`;
 }
 

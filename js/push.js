@@ -25,6 +25,11 @@ function setDevice(d) { try { localStorage.setItem(devKey(), JSON.stringify(d));
 // Carry over a phone that had notifications on before accounts existed
 export function adoptLegacyDevice(n) { if (n?.enabled && n.deviceId && !deviceState().enabled) setDevice({ enabled: true, deviceId: n.deviceId }); }
 
+// navigator.serviceWorker.ready never settles if the worker failed to install, so give up after a few seconds
+const swReady = (ms = 4000) => Promise.race([
+  navigator.serviceWorker.ready,
+  new Promise((_, no) => setTimeout(() => no(new Error('Novum’s offline helper isn’t running. Close Novum fully and open it again.')), ms)),
+]);
 const b64uToBytes = (s) => {
   const pad = '='.repeat((4 - (s.length % 4)) % 4);
   const bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
@@ -46,7 +51,7 @@ export function settingsPayload(s) {
 }
 
 async function register(deviceId) {
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await swReady();
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(PUSH.vapidPublicKey) });
   await call('POST', '/subscribe', { id: deviceId, subscription: sub.toJSON(), settings: settingsPayload(S.getState()) });
@@ -74,7 +79,7 @@ export async function enablePush() {
 
 export async function disablePush() {
   const d = deviceState();
-  try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch { /* already gone */ }
+  try { const reg = await swReady(); const sub = await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch { /* already gone */ }
   if (d.deviceId) { try { await call('POST', '/unsubscribe', { id: d.deviceId }); } catch { /* offline */ } }
   setDevice({ enabled: false, deviceId: d.deviceId });
 }
