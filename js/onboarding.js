@@ -4,7 +4,8 @@ import * as S from './store.js';
 import * as A from './api.js';
 import { html, haptic, Icon, Segmented, toast, useNow } from './ui.js';
 import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
-import { enablePush, pushSupported, isIOS, isStandalone } from './push.js';
+import { enablePush, pushSupported, isStandalone } from './push.js';
+import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
 
 // Set just before a sign-up so the app can bring over pre-account data on this device
 let newSignup = false;
@@ -56,17 +57,11 @@ export function Resend({ sentAt, onResend }) {
   return html`<button type="button" class="link center-link" disabled=${left > 0} onClick=${onResend}>${left > 0 ? `Send a new code in ${left}s` : 'Didn’t get it? Send a new code'}</button>`;
 }
 
-function HomeScreenTip() {
-  if (!isIOS() || isStandalone()) return null;
-  return html`<div class="hs-tip">
-    <b>Get the full app</b>
-    <span>In Safari, tap <span class="hs-ic">${Icon.share()}</span> Share, then <b>Add to Home Screen</b>. Open Novum from there for notifications and full-screen.</span>
-  </div>`;
-}
-
 /* ============ welcome ============ */
 export function AuthScreen() {
-  const [mode, setMode] = useState('welcome');
+  // On a phone that hasn't added Novum yet, show how first: signing up inside the Home Screen app means only doing it once
+  const [mode, setMode] = useState(guideFirst() ? 'install' : 'welcome');
+  if (mode === 'install') return html`<div class="auth ig-screen"><${InstallGuide} skipLabel=${installEnv().kind === 'inapp' ? 'Continue here anyway' : 'Continue in the browser'} onSkip=${() => { skipGuide(); setMode('welcome'); }} /></div>`;
   if (mode === 'signup') return html`<${SignUp} back=${() => setMode('welcome')} toLogin=${() => setMode('login')} />`;
   if (mode === 'login') return html`<${LogIn} back=${() => setMode('welcome')} toSignup=${() => setMode('signup')} />`;
   return html`<div class="auth welcome">
@@ -433,6 +428,8 @@ export function DayZero({ user }) {
       d.reasons = d.reasons.filter((r) => reasons.includes(r.text));
       d.setupDone = true;
     });
+    // The ready step already offered notifications, so skip the "you added it" welcome in the Home Screen app
+    if (isStandalone()) markWelcomed();
     toast(`Welcome to Novum, ${user.firstName} 💙`);
   };
   const turnOnPush = async () => { setPushMsg(''); try { await enablePush(); setPushMsg('on'); haptic(15); } catch (e) { setPushMsg(e.message); } };

@@ -535,9 +535,9 @@ input[type='range'].unset::-webkit-slider-thumb { background: #8a93a6; }
 .wl-name { font-size: 40px; font-weight: 900; letter-spacing: 0.32em; margin: 26px 0 10px; padding-left: 0.32em; }
 .wl-tag { font-size: 20px; line-height: 1.4; color: var(--text-2); margin: 0; font-weight: 500; }
 .wl-actions .btn + .btn { margin-top: 10px; }
-.hs-tip { margin-top: 16px; background: var(--card); border-radius: var(--r-md); padding: 12px 14px; font-size: 14px; color: var(--text-2); line-height: 1.45; }
-.hs-tip b { color: var(--text); }
-.hs-tip > b:first-child { display: block; margin-bottom: 2px; }
+.hs-tip { margin-top: 16px; width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; background: var(--card); border-radius: var(--r-md); padding: 12px 12px 12px 14px; font-size: 14px; color: var(--text-2); line-height: 1.4; min-height: 60px; }
+.hs-tip b { display: block; color: var(--text); font-size: 15px; margin-bottom: 1px; }
+.hs-tip-ic { font-size: 24px; flex: none; }
 .hs-ic { display: inline-flex; vertical-align: -4px; color: var(--accent); }
 .hs-ic .ic { width: 18px; height: 18px; }
 .auth-head { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 18px -10px; }
@@ -794,3 +794,71 @@ input[type='number'] { -moz-appearance: textfield; }
 @media (min-width: 700px) {
   .sheet { border-radius: 22px; bottom: 20px; }
 }
+
+/* ---------- Add to Home Screen guide ---------- */
+.ig-screen { justify-content: center; }
+.ig-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 8px; }
+.ig-hero .wl-logo { border-radius: 18px; }
+.ig-hero .auth-title { margin-top: 18px; }
+.ig-hero .wiz-sub { margin: 8px 6px 0; }
+.ig-perks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 14px 0 4px; }
+.ig-perks span { font-size: 12px; font-weight: 600; color: var(--text-2); background: var(--fill); border-radius: 99px; padding: 5px 9px; white-space: nowrap; animation: rise 0.6s var(--spring) both; }
+.ig-perks span:nth-child(2) { animation-delay: 0.08s; } .ig-perks span:nth-child(3) { animation-delay: 0.16s; }
+.ig-steps { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ig-step { background: var(--card); border-radius: var(--r-md); transition: background 0.3s, box-shadow 0.3s; animation: rise 0.55s var(--spring) both; }
+.ig-step:nth-child(2) { animation-delay: 0.06s; } .ig-step:nth-child(3) { animation-delay: 0.12s; } .ig-step:nth-child(4) { animation-delay: 0.18s; }
+.ig-step.on { box-shadow: inset 0 0 0 1.5px rgba(59, 155, 255, 0.55); }
+.ig-step > button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 52px; text-align: left; }
+.ig-n { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; background: var(--fill-2); color: var(--text-2); transition: background 0.3s, color 0.3s, transform 0.4s var(--bounce); }
+.ig-step.on .ig-n { background: var(--accent); color: #fff; transform: scale(1.08); }
+.ig-t { font-size: 16px; font-weight: 600; color: var(--text-2); transition: color 0.3s; }
+.ig-step.on .ig-t { color: var(--text); }
+.ig-more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s var(--spring); }
+.ig-step.on .ig-more { grid-template-rows: 1fr; }
+.ig-more > div { overflow: hidden; padding: 0 14px 0 54px; }
+.ig-step.on .ig-more > div { padding-bottom: 14px; }
+.ig-more p { margin: 0 0 10px; font-size: 14px; color: var(--text-2); line-height: 1.45; }
+.ig-actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.ig-actions .btn { gap: 8px; }
+.ig-actions .btn-primary .hs-ic { color: inherit; }
+
+/* the little drawings */
+.ig-art { display: flex; justify-content: center; }
+.ig-bar { display: flex; align-items: center; justify-content: space-around; gap: 6px; width: 100%; max-width: 270px; background: rgba(28, 32, 42, 0.95); border: 0.5px solid var(--sep); border-radius: 16px; padding: 8px 10px; color: var(--accent); }
+.ig-bar .ic { width: 20px; height: 20px; }
+.ig-url { flex: 1; font-size: 13px; color: var(--text-2); background: var(--fill); border-radius: 10px; padding: 6px 10px; text-align: center; }
+.ig-hot { display: inline-grid; place-items: center; font-style: normal; border-radius: 10px; padding: 3px; animation: igPulse 1.6s ease-in-out infinite; }
+@keyframes igPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(59, 155, 255, 0.55); background: rgba(59, 155, 255, 0.12); } 50% { box-shadow: 0 0 0 7px rgba(59, 155, 255, 0); background: rgba(59, 155, 255, 0.28); } }
+.ig-menu { width: 100%; max-width: 270px; background: rgba(28, 32, 42, 0.95); border: 0.5px solid var(--sep); border-radius: 14px; overflow: hidden; }
+.ig-menu > span { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; font-size: 14px; color: var(--text); }
+.ig-menu > span + span { border-top: 0.5px solid var(--sep); }
+.ig-menu .ic { width: 18px; height: 18px; color: var(--text-2); }
+.ig-menu > span.on { animation: igRow 1.6s ease-in-out infinite; }
+.ig-menu > span.on .ic { color: var(--accent); }
+@keyframes igRow { 0%, 100% { background: rgba(59, 155, 255, 0.1); } 50% { background: rgba(59, 155, 255, 0.26); } }
+.ig-head em { font-style: normal; color: var(--accent); }
+.ig-head b { font-size: 13px; }
+.ig-add { color: var(--accent); padding: 0 4px; }
+.ig-app { justify-content: flex-start !important; }
+.ig-app img { border-radius: 7px; }
+.ig-tog { width: 34px; height: 20px; border-radius: 10px; background: var(--green, #30d158); position: relative; flex: none; }
+.ig-tog::after { content: ''; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.ig-home { display: grid; grid-template-columns: repeat(4, 40px); gap: 14px; padding: 12px 16px; background: linear-gradient(160deg, #14203a, #0b1020); border-radius: 16px; }
+.ig-home i { width: 40px; height: 40px; border-radius: 10px; opacity: 0.55; }
+.ig-home img.ig-hot { padding: 0; border-radius: 10px; }
+.ig-done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 16px 0; animation: rise 0.5s var(--spring) both; }
+.ig-done .ig-art { margin-bottom: 14px; }
+.ig-done .wiz-sub { margin: 8px 8px 6px; }
+
+/* Home banner */
+.ig-banner { display: flex; align-items: center; background: rgba(59, 155, 255, 0.12); border: 0.5px solid rgba(59, 155, 255, 0.3); border-radius: var(--r-md); margin: 0 0 16px; animation: rise 0.5s var(--spring) both; }
+.ig-banner-main { flex: 1; display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 0 10px 14px; min-height: 48px; font-size: 14px; color: var(--text-2); line-height: 1.35; }
+.ig-banner-main b { color: var(--text); }
+.ig-banner .icon-btn { font-size: 22px; flex: none; }
+
+/* first launch from the Home Screen */
+.ig-welcome { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding-top: 8px; padding-bottom: calc(var(--sab) + 20px); }
+.ig-welcome .wiz-sub { margin: 0 6px 8px; }
+.ig-welcome .btn { width: 100%; }
+
+@media (prefers-reduced-motion: reduce) { .ig-hot, .ig-menu > span.on { animation: none; } }

@@ -9,6 +9,7 @@ import { pushConfigured, pushSupported, isStandalone, isIOS, permission, enableP
 import * as A from './api.js';
 import { startSync, stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from './sync.js';
 import { AuthScreen, DayZero, consumeNewSignup, CodeInput, Resend } from './onboarding.js';
+import { InstallBanner, openInstallGuide, canInstall, installEnv, maybeWelcomeInstalled } from './install.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -86,6 +87,7 @@ function Home({ s, go }) {
   return html`<${Page} title="Novum" eyebrow=${new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       sub="A new beginning. A new standard. A new you.">
     <p class="greet">${greet}${firstName() ? `, ${firstName()}` : ''}.</p>
+    <${InstallBanner} />
 
     <section class="group first">
       <h2 class="group-h">${hasQuits ? 'Your streaks' : 'Get started'}</h2>
@@ -1308,7 +1310,7 @@ function NotifySettings({ s }) {
   };
   let footer;
   if (!configured) footer = 'Notifications aren’t set up on the server yet.';
-  else if (isIOS() && !isStandalone()) footer = 'On iPhone, add Novum to your Home Screen (Share → Add to Home Screen) and open it from there to get notifications.';
+  else if (isIOS() && !isStandalone()) footer = 'On iPhone, notifications only work once Novum is on your Home Screen. Open it from there, then switch this on.';
   else if (!pushSupported()) footer = 'This browser doesn’t support push notifications.';
   else if (permission() === 'denied') footer = 'Notifications are blocked. Turn them on in Settings → Notifications → Novum.';
   else footer = 'On or off for this phone. Reminder times follow your account. Novum’s server only uses your quit times, reminder times and habit ticks to time these.';
@@ -1319,6 +1321,7 @@ function NotifySettings({ s }) {
       <span class="row-main"><span class="row-title">Notifications on this phone</span>${busy && html`<span class="row-sub">Working…</span>`}</span>
       ${configured ? html`<${Toggle} on=${dev.enabled} label="Notifications" onChange=${toggleMain} />` : html`<span class="row-detail">Not set up</span>`}
     </div>
+    ${canInstall() && html`<${Row} icon="📲" iconBg="#3B9BFF" title=${installEnv().kind === 'inapp' ? 'Open Novum in Safari' : 'Add to Home Screen'} sub="Needed for notifications. Shows you how" chevron onClick=${openInstallGuide} />`}
     ${dev.enabled && configured && html`
       <div class="row">
         <span class="row-ic" style="background:#FFD60A">🏅</span>
@@ -1375,6 +1378,7 @@ function App({ s }) {
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
+  useEffect(() => { const t = setTimeout(maybeWelcomeInstalled, 700); return () => clearTimeout(t); }, []);
   const Screen = { home: Home, checkin: CheckIn, goals: Goals, progress: Progress, profile: Profile }[tab];
   const needCheckin = !s.checkins[S.dayKey()]?.mood;
   return html`<div class="app">
