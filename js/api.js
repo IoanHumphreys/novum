@@ -57,11 +57,20 @@ export async function resetPassword(email, code, password) {
   setSession({ token: r.token, user: r.user });
   return r.user;
 }
+// Step 1: password. Returns { codeRequired, ticket, emailHint } when the server wants an email code.
 export async function login(loginId, password) {
   const r = await call('POST', '/auth/login', { login: loginId, password });
+  if (r.codeRequired) return r;
+  setSession({ token: r.token, user: r.user });
+  return r;
+}
+// Step 2: the 6-digit code from the email
+export async function loginCode(ticket, code) {
+  const r = await call('POST', '/auth/login-code', { ticket, code });
   setSession({ token: r.token, user: r.user });
   return r.user;
 }
+export const loginResend = (ticket) => call('POST', '/auth/login-resend', { ticket });
 export async function logout() {
   try { await call('POST', '/auth/logout'); } catch { /* offline: token expires on its own */ }
   setSession(null);

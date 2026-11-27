@@ -295,8 +295,40 @@ function LogInForm({ back, toSignup, forgot }) {
     e.preventDefault();
     if (!loginId.trim() || !pw || busy) return;
     setErr(''); setBusy(true);
-    try { await A.login(loginId.trim(), pw); haptic(20); } catch (x) { setErr(x.message); setBusy(false); }
+    try {
+      const r = await A.login(loginId.trim(), pw);
+      if (r.codeRequired) { setPending({ ticket: r.ticket, emailHint: r.emailHint }); setSentAt(Date.now()); setCode(''); setBusy(false); haptic(10); return; }
+      haptic(20);
+    } catch (x) { setErr(x.message); setBusy(false); }
   };
+  // Step 2: prove it's you with the code sent to your email
+  const [pending, setPending] = useState(null);
+  const [code, setCode] = useState('');
+  const [sentAt, setSentAt] = useState(0);
+  const codeRef = useAutoFocus(pending?.ticket);
+  const verify = async (c = code) => {
+    if (busy || c.length !== 6) return;
+    setErr(''); setBusy(true);
+    try { await A.loginCode(pending.ticket, c); haptic(20); }
+    catch (x) {
+      setBusy(false); setCode(''); setErr(x.message);
+      if (x.status === 401) { setPending(null); setPw(''); }
+    }
+  };
+  if (pending) return html`<form class="auth" onSubmit=${(e) => { e.preventDefault(); verify(); }} novalidate>
+    <div class="wiz">
+      <div class="wiz-top"><button class="icon-btn" type="button" onClick=${() => { setPending(null); setErr(''); setBusy(false); }} aria-label="Back">${Icon.left()}</button></div>
+      <div class="wiz-body fwd" key="code">
+        <${Q} emoji="📬" title="Check your email." sub=${html`To keep your account safe, we sent a 6-digit code to <b class="wiz-em">${pending.emailHint}</b>. Check spam too.`} />
+        <${CodeInput} inputRef=${codeRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
+        <${Resend} sentAt=${sentAt} onResend=${async () => { try { await A.loginResend(pending.ticket); setSentAt(Date.now()); setCode(''); toast('New code sent'); } catch (x) { setErr(x.message); if (x.status === 401) setPending(null); } }} />
+        <${Err}>${err}<//>
+        <div class="wiz-actions">
+          <button class="btn btn-primary block big" type="submit" disabled=${code.length !== 6 || busy}>${busy ? 'Checking…' : 'Log in'}</button>
+        </div>
+      </div>
+    </div>
+  </form>`;
   return html`<form class="auth" onSubmit=${submit} novalidate>
     <div class="wiz">
       <div class="wiz-top"><button class="icon-btn" type="button" onClick=${back} aria-label="Back">${Icon.left()}</button></div>
