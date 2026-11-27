@@ -96,7 +96,7 @@ export const EMOJIS = ['🎯', '💨', '🌿', '💪', '🏋️', '🏃', '🚴'
 // "Stay quit" presets are generated per addiction (see quitPresets)
 export const quitPresets = (s) => s.quits.map((q) => ({
   key: `stay-${q.id}`,
-  make: () => ({ name: `Stay ${q.label.toLowerCase()}-free all of 2027`, emoji: q.emoji, color: q.color, category: 'health', type: 'quit', quitId: q.id, period: '2027' }),
+  make: () => ({ name: `Stay ${q.label.toLowerCase()}-free through 2027`, emoji: q.emoji, color: q.color, category: 'health', type: 'quit', quitId: q.id, period: '2027' }),
 }));
 
 export const PRESETS = [

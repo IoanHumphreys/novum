@@ -173,7 +173,12 @@ export function bmiBand(v) {
 
 /* ---------- goals ---------- */
 export function goalWindow(g) {
-  if (g.period === '2027') return { start: parseDay('2027-01-01'), end: parseDay('2027-12-31') };
+  // "Until the end of 2027": counts from the day it was added (or 1 Jan 2027 if added later)
+  if (g.period === '2027') {
+    const ny = parseDay('2027-01-01');
+    const from = g.start ? parseDay(g.start) : ny;
+    return { start: from < ny ? from : ny, end: parseDay('2027-12-31') };
+  }
   return { start: parseDay(g.start || dayKey()), end: parseDay(g.end || '2027-12-31') };
 }
 const inWindow = (k, w) => { const d = parseDay(k); return d >= w.start && d <= w.end; };

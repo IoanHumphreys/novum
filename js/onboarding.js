@@ -13,8 +13,6 @@ export const consumeNewSignup = () => { const v = newSignup; newSignup = false; 
 
 const USERNAME_RE = /^[a-zA-Z0-9_.]{3,20}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PHONE_RE = /^\+?\d{7,15}$/;
-const cleanPhone = (p) => p.replace(/[\s()-]/g, '');
 
 /* ============ the setup shell ============ */
 // One question per screen. `dir` picks the slide direction; content rises in with a stagger.
@@ -39,6 +37,14 @@ function useAutoFocus(dep) {
 }
 function BigInput({ inputRef, ...props }) {
   return html`<input class="wiz-in" ref=${inputRef} ...${props} />`;
+}
+// Show/Hide for password fields. Toggles on touch-down and keeps the field focused: on iPhone a normal tap
+// first closes the keyboard, the page jumps, and the tap lands on nothing.
+export function EyeButton({ on, set }) {
+  return html`<button type="button" class="tf-eye" aria-pressed=${on} aria-label=${on ? 'Hide password' : 'Show password'}
+    onPointerDown=${(e) => { e.preventDefault(); haptic(6); set(!on); }}
+    onMouseDown=${(e) => e.preventDefault()}
+    onClick=${(e) => { if (e.detail === 0) set(!on); }}>${on ? 'Hide' : 'Show'}</button>`;
 }
 function Err({ children }) { return children ? html`<p class="wiz-err" role="alert">${children}</p>` : null; }
 
@@ -79,12 +85,12 @@ export function AuthScreen() {
 }
 
 /* ============ sign up, one step at a time ============ */
-const SIGNUP_STEPS = ['name', 'username', 'email', 'code', 'phone', 'password'];
+const SIGNUP_STEPS = ['name', 'username', 'email', 'code', 'password'];
 
 function SignUp({ back, toLogin }) {
   const [i, setI] = useState(0);
   const [dir, setDir] = useState('fwd');
-  const [f, setF] = useState({ firstName: '', lastName: '', username: '', email: '', phone: '', password: '' });
+  const [f, setF] = useState({ firstName: '', lastName: '', username: '', email: '', password: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -100,7 +106,7 @@ function SignUp({ back, toLogin }) {
 
   const go = (n) => { haptic(); setErr(''); setDir(n > i ? 'fwd' : 'back'); setI(n); };
   // Going back past the code step skips it (the email is already confirmed or codes are off)
-  const prev = () => (i === 0 ? back() : go(step === 'phone' ? at('email') : i - 1));
+  const prev = () => (i === 0 ? back() : go(step === 'password' ? at('email') : i - 1));
 
   const uname = f.username.trim().replace(/^@/, '');
   const email = f.email.trim().toLowerCase();
@@ -109,7 +115,6 @@ function SignUp({ back, toLogin }) {
     username: USERNAME_RE.test(uname),
     email: EMAIL_RE.test(email),
     code: code.length === 6,
-    phone: !f.phone.trim() || PHONE_RE.test(cleanPhone(f.phone)),
     password: f.password.length >= 8,
   }[step];
 
@@ -125,7 +130,7 @@ function SignUp({ back, toLogin }) {
     try {
       const r = await A.verifyEmailCode(email, c);
       setEmailToken(r.emailToken); setVerifiedEmail(email);
-      setBusy(false); haptic(20); go(at('phone'));
+      setBusy(false); haptic(20); go(at('password'));
     } catch (x) { setBusy(false); setErr(x.message); setCode(''); }
   };
 
@@ -139,13 +144,13 @@ function SignUp({ back, toLogin }) {
     setBusy(true); setErr('');
     try {
       newSignup = true;
-      await A.signup({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: uname, email, phone: f.phone.trim() ? cleanPhone(f.phone) : '', password: f.password, emailToken });
+      await A.signup({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: uname, email, password: f.password, emailToken });
       haptic(20);
     } catch (x) {
       newSignup = false;
       setBusy(false);
       const m = x.message.toLowerCase();
-      const back = x.data?.needsEmailCode ? at('email') : m.includes('username') ? at('username') : m.includes('email') ? at('email') : m.includes('phone') ? at('phone') : -1;
+      const back = x.data?.needsEmailCode ? at('email') : m.includes('username') ? at('username') : m.includes('email') ? at('email') : -1;
       if (x.data?.needsEmailCode) { setVerifiedEmail(''); setEmailToken(''); }
       if (back >= 0) { setDir('back'); setI(back); }
       setErr(x.message);
@@ -165,12 +170,12 @@ function SignUp({ back, toLogin }) {
       setBusy(false);
     }
     if (step === 'email') {
-      if (verifiedEmail === email || noCodes) { go(at('phone')); return; }
+      if (verifiedEmail === email || noCodes) { go(at('password')); return; }
       setBusy(true);
       try {
         const sent = await sendCode();
         setBusy(false);
-        go(sent ? at('code') : at('phone'));
+        go(sent ? at('code') : at('password'));
       } catch (x) { setBusy(false); setErr(x.message); }
       return;
     }
@@ -205,16 +210,11 @@ function SignUp({ back, toLogin }) {
         <${Resend} sentAt=${sentAt} onResend=${async () => { setErr(''); try { await sendCode(); toast('New code sent'); } catch (x) { setErr(x.message); } }} />
         <button type="button" class="link center-link" onClick=${() => go(at('email'))}>Wrong email? Change it</button>`}
 
-      ${step === 'phone' && html`
-        <${Q} emoji="📱" title="Add a phone number?" sub="Optional. It’s encrypted and only used so whoever runs Novum can reach you about your account." />
-        <${BigInput} inputRef=${focusRef} type="tel" inputmode="tel" placeholder="07700 900123" autocomplete="tel" enterkeyhint="next" value=${f.phone} onInput=${set('phone')} />
-        ${f.phone.trim() && !PHONE_RE.test(cleanPhone(f.phone)) && html`<p class="wiz-hint">That doesn’t look like a full phone number yet.</p>`}`}
-
       ${step === 'password' && html`
         <${Q} emoji="🔒" title="Finally, create a password." sub="At least 8 characters. A short phrase is easy to remember and hard to guess." />
         <div class="wiz-pw">
           <${BigInput} inputRef=${focusRef} type=${showPw ? 'text' : 'password'} placeholder="Password" autocomplete="new-password" enterkeyhint="done" value=${f.password} onInput=${set('password')} />
-          <button type="button" class="tf-eye" onClick=${() => setShowPw(!showPw)}>${showPw ? 'Hide' : 'Show'}</button>
+          <${EyeButton} on=${showPw} set=${setShowPw} />
         </div>
         ${f.password && html`<div class="pw-meter"><i style="width:${strength ? strength.w : 10}%;background:${strength ? strength.c : '#FF453A'}"></i></div>
           <p class="wiz-hint">${f.password.length < 8 ? `${8 - f.password.length} more character${8 - f.password.length === 1 ? '' : 's'}` : strength?.l}</p>`}
@@ -224,7 +224,7 @@ function SignUp({ back, toLogin }) {
       <div class="wiz-actions">
         <button class="btn btn-primary block big" type="submit" disabled=${!valid || busy}>
           ${busy ? ({ password: 'Creating your account…', email: 'Sending code…', code: 'Confirming…' }[step] || 'Checking…')
-            : step === 'password' ? 'Create account' : step === 'code' ? 'Confirm' : step === 'phone' && !f.phone.trim() ? 'Skip' : 'Continue'}
+            : step === 'password' ? 'Create account' : step === 'code' ? 'Confirm' : 'Continue'}
         </button>
         ${step === 'name' && html`<button type="button" class="link center-link" onClick=${toLogin}>Already have an account? Log in</button>`}
       </div>
@@ -305,7 +305,7 @@ function LogInForm({ back, toSignup, forgot }) {
         <${BigInput} inputRef=${focusRef} placeholder="Username or email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" value=${loginId} onInput=${(e) => { setErr(''); setLogin(e.target.value); }} />
         <div class="wiz-pw mt12">
           <${BigInput} type=${show ? 'text' : 'password'} placeholder="Password" autocomplete="current-password" enterkeyhint="go" value=${pw} onInput=${(e) => { setErr(''); setPw(e.target.value); }} />
-          <button type="button" class="tf-eye" onClick=${() => setShow(!show)}>${show ? 'Hide' : 'Show'}</button>
+          <${EyeButton} on=${show} set=${setShow} />
         </div>
         <${Err}>${err}<//>
         <div class="wiz-actions">

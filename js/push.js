@@ -10,6 +10,12 @@ export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager'
 export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 export const permission = () => ('Notification' in window ? Notification.permission : 'unsupported');
+// What to tell someone when notifications won't switch on
+export function blockedMessage(perm = permission()) {
+  if (perm === 'default') return 'You didn’t choose Allow. Tap the switch again and pick Allow on the pop-up.';
+  if (isIOS()) return 'Your iPhone is blocking notifications for this copy of Novum. Check Settings → Notifications → Novum (if there are two, it’s the newer one). If it’s already on, swipe Novum away in the app switcher and open it again. Still stuck? Delete Novum from your Home Screen, add it again, and choose Allow.';
+  return 'Notifications are blocked. Allow them for novumdaily.com in your browser’s site settings, then try again.';
+}
 
 const devKey = () => `novum.push:${getSession()?.user?.id || 'anon'}`;
 export function deviceState() {
@@ -53,11 +59,16 @@ export async function enablePush() {
   if (!pushSupported()) throw new Error(isIOS() && !isStandalone()
     ? 'On iPhone, add Novum to your Home Screen and open it from there, then turn notifications on.'
     : 'This browser doesn’t support push notifications.');
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') throw new Error('Notifications are blocked. Turn them on in Settings → Notifications → Novum.');
+  // Only ask when we don't already have permission (asking again can report "denied" on iPhone)
+  let perm = permission();
+  if (perm !== 'granted') perm = await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error(blockedMessage(perm));
   const d = deviceState();
   const deviceId = d.deviceId || newId();
-  await register(deviceId);
+  try { await register(deviceId); } catch (e) {
+    if (e?.name === 'NotAllowedError') throw new Error(blockedMessage('denied'));
+    throw e;
+  }
   setDevice({ enabled: true, deviceId });
 }
 

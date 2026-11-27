@@ -5,7 +5,7 @@ import {
   Group, Row, Field, LineChart, Legend, Empty, toast,
 } from './ui.js';
 import { MILESTONES, HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, quitPresets, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
-import { pushConfigured, pushSupported, isStandalone, isIOS, permission, enablePush, disablePush, sendTest, startPushSync, stopPushSync, deviceState, adoptLegacyDevice } from './push.js';
+import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, sendTest, startPushSync, stopPushSync, deviceState, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from './sync.js';
 import { AuthScreen, DayZero, consumeNewSignup, CodeInput, Resend } from './onboarding.js';
@@ -42,7 +42,7 @@ function stageInfo(q, hours) {
   const reached = list.filter((x) => x.h <= hours);
   return { current: reached[reached.length - 1], next: list.find((x) => x.h > hours) };
 }
-const deadlineText = (g) => (g.period === '2027' ? 'All of 2027' : `By ${S.fmtDate(g.end)}`);
+const deadlineText = (g) => (g.period === '2027' ? (S.goalWindow(g).start < NEW_YEAR ? 'Until end of 2027' : 'All of 2027') : `By ${S.fmtDate(g.end)}`);
 const typeText = (g) => ({ habit: g.perWeek >= 7 ? 'Daily habit' : `${g.perWeek}× a week`, numeric: 'Target', milestone: 'Milestone', quit: 'Stay quit' }[g.type]);
 
 function toggleTick(goalId, key = S.dayKey()) {
@@ -429,7 +429,7 @@ function GoalDetail({ id, close }) {
         </div>
       </div>`;
   } else if (g.type === 'numeric' && g.auto === 'money') {
-    body = html`<div class="card pad info">💷 This goal fills itself from your quit counters. Every hour you stay quit adds to it.${g.period === '2027' && Date.now() < NEW_YEAR ? ' Counting starts on 1 January 2027.' : ''}</div>`;
+    body = html`<div class="card pad info">💷 This goal fills itself from your quit counters. Every hour you stay quit adds to it, counting from ${S.fmtDate(S.goalWindow(g).start)}.</div>`;
   } else if (g.type === 'numeric' && g.auto === 'weight') {
     body = html`<div class="card pad info">⚖️ Uses the latest weight from your Profile.</div>
       <button class="btn btn-tinted block" onClick=${openWeightSheet}>Log weight</button>`;
@@ -449,7 +449,7 @@ function GoalDetail({ id, close }) {
       <//>`}`;
   } else if (g.type === 'quit') {
     const q = s.quits.find((x) => x.id === g.quitId) || s.quits[0];
-    body = html`<div class="card pad info">${q.emoji} Linked to your ${q.label.toLowerCase()} counter. Every day you stay ${q.label.toLowerCase()}-free ${g.period === '2027' ? 'in 2027 ' : ''}fills this ring. ${Date.now() < NEW_YEAR && g.period === '2027' ? 'It starts on 1 January.' : ''}</div>`;
+    body = html`<div class="card pad info">${q.emoji} Linked to your ${q.label.toLowerCase()} counter. Every day you stay ${q.label.toLowerCase()}-free ${g.period === '2027' ? `from ${S.fmtDate(S.goalWindow(g).start)} to the end of 2027 ` : ''}fills this ring.</div>`;
   } else {
     body = html`<button class="btn block big ${g.done ? 'btn-done' : 'btn-primary'}" style="--c:${g.color}"
       onClick=${() => { haptic(15); S.update((d) => { const x = d.goals.find((y) => y.id === id); x.done = !x.done; x.doneDate = x.done ? todayKey : null; }); if (!g.done) toast('Milestone complete 🎉'); }}>
@@ -545,7 +545,7 @@ function GoalEditor({ goal = {}, close }) {
       <//>
 
       <${Group} header="Deadline">
-        <div class="pad"><${Segmented} options=${[{ value: '2027', label: 'All of 2027' }, { value: 'date', label: 'Pick a date' }]} value=${f.period} onChange=${(v) => set({ period: v })} /></div>
+        <div class="pad"><${Segmented} options=${[{ value: '2027', label: 'Until end of 2027' }, { value: 'date', label: 'Pick a date' }]} value=${f.period} onChange=${(v) => set({ period: v })} /></div>
         ${f.period === 'date' && html`<${Field} label="Finish by"><input type="date" value=${f.end} min=${S.dayKey()} onInput=${(e) => set({ end: e.target.value })} /><//>`}
       <//>
       <button class="btn btn-primary block big" disabled=${!valid} onClick=${save}>${isEdit ? 'Save changes' : 'Add goal'}</button>
@@ -562,6 +562,15 @@ function NewYear({ close }) {
     S.update((d) => d.goals.push({ ticks: [], entries: [], ...p.make(d), preset: p.key, id: S.uid(), start: S.dayKey(), createdAt: new Date().toISOString() }));
     toast('Added to your goals');
   };
+  // Untick: take it back off. Ask first if it already has progress.
+  const removePreset = (p) => {
+    const g = S.getState().goals.find((x) => x.preset === p.key);
+    if (!g) return;
+    const drop = () => { haptic(10); S.update((d) => { d.goals = d.goals.filter((x) => x.preset !== p.key); }); toast('Removed from your goals'); };
+    if ((g.ticks || []).length || (g.entries || []).length || g.done) {
+      confirmSheet({ title: 'Remove goal', text: `Remove “${g.name}”? Its progress so far will be deleted.`, confirm: 'Remove', onConfirm: drop });
+    } else drop();
+  };
   const desc = (g) => g.type === 'habit' ? `${g.perWeek >= 7 ? 'Daily' : g.perWeek + '× a week'} habit`
     : g.type === 'numeric' ? (g.auto === 'money' ? 'Fills itself from your quit counters' : g.auto === 'weight' ? `Target ${g.target} kg · edit to suit you` : `Target · ${g.target} ${g.unit}`)
       : g.type === 'quit' ? 'Linked to your quit counter' : 'One-off milestone';
@@ -571,7 +580,7 @@ function NewYear({ close }) {
       <div class="ny-hero">
         <div class="ny-year xl">2027</div>
         <div class="ny-t">A new standard.</div>
-        <p class="muted">${toNY > 0 ? `${toNY} days until 1 January. ` : ''}Tap <b>+</b> to add a goal as it is, or tap a goal to change it first.</p>
+        <p class="muted">${toNY > 0 ? `${toNY} days until 1 January. ` : ''}Tap <b>+</b> to add a goal as it is (tap the tick to remove it), or tap a goal to change it first.</p>
       </div>
       ${CATEGORIES.map((c) => {
         const hasSpend = s.quits.some((q) => q.monthly > 0);
@@ -581,11 +590,12 @@ function NewYear({ close }) {
           ${items.map((p) => {
             const g = p.make(s);
             const has = added.has(p.key);
-            return html`<div class="row tap" key=${p.key} role="button" onClick=${() => !has && openGoalEditor({ ...g, preset: p.key })}>
+            const mine = s.goals.find((x) => x.preset === p.key);
+            return html`<div class="row tap" key=${p.key} role="button" onClick=${() => (mine ? openGoalDetail(mine.id) : openGoalEditor({ ...g, preset: p.key }))}>
               <span class="row-ic" style="background:${g.color}">${g.emoji}</span>
               <span class="row-main"><span class="row-title">${g.name}</span><span class="row-sub">${desc(g)}</span></span>
-              <button class="add-pill ${has ? 'on' : ''}" disabled=${has} aria-label=${has ? 'Added' : `Add ${g.name}`}
-                onClick=${(e) => { e.stopPropagation(); quickAdd(p); }}>${has ? Icon.check() : Icon.plus()}</button>
+              <button class="add-pill ${has ? 'on' : ''}" aria-pressed=${has} aria-label=${has ? `Remove ${g.name}` : `Add ${g.name}`}
+                onClick=${(e) => { e.stopPropagation(); has ? removePreset(p) : quickAdd(p); }}>${has ? Icon.check() : Icon.plus()}</button>
             </div>`;
           })}
         <//>`;
@@ -846,7 +856,7 @@ function BodyEditor({ close }) {
 function openAccount() { openSheet((close) => html`<${Account} close=${close} />`, { tall: true }); }
 function Account({ close }) {
   const user = A.getSession()?.user || {};
-  const [f, setF] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', username: user.username || '', phone: user.phone || '' });
+  const [f, setF] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', username: user.username || '' });
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const changed = Object.keys(f).some((k) => f[k].trim() !== (user[k] || ''));
@@ -870,7 +880,6 @@ function Account({ close }) {
         <${Field} label="Last name"><input autocomplete="family-name" value=${f.lastName} onInput=${set('lastName')} /><//>
         <${Field} label="Username"><input autocapitalize="none" autocorrect="off" spellcheck="false" value=${f.username} onInput=${set('username')} /><//>
         <${Row} title="Email" detail=${user.email} chevron onClick=${openChangeEmail} />
-        <${Field} label="Phone"><input type="tel" placeholder="Optional" value=${f.phone} onInput=${set('phone')} /><//>
       <//>
       <${Group}>
         <${Row} icon="🔑" iconBg="#8E8E93" title="Change password" chevron onClick=${openPassword} />
@@ -1295,6 +1304,13 @@ function NotifySettings({ s }) {
   const [err, setErr] = useState('');
   const setN = (patch) => S.update((d) => { d.notifyPrefs = { ...d.notifyPrefs, ...patch }; });
   const configured = pushConfigured();
+  // Re-check when coming back from Settings so a permission change shows straight away
+  const [, recheck] = useState(0);
+  useEffect(() => {
+    const on = () => { if (document.visibilityState === 'visible') { setDev(deviceState()); recheck((x) => x + 1); } };
+    document.addEventListener('visibilitychange', on);
+    return () => document.removeEventListener('visibilitychange', on);
+  }, []);
   const toggleMain = async (on) => {
     if (busy) return;
     setErr(''); setBusy(true);
@@ -1312,7 +1328,7 @@ function NotifySettings({ s }) {
   if (!configured) footer = 'Notifications aren’t set up on the server yet.';
   else if (isIOS() && !isStandalone()) footer = 'On iPhone, notifications only work once Novum is on your Home Screen. Open it from there, then switch this on.';
   else if (!pushSupported()) footer = 'This browser doesn’t support push notifications.';
-  else if (permission() === 'denied') footer = 'Notifications are blocked. Turn them on in Settings → Notifications → Novum.';
+  else if (permission() === 'denied' && !dev.enabled) footer = blockedMessage('denied');
   else footer = 'On or off for this phone. Reminder times follow your account. Novum’s server only uses your quit times, reminder times and habit ticks to time these.';
 
   return html`<${Group} header="Notifications" footer=${err ? html`<span class="err">${err}</span>` : footer}>
