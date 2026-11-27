@@ -60,6 +60,7 @@ const svg = (d) => html`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="
 const G = {
   // Safari's page menu on iOS 26: a puzzle piece with two lines under it
   page: () => svg(html`<path d="M7 4h3.2a1.8 1.8 0 1 1 3.6 0H17v3.2a1.8 1.8 0 1 1 0 3.6V13H7z"/><path d="M6 17h12M6 20.5h12"/>`),
+  down: () => svg(html`<path d="m6 9 6 6 6-6"/>`),
   dots: () => svg(html`<circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/>`),
   kebab: () => svg(html`<circle cx="12" cy="5" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="19" r="1.4" fill="currentColor"/>`),
   addSq: () => svg(html`<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/>`),
@@ -82,11 +83,17 @@ function stepsFor(env, hasPrompt) {
     { t: 'Tap ⋮ at the top right', s: 'Chrome’s menu, next to the address bar.', art: 'kebab' },
     { t: 'Tap Add to Home screen', s: 'It might say Install app. Then tap Install or Add.', art: 'install' }, open,
   ];
-  // iOS
+  // iOS 26 Safari: puzzle-piece menu → Share → View More → Add to Home Screen
+  if (env.ios26) return [
+    { t: 'Tap the puzzle-piece icon', s: 'The puzzle piece with two lines under it, on the left of the address bar.', art: 'bar26' },
+    { t: 'Tap Share', s: 'It’s the first option at the top of the menu.', art: 'menu26' },
+    { t: 'Tap View More', s: 'The row with the down arrow.', art: 'more26' },
+    { t: 'Tap Add to Home Screen, then Add', s: 'Leave “Open as Web App” switched on.', art: 'menu' },
+    open,
+  ];
+  // Older iOS and other browsers
   const first = env.browser === 'Safari'
-    ? (env.ios26
-      ? { t: 'Tap the page menu, then Share', s: 'It’s the puzzle-piece icon with two lines under it, on the left of the address bar.', art: 'bar26' }
-      : { t: 'Tap the Share button', s: 'The square with an arrow, in Safari’s toolbar. On iOS 26, tap the puzzle-piece icon left of the address bar first.', art: 'bar' })
+    ? { t: 'Tap the Share button', s: 'The square with an arrow, in Safari’s toolbar. On iOS 26 it’s under the puzzle-piece icon left of the address bar.', art: 'bar' }
     : env.browser === 'Chrome'
       ? { t: 'Tap Share in the address bar', s: 'The square with an arrow, at the top right.', art: 'bar' }
       : { t: 'Open the menu and tap Share', s: `Can’t find it in ${env.browser}? Open novumdaily.com in Safari instead.`, art: 'bar' };
@@ -103,7 +110,11 @@ function Art({ kind }) {
   const hot = (x) => html`<i class="ig-hot">${x}</i>`;
   switch (kind) {
     case 'bar': return html`<div class="ig-art"><div class="ig-bar">${Icon.left()}${Icon.chevron()}${hot(Icon.share())}${G.book()}${G.tabs()}</div></div>`;
-    case 'bar26': return html`<div class="ig-art"><div class="ig-bar">${hot(G.page())}<span class="ig-url">novumdaily.com</span>${G.dots()}</div></div>`;
+    case 'bar26': return html`<div class="ig-art"><div class="ig-bar">${hot(G.page())}<span class="ig-url">novumdaily.com</span></div></div>`;
+    case 'menu26': return html`<div class="ig-art"><div class="ig-menu">
+      <span class="on">Share ${Icon.share()}</span><span>Add to Bookmarks ${G.book()}</span><span>Add Bookmark to… ${G.book()}</span></div></div>`;
+    case 'more26': return html`<div class="ig-art"><div class="ig-menu">
+      <span>Copy ${G.copy()}</span><span>Add to Reading List ${G.book()}</span><span class="on">View More ${G.down()}</span></div></div>`;
     case 'menu': return html`<div class="ig-art"><div class="ig-menu">
       <span>Add to Reading List ${G.book()}</span><span>Add Bookmark ${G.book()}</span><span class="on">Add to Home Screen ${G.addSq()}</span></div></div>`;
     case 'add': return html`<div class="ig-art"><div class="ig-menu">
