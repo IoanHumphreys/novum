@@ -7,6 +7,7 @@ import * as S from './store.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
 import { refreshBuddies } from './social.js';
+import { Banner, openBannerPicker } from './banner.js';
 
 const DAY = 864e5;
 
@@ -56,6 +57,7 @@ function AvatarPicker({ current, onPick, close }) {
 function myProfile(s) {
   return {
     avatar: s.social.avatar || null,
+    banner: s.social.banner || null,
     bio: s.social.bio || '',
     visibility: s.social.visibility === 'public' ? 'public' : 'buddies',
     stories: s.quits.filter((q) => q.storyShared && (q.story || '').trim()).map((q) => ({ label: q.label, emoji: q.emoji, text: q.story.trim() })),
@@ -81,6 +83,9 @@ export function ProfileHeader({ s, onAccount }) {
   const [counts, setCounts] = useState(null);
   useEffect(() => { A.follows().then((f) => setCounts({ followers: f.followers.length, following: f.following.length, requests: f.requests.length })).catch(() => {}); }, []);
   return html`<div class="card ph">
+    <button class="ph-banner" aria-label="Change banner" onClick=${() => openBannerPicker(s.social.banner, (b) => S.update((d) => { d.social.banner = b; }))}>
+      <${Banner} b=${s.social.banner} /><span class="ph-banner-edit">🎨</span>
+    </button>
     <div class="ph-top">
       <button class="ph-av" aria-label="Change avatar" onClick=${() => openAvatarPicker(s.social.avatar, (a) => S.update((d) => { d.social.avatar = a; }))}>
         <${Avatar} a=${s.social.avatar} name=${user.firstName} size=${76} />
@@ -111,6 +116,7 @@ function EditProfile({ close }) {
   const s = S.getState();
   const user = A.getSession()?.user || {};
   const [avatar, setAvatar] = useState(s.social.avatar);
+  const [banner, setBanner] = useState(s.social.banner || null);
   const [bio, setBio] = useState(s.social.bio || '');
   const adult = user.adult !== false;
   const [vis, setVis] = useState(adult ? s.social.visibility || 'buddies' : 'buddies');
@@ -120,7 +126,7 @@ function EditProfile({ close }) {
   const save = () => {
     haptic(15);
     S.update((d) => {
-      d.social = { ...d.social, avatar, bio: bio.trim().slice(0, 150), visibility: vis };
+      d.social = { ...d.social, avatar, banner, bio: bio.trim().slice(0, 150), visibility: vis };
       d.shareStreaks = share;
       d.quits.forEach((q) => { const st = stories[q.id]; if (st) { q.story = st.text.slice(0, 1000); q.storyShared = st.shared; } });
     });
@@ -130,9 +136,10 @@ function EditProfile({ close }) {
   return html`
     <${SheetBar} title="Edit profile" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" onClick=${save}>Save</button>`} />
     <div class="sheet-body">
-      <div class="avp-hero tap" role="button" onClick=${() => openAvatarPicker(avatar, setAvatar)}>
-        <${Avatar} a=${avatar} name=${user.firstName} size=${96} />
-        <span class="link">Change avatar</span>
+      <div class="ep-top">
+        <button class="ep-banner" aria-label="Change banner" onClick=${() => openBannerPicker(banner, setBanner)}><${Banner} b=${banner} /><span class="ph-banner-edit">🎨</span></button>
+        <button class="ep-av" aria-label="Change avatar" onClick=${() => openAvatarPicker(avatar, setAvatar)}><${Avatar} a=${avatar} name=${user.firstName} size=${92} /></button>
+        <div class="ep-links"><button class="link sm" onClick=${() => openAvatarPicker(avatar, setAvatar)}>Change avatar</button><button class="link sm" onClick=${() => openBannerPicker(banner, setBanner)}>Change banner</button></div>
       </div>
       <${Group} header="Bio" footer=${`${bio.length}/150`}>
         <div class="note-wrap"><textarea class="note" rows="3" maxlength="150" placeholder="e.g. Quitting vapes for good. Gym 3× a week. Here for the long run 💙" value=${bio} onInput=${(e) => setBio(e.target.value)}></textarea></div>
@@ -247,8 +254,9 @@ function Person({ username, close, onChange }) {
   return html`
     <${SheetBar} left=${html`<button class="link" onClick=${more}>•••</button>`} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body person">
+      <${Banner} b=${p.banner} className="pp-banner" />
       <div class="pp-top">
-        <${Avatar} a=${p.avatar} name=${p.firstName} size=${96} />
+        <${Avatar} a=${p.avatar} name=${p.firstName} size=${96} className="pp-av" />
         <h2 class="auth-title center">${p.firstName}</h2>
         <div class="row-sub center">@${p.username} · ${p.public ? '🌍 Public' : '🔒 Private'}${r.followsMe === 'accepted' ? ' · Follows you' : ''}</div>
         <div class="ph-counts center"><span><b>${p.counts.followers}</b> followers</span><span><b>${p.counts.following}</b> following</span></div>

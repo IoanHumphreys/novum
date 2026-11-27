@@ -1117,3 +1117,34 @@ input:autofill { background: transparent; }
 .privacy ul { margin: 0; padding: 12px 16px 12px 32px; background: var(--card); border-radius: var(--r-md); }
 .privacy li { color: var(--text-2); font-size: 15px; margin: 6px 0; }
 .privacy a { color: var(--accent); }
+
+/* ---------- profile banners ---------- */
+.banner { width: 100%; height: 100%; }
+.ph { padding: 0 0 16px; overflow: hidden; }
+.ph > :not(.ph-banner) { margin-left: 16px; margin-right: 16px; }
+.ph-banner { display: block; position: relative; width: 100%; height: 104px; }
+.ph-banner-edit { position: absolute; right: 10px; top: 10px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 15px;
+  background: rgba(0, 0, 0, 0.35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.ph-top { align-items: flex-end; margin-top: -38px; }
+.ph-av .av { box-shadow: 0 0 0 4px var(--card); }
+.ph-main { padding-bottom: 2px; }
+.ph .pc-name { margin-top: 42px; }
+.ep-top { margin-bottom: 8px; }
+.ep-banner { display: block; position: relative; width: 100%; height: 120px; border-radius: 18px; overflow: hidden; }
+.ep-av { display: block; position: relative; margin: -48px auto 0; border-radius: 50%; }
+.ep-av .av { box-shadow: 0 0 0 5px #0c1019; }
+.ep-links { display: flex; justify-content: center; gap: 18px; margin-top: 4px; }
+.pp-banner { height: 120px; border-radius: 18px; }
+.person .pp-top { margin-top: -52px; }
+.pp-av { box-shadow: 0 0 0 5px #0c1019; }
+.bp-hero { height: 130px; border-radius: 18px; margin-bottom: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
+.bp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.bp-opt { height: 64px; border-radius: 14px; overflow: hidden; transition: transform 0.3s var(--bounce), box-shadow 0.2s; }
+.bp-opt.on { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.03); }
+.bp-opt:active { transform: scale(0.95); }
+.bp-pals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px; }
+.bp-pal { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+.bp-pal i { width: 44px; height: 44px; border-radius: 50%; transition: transform 0.3s var(--bounce), box-shadow 0.2s; }
+.bp-pal.on i { box-shadow: 0 0 0 3px #0c1019, 0 0 0 5px var(--accent); transform: scale(1.06); }
+.bp-pal.on span { color: var(--text); }
+.ph .ph-req { width: calc(100% - 32px); }
