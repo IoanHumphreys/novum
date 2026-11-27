@@ -4,8 +4,11 @@ import {
   html, haptic, useNow, Icon, Ring, RingStack, openSheet, SheetHost, SheetBar, Page, Segmented, Toggle,
   Group, Row, Field, LineChart, Legend, Empty, toast,
 } from './ui.js';
-import { MILESTONES, HEALTH, HEALTH_NOTE, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
-import { pushConfigured, pushSupported, isStandalone, isIOS, permission, enablePush, disablePush, sendTest, startPushSync } from './push.js';
+import { MILESTONES, HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, quitPresets, CATEGORIES, catById, COLORS, EMOJIS, PRESETS, MOODS, TRIGGERS, DISTRACTIONS, REASON_IDEAS } from './content.js';
+import { pushConfigured, pushSupported, isStandalone, isIOS, permission, enablePush, disablePush, sendTest, startPushSync, stopPushSync, deviceState, adoptLegacyDevice } from './push.js';
+import * as A from './api.js';
+import { startSync, stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from './sync.js';
+import { AuthScreen, DayZero, consumeNewSignup } from './onboarding.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -32,8 +35,9 @@ function milestoneInfo(days) {
   const from = prev ? prev.days : 0;
   return { next, prev, pct: next ? (days - from) / (next.days - from) : 1 };
 }
-function stageInfo(quitId, hours) {
-  const list = HEALTH[quitId] || [];
+const firstName = () => A.getSession()?.user?.firstName || '';
+function stageInfo(q, hours) {
+  const list = healthFor(q) || [];
   const reached = list.filter((x) => x.h <= hours);
   return { current: reached[reached.length - 1], next: list.find((x) => x.h > hours) };
 }
@@ -63,43 +67,49 @@ function confirmSheet({ title, text, confirm, danger = true, onConfirm }) {
 
 /* ============ HOME ============ */
 function Home({ s, go }) {
-  const now = useNow(1000);
+  // Only the counters tick every second (inside QuitCard/MoneyTicker); the rest refreshes each minute
+  const now = useNow(60000);
   const today = S.dayKey();
   const ci = s.checkins[today];
-  const totalSaved = s.quits.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q, now)), 0);
   const monthly = s.quits.reduce((a, q) => a + (q.monthly || 0), 0);
   const hr = new Date(now).getHours();
   const greet = hr < 5 ? 'Up late' : hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const habits = s.goals.filter((g) => g.type === 'habit');
-  const sameStart = s.quits.every((q) => q.start === s.quits[0].start);
-  const [badgeQuit, setBadgeQuit] = useState(s.quits[0].id);
+  const hasQuits = s.quits.length > 0;
+  const sameStart = hasQuits && s.quits.every((q) => q.start === s.quits[0].start);
+  const [badgeQuit, setBadgeQuit] = useState(null);
   const bq = s.quits.find((q) => q.id === badgeQuit) || s.quits[0];
-  const bDays = S.quitElapsed(bq, now) / DAY;
+  const bDays = bq ? S.quitElapsed(bq, now) / DAY : 0;
   const toNY = Math.ceil((NEW_YEAR - now) / DAY);
+  const withHealth = s.quits.filter((q) => healthFor(q));
 
   return html`<${Page} title="Novum" eyebrow=${new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
       sub="A new beginning. A new standard. A new you.">
-    <p class="greet">${greet}, ${s.profile.name}.</p>
+    <p class="greet">${greet}${firstName() ? `, ${firstName()}` : ''}.</p>
 
-    <div class="stack">
-      ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} now=${now} />`)}
-    </div>
+    ${hasQuits ? html`<div class="stack">
+      ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} />`)}
+    </div>` : html`<button class="card add-first tap" onClick=${openAddQuit}>
+      <span class="row-ic" style="background:#3B9BFF">${Icon.plus()}</span>
+      <span class="row-main"><span class="row-title">Track something you’re quitting</span><span class="row-sub">Vaping, smoking, alcohol, gambling and more</span></span>
+      <span class="row-chev">${Icon.chevron()}</span>
+    </button>`}
 
-    <${SosButton} />
+    ${hasQuits && html`<${SosButton} />`}
     ${s.reasons.length > 0 && html`<button class="why tap" onClick=${openReasons}>
       <span class="why-k">Remember why</span>
       <span class="why-t">“${s.reasons[Math.floor(now / 864e5) % s.reasons.length].text}”</span>
     </button>`}
 
-    <button class="card money-card tap" onClick=${() => go('profile')}>
+    ${monthly > 0 && html`<button class="card money-card tap" onClick=${() => go('progress')}>
       <div class="mc-l">
         <div class="kicker">${Icon.pound()} Money saved</div>
-        <div class="mc-big">${S.money(totalSaved)}</div>
+        <${MoneyTicker} quits=${s.quits} />
         <div class="mc-sub">${S.money(monthly, 0)} a month back in your pocket · ${S.money(monthly * 12, 0)} a year</div>
       </div>
-    </button>
+    </button>`}
 
-    <section class="group">
+    ${hasQuits && html`<section class="group">
       <div class="group-h-row">
         <h2 class="group-h">Milestones</h2>
         ${!sameStart && html`<${Segmented} small options=${s.quits.map((q) => ({ value: q.id, label: q.label }))} value=${bq.id} onChange=${setBadgeQuit} />`}
@@ -114,8 +124,8 @@ function Home({ s, go }) {
           </div>`;
         })}
       </div>
-      ${sameStart && s.quits.length > 1 && html`<p class="group-f">Counting for both quits, since you stopped on the same day.</p>`}
-    </section>
+      ${sameStart && s.quits.length > 1 && html`<p class="group-f">Counting for all of them, since you stopped at the same time.</p>`}
+    </section>`}
 
     <section class="group">
       <h2 class="group-h">Today</h2>
@@ -134,12 +144,12 @@ function Home({ s, go }) {
       </div>`}
     </section>
 
-    <section class="group">
+    ${withHealth.length > 0 && html`<section class="group">
       <h2 class="group-h">Right now in your body</h2>
       <div class="card list">
-        ${s.quits.map((q) => {
+        ${withHealth.map((q) => {
           const h = S.quitElapsed(q, now) / 36e5;
-          const st = stageInfo(q.id, h);
+          const st = stageInfo(q, h);
           return html`<button class="row tap body-row" onClick=${() => openTimeline(q.id)}>
             <span class="row-ic" style="background:${q.color}">${q.emoji}</span>
             <span class="row-main">
@@ -152,7 +162,7 @@ function Home({ s, go }) {
         })}
       </div>
       <p class="group-f">General information, not medical advice.</p>
-    </section>
+    </section>`}
 
     ${toNY > 0 ? html`
       <button class="card ny-card tap" onClick=${openNewYear}>
@@ -167,14 +177,32 @@ function Home({ s, go }) {
   <//>`;
 }
 
-function QuitCard({ q, now }) {
+function MoneyTicker({ quits }) {
+  const now = useNow(1000);
+  return html`<div class="mc-big">${S.money(quits.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q, now)), 0))}</div>`;
+}
+
+function QuitCard({ q }) {
+  const now = useNow(1000);
+  const startMs = S.quitStart(q).getTime();
+  // Quit day set in the future: count down to it
+  if (startMs > now) {
+    const { d, h, m } = S.splitDuration(startMs - now);
+    return html`<button class="card quit-card tap" onClick=${() => openQuitEditor(q.id)} style="--qc:${q.color}">
+      <div class="qc-head"><span class="qc-emoji">${q.emoji}</span><span class="qc-label">${q.label}: quit day coming up</span></div>
+      <div class="qc-body"><div class="qc-time">
+        <span><b>${d}</b><small>${d === 1 ? 'day' : 'days'}</small></span><span><b>${pad2(h)}</b><small>hrs</small></span><span><b>${pad2(m)}</b><small>min</small></span>
+      </div></div>
+      <div class="qc-foot">Your counter starts ${S.quitStart(q).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}. You’ve got this.</div>
+    </button>`;
+  }
   const ms = S.quitElapsed(q, now);
   const { d, h, m, s: sec } = S.splitDuration(ms);
   const days = ms / DAY;
   const mi = milestoneInfo(days);
   return html`<button class="card quit-card tap" onClick=${() => openQuitEditor(q.id)} style="--qc:${q.color}">
     <div class="qc-head"><span class="qc-emoji">${q.emoji}</span><span class="qc-label">${q.label}-free</span>
-      <span class="qc-saved">${S.money(S.savedFor(q, ms))} saved</span></div>
+      ${q.monthly > 0 && html`<span class="qc-saved">${S.money(S.savedFor(q, ms))} saved</span>`}</div>
     <div class="qc-body">
       <div class="qc-time">
         <span><b>${d}</b><small>${d === 1 ? 'day' : 'days'}</small></span>
@@ -205,6 +233,17 @@ function HabitTickRow({ g }) {
 }
 
 /* ============ CHECK-IN ============ */
+// Saves half a second after typing stops (and on blur), not on every keystroke
+function NoteBox({ value, onSave }) {
+  const [txt, setTxt] = useState(value);
+  const t = useRef();
+  const saved = useRef(value);
+  const commit = (v) => { clearTimeout(t.current); if (v !== saved.current) { saved.current = v; onSave(v); } };
+  useEffect(() => () => clearTimeout(t.current), []);
+  return html`<textarea class="note" rows="3" placeholder="Triggers, wins, how the day went…" value=${txt}
+    onInput=${(e) => { const v = e.target.value; setTxt(v); clearTimeout(t.current); t.current = setTimeout(() => commit(v), 500); }}
+    onBlur=${(e) => commit(e.target.value)}></textarea>`;
+}
 const SLEEP = ['Bad', 'Poor', 'OK', 'Good', 'Great'];
 function CheckIn({ s }) {
   const todayKey = S.dayKey();
@@ -231,24 +270,23 @@ function CheckIn({ s }) {
       </div>
     <//>
 
-    <${SosButton} compact />
+    ${s.quits.length > 0 && html`<${SosButton} compact />`}
 
-    <${Group} header="Cravings" footer="0 = none, 10 = the strongest you’ve felt. Cravings usually pass within 5–10 minutes.">
+    ${s.quits.length > 0 && html`<${Group} header="Cravings" footer="0 = none, 10 = the strongest you’ve felt. Cravings usually pass within 5–10 minutes.">
       ${s.quits.map((q) => html`<div class="slider-row">
         <div class="slider-top"><span>${q.emoji} ${q.label}</span><span class="slider-v"><b>${entry[q.id] ?? '–'}</b> ${cravingWord(entry[q.id])}</span></div>
         <input type="range" min="0" max="10" step="1" value=${entry[q.id] ?? 0} style="--c:${q.color};--p:${((entry[q.id] ?? 0) / 10) * 100}%"
           class=${entry[q.id] == null ? 'unset' : ''} aria-label=${`${q.label} craving`}
           onInput=${(e) => { const v = +e.target.value; if (v !== entry[q.id]) { haptic(4); set({ [q.id]: v }); } }} />
       </div>`)}
-    <//>
+    <//>`}
 
     <${Group} header="Sleep last night">
       <div class="pad"><${Segmented} options=${SLEEP.map((l, i) => ({ value: i + 1, label: l }))} value=${entry.sleep} onChange=${(v) => set({ sleep: v })} /></div>
     <//>
 
     <${Group} header="Notes">
-      <textarea class="note" rows="3" placeholder="Triggers, wins, how the day went…" value=${entry.note || ''}
-        onInput=${(e) => set({ note: e.target.value })}></textarea>
+      <${NoteBox} key=${day} value=${entry.note || ''} onSave=${(note) => set({ note })} />
     <//>
 
     ${habits.length > 0 && html`<${Group} header=${isToday ? 'Habits today' : 'Habits that day'}>
@@ -311,7 +349,7 @@ function GoalRow({ g, p }) {
     <${Ring} pct=${p.pct} size=${46} stroke=${5} color=${g.color}><span class="ring-emoji">${g.emoji}</span><//>
     <span class="row-main">
       <span class="row-title">${g.name}</span>
-      <span class="row-sub">${p.label} · ${deadlineText(g)}</span>
+      <span class="row-sub">${S.goalStartsLater(g) ? `Counts from ${S.fmtDate(S.goalWindow(g).start, { day: 'numeric', month: 'short' })}` : p.label} · ${deadlineText(g)}</span>
     </span>
     ${g.type === 'habit'
       ? html`<button class="tick ${today ? 'on' : ''}" style="--c:${g.color}" aria-pressed=${today} aria-label="Done today"
@@ -409,6 +447,7 @@ function GoalDetail({ id, close }) {
         <//>
         <h2 class="dh-name">${g.name}</h2>
         <div class="dh-label">${p.label} <span class="muted">${p.sub}</span></div>
+        ${S.goalStartsLater(g) && html`<div class="dh-note">Counts from ${S.fmtDate(S.goalWindow(g).start)}. Ticks before then still build your streak.</div>`}
         <div class="chips"><span class="chip" style="--c:${cat.color}">${cat.label}</span><span class="chip">${typeText(g)}</span><span class="chip">${deadlineText(g)}</span></div>
       </div>
       ${body}
@@ -422,7 +461,7 @@ function GoalEditor({ goal = {}, close }) {
   const isEdit = !!goal.id;
   const [f, setF] = useState(() => ({
     name: '', emoji: '🎯', color: '#3B9BFF', category: 'habits', type: 'habit', perWeek: 7, period: '2027', end: '2027-12-31',
-    mode: 'sum', auto: '', unit: '', target: '', startValue: '', quitId: 'vape', ...goal,
+    mode: 'sum', auto: '', unit: '', target: '', startValue: '', quitId: S.getState().quits[0]?.id || '', ...goal,
   }));
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   const s = S.getState();
@@ -466,7 +505,7 @@ function GoalEditor({ goal = {}, close }) {
       <//>
 
       <${Group} header="Type" footer=${{ habit: 'Tick it off on the days you do it. Builds a streak.', numeric: 'Work towards a number, like km run, money saved or a weight.', milestone: 'A one-off achievement you mark as done.', quit: 'Fills automatically every day you stay quit.' }[f.type]}>
-        <div class="pad"><${Segmented} options=${[{ value: 'habit', label: 'Habit' }, { value: 'numeric', label: 'Target' }, { value: 'milestone', label: 'Milestone' }, { value: 'quit', label: 'Stay quit' }]}
+        <div class="pad"><${Segmented} options=${[{ value: 'habit', label: 'Habit' }, { value: 'numeric', label: 'Target' }, { value: 'milestone', label: 'Milestone' }, ...(S.getState().quits.length ? [{ value: 'quit', label: 'Stay quit' }] : [])]}
           value=${f.type} onChange=${(v) => set({ type: v })} /></div>
         ${f.type === 'habit' && html`<div class="row">
           <span class="row-main"><span class="row-title">How often</span></span>
@@ -516,7 +555,8 @@ function NewYear({ close }) {
         <p class="muted">${toNY > 0 ? `${toNY} days until 1 January. ` : ''}Tap <b>+</b> to add a goal as it is, or tap a goal to change it first.</p>
       </div>
       ${CATEGORIES.map((c) => {
-        const items = PRESETS.filter((p) => p.make(s).category === c.id);
+        const hasSpend = s.quits.some((q) => q.monthly > 0);
+        const items = [...quitPresets(s), ...PRESETS].filter((p) => p.make(s).category === c.id && (p.key !== 'save' || hasSpend));
         if (!items.length) return null;
         return html`<${Group} key=${c.id} header=${c.label}>
           ${items.map((p) => {
@@ -631,14 +671,14 @@ function Progress({ s, go }) {
       </div>
     </section>
 
-    <section class="group">
+    ${cravSeries.length > 0 && html`<section class="group">
       <h2 class="group-h">Cravings</h2>
       <div class="card chart-card">
-        <${Legend} series=${cravSeries} />
+        ${cravSeries.length > 1 && html`<${Legend} series=${cravSeries} />`}
         <${LineChart} keys=${keys} series=${cravSeries} yMin=${0} yMax=${10} yTicks=${[0, 5, 10]} unit="/10" height=${190} />
         ${insight && html`<p class="insight">${insight}</p>`}
       </div>
-    </section>
+    </section>`}
 
     ${trig.length > 0 && html`<section class="group">
       <h2 class="group-h">What sets cravings off</h2>
@@ -665,13 +705,27 @@ function Progress({ s, go }) {
 }
 
 /* ============ PROFILE ============ */
+function SyncRow() {
+  const [st, setSt] = useState(syncStatus());
+  useEffect(() => onSyncStatus(setSt), []);
+  useNow(30000);
+  const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} hr ago`; };
+  const label = { syncing: 'Saving…', synced: `Saved to your account ${ago(st.at)}`, offline: 'Offline. Changes save when you’re back online', error: st.error || 'Couldn’t save. Tap to retry', idle: 'Waiting to save' }[st.state];
+  const icon = { syncing: '🔄', synced: '☁️', offline: '📴', error: '⚠️', idle: '☁️' }[st.state];
+  return html`<${Row} icon=${icon} iconBg=${st.state === 'error' ? '#FF453A' : '#3B9BFF'} title="Account sync" sub=${label} onClick=${() => { haptic(); syncNow(); }} />`;
+}
+
 function Profile({ s }) {
   const p = s.profile;
+  const user = A.getSession()?.user || {};
   const kg = S.latestWeight(p);
   const b = S.bmi(kg, p.heightCm);
   const band = S.bmiBand(b);
+  const age = S.ageOf(p);
   const fileRef = useRef();
   const pos = b ? Math.max(0, Math.min(100, ((b - 15) / (35 - 15)) * 100)) : 0;
+  const withHealth = s.quits.filter((q) => healthFor(q));
+  const initials = `${(user.firstName || '?')[0]}${(user.lastName || '')[0] || ''}`.toUpperCase();
 
   const onImport = async (e) => {
     const file = e.target.files[0];
@@ -681,19 +735,20 @@ function Profile({ s }) {
     let meta = '';
     try { const o = JSON.parse(text); meta = o.exportedAt ? ` from ${S.fmtDate(new Date(o.exportedAt))}` : ''; } catch { toast('That file isn’t valid JSON'); return; }
     confirmSheet({
-      title: 'Restore backup', text: `Replace everything on this device with the backup${meta}? Your current data will be overwritten.`, confirm: 'Restore backup',
+      title: 'Restore backup', text: `Replace everything in your account with the backup${meta}? Your current data will be overwritten on every device.`, confirm: 'Restore backup',
       onConfirm: () => { try { S.importJSON(text); toast('Backup restored'); } catch (err) { toast(err.message); } },
     });
   };
 
   return html`<${Page} title="Profile">
-    <button class="card profile-card tap" onClick=${openProfileEditor}>
-      <span class="avatar">${(p.name || '?')[0].toUpperCase()}</span>
-      <span class="row-main"><span class="pc-name">${p.name}</span><span class="row-sub">${p.age} · ${p.heightCm} cm · ${kg?.toFixed(1) ?? '–'} kg</span></span>
+    <button class="card profile-card tap" onClick=${openAccount}>
+      <span class="avatar">${initials}</span>
+      <span class="row-main"><span class="pc-name">${user.firstName} ${user.lastName}</span><span class="row-sub">@${user.username}</span></span>
       <span class="row-chev">${Icon.chevron()}</span>
     </button>
 
     <${Group} header="Body" footer="BMI is a rough guide. It doesn’t tell muscle from fat, so use it alongside how you feel and perform.">
+      <${Row} icon="🎂" iconBg="#BF5AF2" title="Age and height" detail=${`${age ?? '–'} · ${p.heightCm ? `${p.heightCm} cm` : '–'}`} chevron onClick=${openBodyEditor} />
       <${Row} icon="⚖️" iconBg="#FF375F" title="Weight" detail=${kg ? `${kg.toFixed(1)} kg` : 'Add'} chevron onClick=${openWeightSheet} />
       <div class="bmi">
         <div class="bmi-top"><div><div class="kicker">BMI</div><div class="bmi-v">${b ? b.toFixed(1) : '–'}</div></div><span class="pill ${band.tone}">${band.label}</span></div>
@@ -702,25 +757,27 @@ function Profile({ s }) {
       </div>
     <//>
 
-    <${Group} header="Quit counters" footer="Tap a counter to change the quit date and time, or what you used to spend.">
+    <${Group} header="What you’re quitting" footer="Tap one to change its quit date, what it cost you, or to remove it.">
       ${s.quits.map((q) => html`<${Row} key=${q.id} icon=${q.emoji} iconBg=${q.color} title=${q.label}
-        sub=${`Since ${S.parseLocal(q.start).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
-        detail=${`${S.money(q.monthly, 0)}/mo`} chevron onClick=${() => openQuitEditor(q.id)} />`)}
+        sub=${`${S.quitStart(q) > new Date() ? 'Quit day' : 'Since'} ${S.quitStart(q).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+        detail=${q.monthly ? `${S.money(q.monthly, 0)}/mo` : ''} chevron onClick=${() => openQuitEditor(q.id)} />`)}
+      ${s.quits.length < ADDICTIONS.length && html`<${Row} icon=${Icon.plus()} iconBg="#3B9BFF" title="Add something to quit" chevron onClick=${openAddQuit} />`}
     <//>
 
     <${Group} header="Staying quit">
       <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" sub=${s.reasons.length ? `${s.reasons.length} reason${s.reasons.length === 1 ? '' : 's'} · shown during SOS` : 'Why you quit, for the hard moments'} chevron onClick=${openReasons} />
-      <${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" sub="What’s improving, stage by stage" chevron onClick=${() => openTimeline('vape')} />
+      ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" sub="What’s improving, stage by stage" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
     <//>
 
     <${NotifySettings} s=${s} />
 
-    <${Group} header="Your data" footer="Everything stays on this phone. Export a backup now and then, especially before changing phone or clearing Safari data.">
-      <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export backup" sub="Saves a .json file" chevron onClick=${doExport} />
-      <${Row} icon=${Icon.download()} iconBg="#30D158" title="Import backup" sub="Restore from a .json file" chevron onClick=${() => fileRef.current.click()} />
-      <${Row} icon=${Icon.trash()} iconBg="#FF453A" title="Erase all data" danger onClick=${() => confirmSheet({
-        title: 'Erase all data', text: 'This deletes every check-in, goal and setting on this device. Export a backup first if you might want it back.', confirm: 'Erase everything',
-        onConfirm: () => { S.resetAll(); toast('All data erased'); },
+    <${Group} header="Your data" footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
+      <${SyncRow} />
+      <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export a copy" sub="Saves a .json file" chevron onClick=${doExport} />
+      <${Row} icon=${Icon.download()} iconBg="#30D158" title="Restore from a file" sub="Replaces your account’s data" chevron onClick=${() => fileRef.current.click()} />
+      <${Row} icon="↺" iconBg="#FF9F0A" title="Start over" sub="Clears your data and reruns Day Zero" onClick=${() => confirmSheet({
+        title: 'Start over', text: 'This clears every counter, check-in, goal and note in your account and takes you back to Day Zero. Your login stays the same.', confirm: 'Clear and start over',
+        onConfirm: () => { S.replaceState(S.defaultState()); toast('Fresh start'); },
       })} />
       <input type="file" accept="application/json,.json" ref=${fileRef} onChange=${onImport} hidden />
     <//>
@@ -729,7 +786,7 @@ function Profile({ s }) {
       <img src="icons/icon-192.png" alt="" width="56" height="56" />
       <b>NOVUM</b>
       <span>A new beginning. A new standard. A new you.</span>
-      <span class="tiny">Version 1.0</span>
+      <span class="tiny">Version 2.0</span>
     </div>
   <//>`;
 }
@@ -748,20 +805,161 @@ async function doExport() {
   toast('Backup saved');
 }
 
-function openProfileEditor() { openSheet((close) => html`<${ProfileEditor} close=${close} />`); }
-function ProfileEditor({ close }) {
+function openBodyEditor() { openSheet((close) => html`<${BodyEditor} close=${close} />`); }
+function BodyEditor({ close }) {
   const p = S.getState().profile;
-  const [f, setF] = useState({ name: p.name, age: p.age, heightCm: p.heightCm });
-  const ok = f.name.trim() && +f.age > 0 && +f.heightCm > 50;
-  const save = () => { S.update((d) => { d.profile.name = f.name.trim(); d.profile.age = +f.age; d.profile.heightCm = +f.heightCm; }); haptic(12); close(); };
+  const [dob, setDob] = useState(p.dob || '');
+  const [cm, setCm] = useState(p.heightCm ? String(p.heightCm) : '');
+  const dobOk = /^\d{4}-\d{2}-\d{2}$/.test(dob) && S.parseDay(dob) < new Date();
+  const ok = dobOk && +cm >= 100 && +cm <= 250;
+  const save = () => { S.update((d) => { d.profile.dob = dob; d.profile.heightCm = Math.round(+cm); }); haptic(12); close(); };
   return html`
-    <${SheetBar} title="Profile" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" disabled=${!ok} onClick=${save}>Save</button>`} />
+    <${SheetBar} title="Age and height" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" disabled=${!ok} onClick=${save}>Save</button>`} />
     <div class="sheet-body">
-      <${Group}>
-        <${Field} label="Name"><input value=${f.name} onInput=${(e) => setF({ ...f, name: e.target.value })} /><//>
-        <${Field} label="Age"><input type="number" inputmode="numeric" value=${f.age} onInput=${(e) => setF({ ...f, age: e.target.value })} /><//>
-        <${Field} label="Height (cm)"><input type="number" inputmode="decimal" value=${f.heightCm} onInput=${(e) => setF({ ...f, heightCm: e.target.value })} /><//>
+      <${Group} footer=${dobOk ? `${S.ageOf({ dob })} years old` : ''}>
+        <${Field} label="Date of birth"><input type="date" max=${S.dayKey()} value=${dob} onInput=${(e) => setDob(e.target.value)} /><//>
+        <${Field} label="Height (cm)"><input type="number" inputmode="decimal" value=${cm} onInput=${(e) => setCm(e.target.value)} /><//>
       <//>
+    </div>`;
+}
+
+/* ---------- account ---------- */
+function openAccount() { openSheet((close) => html`<${Account} close=${close} />`, { tall: true }); }
+function Account({ close }) {
+  const user = A.getSession()?.user || {};
+  const [f, setF] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', username: user.username || '', email: user.email || '', phone: user.phone || '' });
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const changed = Object.keys(f).some((k) => f[k].trim() !== (user[k] || ''));
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const save = async () => {
+    setBusy(true); setMsg(null);
+    const patch = Object.fromEntries(Object.keys(f).filter((k) => f[k].trim() !== (user[k] || '')).map((k) => [k, f[k].trim()]));
+    try { await A.updateMe(patch); haptic(15); toast('Account updated'); setMsg(null); } catch (e) { setMsg({ err: e.message }); }
+    setBusy(false);
+  };
+  const doLogout = () => confirmSheet({
+    title: 'Log out', danger: false, confirm: 'Log out',
+    text: 'Your data is saved to your account. Log back in on any device to pick up where you left off. This phone stops getting notifications until you log in again.',
+    onConfirm: async () => { close(); await logOutEverywhereLocal(); },
+  });
+  return html`
+    <${SheetBar} title="Account" left=${html`<button class="link" onClick=${close}>Close</button>`} right=${html`<button class="link b" disabled=${!changed || busy} onClick=${save}>${busy ? 'Saving…' : 'Save'}</button>`} />
+    <div class="sheet-body">
+      <${Group} header="Your details" footer=${msg?.err ? html`<span class="err">${msg.err}</span>` : `Member since ${user.createdAt ? S.fmtDate(new Date(user.createdAt)) : '–'}`}>
+        <${Field} label="First name"><input autocomplete="given-name" value=${f.firstName} onInput=${set('firstName')} /><//>
+        <${Field} label="Last name"><input autocomplete="family-name" value=${f.lastName} onInput=${set('lastName')} /><//>
+        <${Field} label="Username"><input autocapitalize="none" autocorrect="off" spellcheck="false" value=${f.username} onInput=${set('username')} /><//>
+        <${Field} label="Email"><input type="email" autocapitalize="none" value=${f.email} onInput=${set('email')} /><//>
+        <${Field} label="Phone"><input type="tel" value=${f.phone} onInput=${set('phone')} /><//>
+      <//>
+      <${Group}>
+        <${Row} icon="🔑" iconBg="#8E8E93" title="Change password" chevron onClick=${openPassword} />
+        <${Row} icon="↪" iconBg="#3B9BFF" title="Log out" chevron onClick=${doLogout} />
+      <//>
+      <${Group} footer="Deletes your account and all your data from Novum’s server. This can’t be undone.">
+        <${Row} icon=${Icon.trash()} iconBg="#FF453A" title="Delete account" danger onClick=${openDeleteAccount} />
+      <//>
+    </div>`;
+}
+
+async function logOutEverywhereLocal() {
+  const uid = A.getSession()?.user?.id;
+  try { await flush(); } catch { /* offline: unsynced changes stay on this device */ }
+  try { await disablePush(); } catch { /* ignore */ }
+  stopPushSync(); stopSync();
+  await A.logout();
+  S.closeUser({ wipe: true });
+  if (uid) forgetMeta(uid);
+}
+
+function openPassword() { openSheet((close) => html`<${PasswordSheet} close=${close} />`); }
+function PasswordSheet({ close }) {
+  const [cur, setCur] = useState('');
+  const [next, setNext] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const ok = cur && next.length >= 8;
+  const save = async () => {
+    setBusy(true); setErr('');
+    try { await A.changePassword(cur, next); haptic(15); toast('Password changed'); close(); } catch (e) { setErr(e.message); }
+    setBusy(false);
+  };
+  return html`
+    <${SheetBar} title="Change password" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" disabled=${!ok || busy} onClick=${save}>Save</button>`} />
+    <div class="sheet-body">
+      <${Group} footer=${err ? html`<span class="err">${err}</span>` : 'At least 8 characters. You’ll stay logged in here; other devices are logged out.'}>
+        <${Field} label="Current"><input type="password" autocomplete="current-password" value=${cur} onInput=${(e) => setCur(e.target.value)} /><//>
+        <${Field} label="New"><input type="password" autocomplete="new-password" value=${next} onInput=${(e) => setNext(e.target.value)} /><//>
+      <//>
+    </div>`;
+}
+
+function openDeleteAccount() { openSheet((close) => html`<${DeleteAccount} close=${close} />`); }
+function DeleteAccount({ close }) {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    setBusy(true); setErr('');
+    const uid = A.getSession()?.user?.id;
+    try {
+      try { await disablePush(); } catch { /* ignore */ }
+      await A.deleteAccount(pw);
+      stopPushSync(); stopSync();
+      A.setSession(null);
+      S.closeUser({ wipe: true });
+      if (uid) forgetMeta(uid);
+      close();
+      toast('Account deleted');
+    } catch (e) { setErr(e.message); setBusy(false); }
+  };
+  return html`
+    <${SheetBar} title="Delete account" left=${html`<button class="link" onClick=${close}>Cancel</button>`} />
+    <div class="sheet-body">
+      <p class="confirm-text">This permanently deletes your account, counters, check-ins, goals and notes from Novum. Export a copy first if you might want it.</p>
+      <${Group} footer=${err ? html`<span class="err">${err}</span>` : ''}>
+        <${Field} label="Password"><input type="password" autocomplete="current-password" value=${pw} onInput=${(e) => setPw(e.target.value)} /><//>
+      <//>
+      <button class="btn btn-danger block" disabled=${!pw || busy} onClick=${go}>${busy ? 'Deleting…' : 'Delete my account'}</button>
+    </div>`;
+}
+
+/* ---------- add an addiction later ---------- */
+function openAddQuit() { openSheet((close) => html`<${AddQuit} close=${close} />`, { tall: true }); }
+function AddQuit({ close }) {
+  const s = S.getState();
+  const have = new Set(s.quits.map((q) => q.kind));
+  const options = ADDICTIONS.filter((a) => !have.has(a.kind));
+  const [kind, setKind] = useState(null);
+  const [name, setName] = useState('');
+  const [start, setStart] = useState(S.toLocalInput(new Date()));
+  const [monthly, setMonthly] = useState('');
+  const a = kind ? addictionByKind(kind) : null;
+  const ok = kind && start && (kind !== 'other' || name.trim());
+  const save = () => {
+    haptic(15);
+    S.update((d) => d.quits.push({
+      id: kind, kind, label: kind === 'other' ? name.trim() : a.label, emoji: a.emoji, color: a.color,
+      start, monthly: parseFloat(monthly) || 0, best: 0, resets: [],
+    }));
+    close();
+    toast(`${kind === 'other' ? name.trim() : a.label} added`);
+  };
+  return html`
+    <${SheetBar} title="Add something to quit" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" disabled=${!ok} onClick=${save}>Add</button>`} />
+    <div class="sheet-body">
+      <div class="pick-grid">
+        ${options.map((o) => html`<button class="pick ${kind === o.kind ? 'on' : ''}" style="--c:${o.color}" onClick=${() => { haptic(); setKind(o.kind); }}>
+          <span class="pick-e">${o.emoji}</span><span class="pick-l">${o.label}</span><span class="pick-tick">${Icon.check()}</span></button>`)}
+      </div>
+      ${kind && html`
+        <${Group} header="Details" footer="Quitting soon? Pick a future date and Novum will count down to it.">
+          ${kind === 'other' && html`<${Field} label="What is it?"><input placeholder="e.g. Social media" maxlength="24" value=${name} onInput=${(e) => setName(e.target.value)} /><//>`}
+          <${Field} label="Quit at"><input type="datetime-local" value=${start} onInput=${(e) => setStart(e.target.value)} /><//>
+          <${Field} label="Cost per month (£)"><input type="number" inputmode="decimal" placeholder="0" value=${monthly} onInput=${(e) => setMonthly(e.target.value)} /><//>
+        <//>
+        <button class="btn btn-primary block big" disabled=${!ok} onClick=${save}>Add</button>`}
     </div>`;
 }
 
@@ -802,9 +1000,11 @@ function openQuitEditor(id) { openSheet((close) => html`<${QuitEditor} id=${id} 
 function QuitEditor({ id, close }) {
   const s = S.getState();
   const q = s.quits.find((x) => x.id === id);
-  const [start, setStart] = useState(q.start);
-  const [monthly, setMonthly] = useState(String(q.monthly));
-  const valid = start && !Number.isNaN(S.parseLocal(start).getTime()) && S.parseLocal(start) <= new Date() && parseFloat(monthly) >= 0;
+  const [start, setStart] = useState(q?.start || '');
+  const [monthly, setMonthly] = useState(String(q?.monthly ?? 0));
+  if (!q) return html`<${SheetBar} title="Removed" right=${html`<button class="link b" onClick=${close}>Done</button>`} />`;
+  const maxFuture = S.toLocalInput(S.addDays(new Date(), 60));
+  const valid = start && !Number.isNaN(S.parseLocal(start).getTime()) && start <= maxFuture && parseFloat(monthly) >= 0;
   const save = () => {
     if (!valid) return;
     haptic(12);
@@ -819,14 +1019,20 @@ function QuitEditor({ id, close }) {
     confirm: 'Restart from now',
     onConfirm: () => { S.restartQuit(id); close(); toast('Counter restarted. You’ve got this.'); },
   });
+  const remove = () => confirmSheet({
+    title: `Remove ${q.label}`, danger: true,
+    text: `This removes the ${q.label.toLowerCase()} counter, its milestones and its money tracking. Check-ins and goals stay.`,
+    confirm: 'Remove',
+    onConfirm: () => { close(); S.update((d) => { d.quits = d.quits.filter((x) => x.id !== id); }); toast(`${q.label} removed`); },
+  });
   const m = parseFloat(monthly) || 0;
   return html`
     <${SheetBar} title=${`${q.emoji} ${q.label}`} left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" disabled=${!valid} onClick=${save}>Save</button>`} />
     <div class="sheet-body">
-      <${Group} header="Quit date and time">
-        <${Field} label="Quit at"><input type="datetime-local" value=${start} max=${S.toLocalInput(new Date())} onInput=${(e) => setStart(e.target.value)} /><//>
+      <${Group} header="Quit date and time" footer="Quitting soon? You can pick a date up to 60 days ahead.">
+        <${Field} label="Quit at"><input type="datetime-local" value=${start} max=${maxFuture} onInput=${(e) => setStart(e.target.value)} /><//>
       <//>
-      <${Group} header="What you used to spend" footer=${`About ${S.money((m * 12) / 52)} a week, or ${S.money(m * 12, 0)} a year. If it varied, use a middle figure.`}>
+      <${Group} header="What it cost you" footer=${`About ${S.money((m * 12) / 52)} a week, or ${S.money(m * 12, 0)} a year. If it varied, use a middle figure.`}>
         <${Field} label="Per month (£)"><input type="number" inputmode="decimal" step="1" value=${monthly} onInput=${(e) => setMonthly(e.target.value)} /><//>
       <//>
       <div class="stats3">
@@ -834,23 +1040,26 @@ function QuitEditor({ id, close }) {
         <div><b>${Math.floor(best / DAY)}</b><span>best run</span></div>
         <div><b>${(q.resets || []).length}</b><span>restarts</span></div>
       </div>
-      <button class="btn btn-plain block" onClick=${() => openTimeline(id)}>See the health timeline</button>
+      ${healthFor(q) && html`<button class="btn btn-plain block" onClick=${() => openTimeline(id)}>See the health timeline</button>`}
       <button class="btn btn-plain danger block" onClick=${restart}>I slipped. Restart the counter</button>
+      <button class="btn btn-plain danger block" onClick=${remove}>Remove from Novum</button>
     </div>`;
 }
 
 function openTimeline(id) { openSheet((close) => html`<${Timeline} initial=${id} close=${close} />`, { tall: true }); }
 function Timeline({ initial, close }) {
   const s = S.getState();
+  const opts = s.quits.filter((x) => healthFor(x));
   const [qid, setQid] = useState(initial);
-  const q = s.quits.find((x) => x.id === qid) || s.quits[0];
+  const q = opts.find((x) => x.id === qid) || opts[0];
+  if (!q) return html`<${SheetBar} title="Recovery timeline" right=${html`<button class="link b" onClick=${close}>Done</button>`} />`;
   const hours = S.quitElapsed(q) / 36e5;
-  const items = HEALTH[q.id] || [];
-  const when = (h) => (h < 1 ? `${Math.round(h * 60)} minutes` : h < 48 ? `${h} hours` : h < 336 ? `${Math.round(h / 24)} days` : h < 1440 ? `${Math.round(h / 168)} weeks` : h < 8760 ? `${Math.round(h / 730)} months` : '1 year');
+  const items = healthFor(q) || [];
+  const when = (h) => (h === 0 ? 'Before you start' : h < 1 ? `${Math.round(h * 60)} minutes` : h < 48 ? `${h} hours` : h < 336 ? `${Math.round(h / 24)} days` : h < 1440 ? `${Math.round(h / 168)} weeks` : h < 8760 ? `${Math.round(h / 730)} months` : '1 year');
   return html`
     <${SheetBar} title="Recovery timeline" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
-      <div class="pad-b"><${Segmented} options=${s.quits.map((x) => ({ value: x.id, label: `${x.emoji} ${x.label}` }))} value=${qid} onChange=${setQid} /></div>
+      ${opts.length > 1 && html`<div class="pad-b"><${Segmented} small=${opts.length > 3} options=${opts.map((x) => ({ value: x.id, label: `${x.emoji} ${x.label}` }))} value=${q.id} onChange=${setQid} /></div>`}
       <ol class="timeline" style="--c:${q.color}">
         ${items.map((it) => {
           const done = hours >= it.h;
@@ -1020,10 +1229,11 @@ function Reasons({ close }) {
 
 /* ============ NOTIFICATIONS ============ */
 function NotifySettings({ s }) {
-  const n = s.notify;
+  const n = s.notifyPrefs;
+  const [dev, setDev] = useState(deviceState());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const setN = (patch) => S.update((d) => Object.assign(d.notify, patch));
+  const setN = (patch) => S.update((d) => { d.notifyPrefs = { ...d.notifyPrefs, ...patch }; });
   const configured = pushConfigured();
   const toggleMain = async (on) => {
     if (busy) return;
@@ -1031,6 +1241,7 @@ function NotifySettings({ s }) {
     try {
       if (on) { await enablePush(); toast('Notifications on 🔔'); } else { await disablePush(); toast('Notifications off'); }
     } catch (e) { setErr(e.message); }
+    setDev(deviceState());
     setBusy(false);
   };
   const test = async () => {
@@ -1038,19 +1249,19 @@ function NotifySettings({ s }) {
     try { await sendTest(10); toast('Arrives in 10s. Leave Novum now'); } catch (e) { setErr(e.message); }
   };
   let footer;
-  if (!configured) footer = 'Notifications need the free Novum push server. Follow the guide in the novum-push folder, then add its address to js/config.js.';
-  else if (isIOS() && !isStandalone()) footer = 'On iPhone, notifications only work when Novum is opened from your home screen.';
+  if (!configured) footer = 'Notifications aren’t set up on the server yet.';
+  else if (isIOS() && !isStandalone()) footer = 'On iPhone, add Novum to your Home Screen (Share → Add to Home Screen) and open it from there to get notifications.';
   else if (!pushSupported()) footer = 'This browser doesn’t support push notifications.';
   else if (permission() === 'denied') footer = 'Notifications are blocked. Turn them on in Settings → Notifications → Novum.';
-  else footer = 'Sent by your own Novum server. It only knows your quit times, reminder times and which habits you’ve ticked. Notes and moods stay on this phone.';
+  else footer = 'On or off for this phone. Reminder times follow your account. Novum’s server only uses your quit times, reminder times and habit ticks to time these.';
 
   return html`<${Group} header="Notifications" footer=${err ? html`<span class="err">${err}</span>` : footer}>
     <div class="row">
       <span class="row-ic" style="background:#FF453A">🔔</span>
-      <span class="row-main"><span class="row-title">Notifications</span>${busy && html`<span class="row-sub">Working…</span>`}</span>
-      ${configured ? html`<${Toggle} on=${n.enabled} label="Notifications" onChange=${toggleMain} />` : html`<span class="row-detail">Not set up</span>`}
+      <span class="row-main"><span class="row-title">Notifications on this phone</span>${busy && html`<span class="row-sub">Working…</span>`}</span>
+      ${configured ? html`<${Toggle} on=${dev.enabled} label="Notifications" onChange=${toggleMain} />` : html`<span class="row-detail">Not set up</span>`}
     </div>
-    ${n.enabled && configured && html`
+    ${dev.enabled && configured && html`
       <div class="row">
         <span class="row-ic" style="background:#FFD60A">🏅</span>
         <span class="row-main"><span class="row-title">Milestones</span><span class="row-sub">1 day, 1 week, 1 month… sent between 9am and 10pm</span></span>
@@ -1089,9 +1300,7 @@ function onScroll() {
 }
 window.addEventListener('scroll', onScroll, { passive: true });
 
-function App() {
-  const [s, setS] = useState(S.getState());
-  useEffect(() => S.subscribe(setS), []);
+function App({ s }) {
   const initial = location.hash.slice(1);
   const [tab, setTab] = useState(TABS.some((t) => t.id === initial) ? initial : 'home');
   const scrolls = useRef({});
@@ -1113,9 +1322,51 @@ function App() {
   return html`<div class="app">
     <main class="screen" key=${tab}><${Screen} s=${s} go=${go} /></main>
     <${TabBar} tab=${tab} go=${go} dot=${needCheckin} />
-    <${SheetHost} />
   </div>`;
 }
 
-render(html`<${App} />`, document.getElementById('app'));
-startPushSync();
+// "A new version is ready" banner (set by index.html when a new service worker takes over)
+function UpdateBanner() {
+  const [show, setShow] = useState(!!window.__novumUpdate);
+  useEffect(() => { const on = () => setShow(true); window.addEventListener('novum-update', on); return () => window.removeEventListener('novum-update', on); }, []);
+  if (!show) return null;
+  return html`<button class="update-bar" onClick=${() => location.reload()}>✨ A new version of Novum is ready. <b>Tap to update</b></button>`;
+}
+
+// Decides what to show: auth → loading → Day Zero → the app
+function Root() {
+  const [session, setSess] = useState(A.getSession());
+  const [s, setS] = useState(S.getState());
+  const [ready, setReady] = useState(false);
+  useEffect(() => A.onSession(setSess), []);
+  useEffect(() => S.subscribe((st) => setS(st)), []);
+  useEffect(() => { try { navigator.storage?.persist?.(); } catch { /* not supported */ } }, []);
+
+  const uid = session?.user?.id;
+  useEffect(() => {
+    if (!uid) { stopSync(); stopPushSync(); S.closeUser({ wipe: false }); setReady(true); return; }
+    S.openUser(uid);
+    // New account on a device that already had pre-account Novum data: bring it across
+    if (consumeNewSignup()) {
+      const legacy = S.legacyState();
+      if (legacy) {
+        S.replaceState({ ...legacy, setupDone: false });
+        adoptLegacyDevice(legacy.notify);
+        S.clearLegacy();
+      }
+    }
+    setReady(S.getState().setupDone);
+    Promise.resolve(startSync(uid)).finally(() => setReady(true));
+    startPushSync();
+    A.refreshMe().catch(() => { /* offline or expired: handled by api.js */ });
+  }, [uid]);
+
+  let body;
+  if (!session) body = html`<${AuthScreen} />`;
+  else if (!ready) body = html`<div class="boot">NOVUM</div>`;
+  else if (!s.setupDone) body = html`<${DayZero} user=${session.user} />`;
+  else body = html`<${App} s=${s} />`;
+  return html`${body}<${SheetHost} /><${UpdateBanner} />`;
+}
+
+render(html`<${Root} />`, document.getElementById('app'));

@@ -1,6 +1,6 @@
 // Novum service worker: precache the app shell, serve cache-first, refresh in the background.
 // Bump VERSION when you deploy changes so old caches are cleared.
-const VERSION = 'novum-v5';
+const VERSION = 'novum-v6';
 const ASSETS = [
   './',
   'index.html',
@@ -12,6 +12,9 @@ const ASSETS = [
   'js/content.js',
   'js/push.js',
   'js/config.js',
+  'js/api.js',
+  'js/sync.js',
+  'js/onboarding.js',
   'vendor/preact-htm.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -21,7 +24,8 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' bypasses the browser's HTTP cache so a new version gets fresh files
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

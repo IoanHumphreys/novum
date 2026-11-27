@@ -26,7 +26,19 @@
   <script type="module" src="js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW failed', e)));
+      // If a page was already controlled and a new worker takes over, a new version is ready
+      const hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) return;
+        window.__novumUpdate = true;
+        window.dispatchEvent(new Event('novum-update'));
+      });
+      addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then((reg) => {
+          // Check for updates whenever the app comes back to the foreground
+          document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+        }).catch((e) => console.warn('SW failed', e));
+      });
     }
   </script>
 </body>

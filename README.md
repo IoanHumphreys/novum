@@ -55,6 +55,9 @@ When you change files, bump `VERSION` in `sw.js` (e.g. `novum-v2`) so phones fet
 | `js/ui.js` | Rings, bottom sheets, SVG charts, controls, haptics |
 | `js/store.js` | Data model, localStorage, goal/quit/BMI calculations, backup |
 | `js/content.js` | Milestones, health timeline text, New Year presets, SOS content |
+| `js/api.js` | Accounts: sign up, log in, session, profile calls |
+| `js/sync.js` | Syncs each user's data with their encrypted server copy |
+| `js/onboarding.js` | Welcome, sign up, log in and Day Zero setup screens |
 | `js/push.js` | Push notification subscribe and settings sync |
 | `js/config.js` | Push server address and public key (fill in after setting up `novum-push`) |
 | `sw.js` | Offline caching |

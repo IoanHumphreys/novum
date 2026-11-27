@@ -11,6 +11,19 @@ export const MILESTONES = [
   { days: 365, label: '1 year', short: '1y' },
 ];
 
+// What people can quit. Colours follow the entity everywhere (cards, charts, rings).
+export const ADDICTIONS = [
+  { kind: 'vape', label: 'Vaping', emoji: '💨', color: '#3B9BFF' },
+  { kind: 'weed', label: 'Weed', emoji: '🌿', color: '#28B84C' },
+  { kind: 'cigarettes', label: 'Smoking', emoji: '🚬', color: '#FF9F0A' },
+  { kind: 'alcohol', label: 'Alcohol', emoji: '🍺', color: '#BF5AF2' },
+  { kind: 'gambling', label: 'Gambling', emoji: '🎰', color: '#FF375F' },
+  { kind: 'snus', label: 'Snus & pouches', emoji: '🫙', color: '#64D2FF' },
+  { kind: 'energy', label: 'Energy drinks', emoji: '⚡', color: '#FFD60A' },
+  { kind: 'other', label: 'Something else', emoji: '✨', color: '#5AC8FA', custom: true },
+];
+export const addictionByKind = (k) => ADDICTIONS.find((a) => a.kind === k) || ADDICTIONS[ADDICTIONS.length - 1];
+
 export const HEALTH_NOTE =
   'General information drawn from public health sources, not medical advice. Everyone is different, and timings vary with how much and how long you used. If withdrawal, low mood or anxiety feels like too much, talk to your GP or call NHS 111.';
 
@@ -37,7 +50,35 @@ export const HEALTH = {
     { h: 4380, area: 'Mind', title: 'Clearer thinking', text: 'Many people notice better memory, steadier mood and more drive. Cravings are mostly triggered by situations now, not your body.' },
     { h: 8760, area: 'Long term', title: 'One year clear', text: 'A full year. Your lungs, sleep and mental clarity have had a full year to recover.' },
   ],
+  cigarettes: [
+    { h: 0.33, area: 'Heart', title: 'Pulse settles', text: 'Heart rate and blood pressure start dropping back towards normal.' },
+    { h: 8, area: 'Blood', title: 'Oxygen recovers', text: 'Carbon monoxide in your blood has halved and oxygen levels are returning to normal.' },
+    { h: 48, area: 'Senses', title: 'Carbon monoxide gone', text: 'Carbon monoxide has left your body. Your lungs start clearing mucus, and taste and smell improve.' },
+    { h: 72, area: 'Breathing', title: 'Breathing easier', text: 'Your airways relax and breathing feels easier. Energy often picks up.' },
+    { h: 336, area: 'Circulation', title: 'Circulation improves', text: 'Blood flow improves, making walking and exercise easier.' },
+    { h: 2160, area: 'Lungs', title: 'Lungs up to 10% better', text: 'Coughs, wheezing and breathing problems improve as lung function increases.' },
+    { h: 8760, area: 'Heart', title: 'Heart risk halved', text: 'After a year, your risk of a heart attack is about half that of someone who still smokes.' },
+  ],
+  alcohol: [
+    { h: 0, area: 'Safety', title: 'A note first', text: 'If you drank heavily every day, stopping suddenly can be dangerous. Talk to your GP or call NHS 111 before you stop.' },
+    { h: 24, area: 'Body', title: 'Blood sugar settles', text: 'Your blood sugar starts to stabilise. You might feel restless or shaky. Drink plenty of water.' },
+    { h: 72, area: 'Mood', title: 'Toughest days', text: 'Withdrawal and cravings usually peak in the first few days. Poor sleep and anxiety are common.' },
+    { h: 168, area: 'Sleep', title: 'Better sleep', text: 'You spend more time in deep, restoring sleep, so you wake up feeling fresher.' },
+    { h: 336, area: 'Stomach', title: 'Gut calms down', text: 'Your stomach lining starts to recover, with less reflux and fewer stomach problems.' },
+    { h: 720, area: 'Liver', title: 'Liver repairs', text: 'Liver fat can start to reduce, and skin and energy often look and feel better.' },
+    { h: 2160, area: 'Mind', title: 'Steadier mood', text: 'Mood, focus and memory are usually noticeably better than when drinking.' },
+    { h: 8760, area: 'Long term', title: 'One year alcohol-free', text: 'Lower blood pressure and lower risks for your liver and heart.' },
+  ],
+  energy: [
+    { h: 12, area: 'Body', title: 'Caffeine clearing', text: 'Most of the caffeine has left your system. A dip in energy is normal.' },
+    { h: 36, area: 'Head', title: 'Headaches peak', text: 'Caffeine withdrawal headaches and tiredness usually peak around day one or two. Water and sleep help.' },
+    { h: 216, area: 'Energy', title: 'Natural energy back', text: 'For most people withdrawal is over within nine days, and energy levels are steadier.' },
+    { h: 720, area: 'Sleep', title: 'Deeper sleep', text: 'Sleep quality improves without late caffeine and sugar crashes.' },
+  ],
 };
+// Same nicotine timeline applies to pouches
+HEALTH.snus = HEALTH.vape;
+export const healthFor = (q) => HEALTH[q.kind || q.id] || null;
 
 export const CATEGORIES = [
   { id: 'health', label: 'Health', color: '#FF375F' },
@@ -52,9 +93,13 @@ export const COLORS = ['#3B9BFF', '#5AC8FA', '#30D158', '#FFD60A', '#FF9F0A', '#
 export const EMOJIS = ['🎯', '💨', '🌿', '💪', '🏋️', '🏃', '🚴', '🧘', '💧', '😴', '🥗', '🍎', '💷', '🏦', '📚', '📖', '🎓', '🧠', '✍️', '🎸', '🧹', '☀️', '🌙', '❤️', '🔥', '⭐', '🏆', '✈️'];
 
 // Presets for the New Year screen. f(state) => goal fields
+// "Stay quit" presets are generated per addiction (see quitPresets)
+export const quitPresets = (s) => s.quits.map((q) => ({
+  key: `stay-${q.id}`,
+  make: () => ({ name: `Stay ${q.label.toLowerCase()}-free all of 2027`, emoji: q.emoji, color: q.color, category: 'health', type: 'quit', quitId: q.id, period: '2027' }),
+}));
+
 export const PRESETS = [
-  { key: 'stay-vape', make: () => ({ name: 'Stay vape-free all of 2027', emoji: '💨', color: '#3B9BFF', category: 'health', type: 'quit', quitId: 'vape', period: '2027' }) },
-  { key: 'stay-weed', make: () => ({ name: 'Stay weed-free all of 2027', emoji: '🌿', color: '#30D158', category: 'health', type: 'quit', quitId: 'weed', period: '2027' }) },
   {
     key: 'save', make: (s) => {
       const yearly = s.quits.reduce((a, q) => a + (q.monthly || 0) * 12, 0);

@@ -1,7 +1,9 @@
-// Novum: local data store, date helpers and derived calculations.
-// Everything lives in localStorage on this device. Export/import gives a JSON backup.
+// Novum: per-user data store, date helpers and derived calculations.
+// The server holds each account's data (encrypted); this keeps a cached copy per user
+// on the device so the app opens instantly and works offline. See sync.js.
 
-const KEY = 'novum.v1';
+const LEGACY_KEY = 'novum.v1'; // pre-accounts data on this device
+let KEY = null;                // 'novum.v1:<userId>' while someone is logged in
 const DAY = 864e5;
 const MONTH_DAYS = 365.25 / 12;
 
@@ -26,61 +28,90 @@ export const money = (n, dp = 2) => '£' + n.toLocaleString('en-GB', { minimumFr
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 /* ---------- default state ---------- */
+export const DEFAULT_PREFS = { milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00' };
+
 export function defaultState() {
   return {
-    version: 1,
-    profile: { name: 'Ioan', age: 19, heightCm: 181, weights: [{ date: dayKey(), kg: 70.216 }] },
-    quits: [
-      // Quit 16 days before 27 Nov 2026; time unknown so midnight. Editable in Profile.
-      { id: 'vape', label: 'Vaping', emoji: '💨', color: '#3B9BFF', start: '2026-11-11T00:00', monthly: 45, best: 0, resets: [] },
-      { id: 'weed', label: 'Weed', emoji: '🌿', color: '#28B84C', start: '2026-11-11T00:00', monthly: 40, best: 0, resets: [] },
-    ],
+    version: 2,
+    setupDone: false, // Day Zero finished
+    profile: { dob: '', heightCm: null, weights: [] },
+    // { id, kind, label, emoji, color, start: 'YYYY-MM-DDTHH:mm', monthly, best, resets }
+    quits: [],
     checkins: {},
     goals: [],
     reasons: [],
     // { id, t, quitIds, triggers, beaten, secs }
     cravings: [],
-    notify: { enabled: false, deviceId: '', milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00' },
+    notifyPrefs: { ...DEFAULT_PREFS },
     createdAt: new Date().toISOString(),
+    savedAt: 0,
   };
 }
 
 /* ---------- store ---------- */
-let state = load();
+let state = defaultState();
 const subs = new Set();
+const emit = (info = {}) => subs.forEach((f) => f(state, info));
 
-function load() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return migrate(JSON.parse(raw));
-  } catch (e) { console.warn('Novum: could not read saved data', e); }
-  return defaultState();
-}
-function migrate(s) {
+export function migrate(s) {
   const d = defaultState();
+  const quits = (s.quits || []).map((q) => ({ best: 0, resets: [], monthly: 0, ...q, kind: q.kind || q.id }));
   return {
     ...d, ...s,
+    version: 2,
     profile: { ...d.profile, ...(s.profile || {}) },
-    quits: s.quits || d.quits, checkins: s.checkins || {}, goals: s.goals || [],
+    quits, checkins: s.checkins || {}, goals: s.goals || [],
     reasons: s.reasons || [], cravings: s.cravings || [],
-    notify: { ...d.notify, ...(s.notify || {}) },
+    notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };
 }
+const pickPrefs = (n) => (n ? Object.fromEntries(Object.keys(DEFAULT_PREFS).filter((k) => k in n).map((k) => [k, n[k]])) : {});
+
 function save() {
+  if (!KEY) return;
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('Novum: save failed', e); }
 }
 export const getState = () => state;
 export const subscribe = (fn) => { subs.add(fn); return () => subs.delete(fn); };
+
+// Switch to a logged-in user's cached data
+export function openUser(userId) {
+  KEY = `novum.v1:${userId}`;
+  let next = defaultState();
+  try { const raw = localStorage.getItem(KEY); if (raw) next = migrate(JSON.parse(raw)); } catch (e) { console.warn('Novum: could not read saved data', e); }
+  state = next;
+  emit({ remote: true });
+}
+// Log out: forget this user's cached data on the device
+export function closeUser({ wipe = true } = {}) {
+  if (KEY && wipe) { try { localStorage.removeItem(KEY); } catch { /* ignore */ } }
+  KEY = null;
+  state = defaultState();
+  emit({ remote: true });
+}
+
 // update(draft => { ...mutate... })
 export function update(fn) {
   const draft = JSON.parse(JSON.stringify(state));
   fn(draft);
+  draft.savedAt = Date.now();
   state = draft;
   save();
-  subs.forEach((f) => f(state));
+  emit({});
 }
-export function replaceState(next) { state = migrate(next); save(); subs.forEach((f) => f(state)); }
-export function resetAll() { state = defaultState(); save(); subs.forEach((f) => f(state)); }
+// Replace everything. remote=true means it came from the server (don't sync it back).
+export function replaceState(next, { remote = false } = {}) {
+  state = migrate(next);
+  if (!remote) state.savedAt = Date.now();
+  save();
+  emit({ remote });
+}
+
+/* ---------- data from before accounts ---------- */
+export function legacyState() {
+  try { const raw = localStorage.getItem(LEGACY_KEY); return raw ? migrate(JSON.parse(raw)) : null; } catch { return null; }
+}
+export function clearLegacy() { try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ } }
 
 export function exportJSON() {
   return JSON.stringify({ app: 'novum', exportedAt: new Date().toISOString(), data: state }, null, 2);
@@ -89,7 +120,7 @@ export function importJSON(text) {
   const obj = JSON.parse(text);
   const data = obj && obj.app === 'novum' ? obj.data : obj;
   if (!data || !Array.isArray(data.quits) || !data.profile) throw new Error('This file is not a Novum backup.');
-  replaceState(data);
+  replaceState({ ...data, setupDone: true });
 }
 
 /* ---------- quits ---------- */
@@ -122,6 +153,15 @@ export const latestWeight = (p) => {
   const w = [...(p.weights || [])].sort((a, b) => a.date.localeCompare(b.date));
   return w.length ? w[w.length - 1].kg : null;
 };
+export function ageOf(p) {
+  if (p.dob) {
+    const b = parseDay(p.dob), n = new Date();
+    let a = n.getFullYear() - b.getFullYear();
+    if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+    return a;
+  }
+  return p.age ?? null; // older data stored age directly
+}
 export const bmi = (kg, cm) => (kg && cm ? kg / Math.pow(cm / 100, 2) : null);
 export function bmiBand(v) {
   if (v == null) return { label: '—', tone: 'muted' };
@@ -205,6 +245,7 @@ export function goalProgress(g, s = state, now = Date.now()) {
   }
   if (g.type === 'quit') {
     const q = s.quits.find((x) => x.id === g.quitId) || s.quits[0];
+    if (!q) return { pct: 0, current: 0, target: totalDays, label: 'No counter', sub: 'add one in Profile' };
     const a = Math.max(w.start.getTime(), quitStart(q).getTime());
     const b = Math.min(winEnd, now);
     const days = b > a ? Math.floor((b - a) / DAY) : 0;
@@ -215,3 +256,5 @@ export function goalProgress(g, s = state, now = Date.now()) {
 }
 
 export const isGoalDone = (g, s) => goalProgress(g, s).pct >= 1;
+// Goals whose window hasn't begun yet (e.g. "all of 2027" before 1 Jan)
+export const goalStartsLater = (g, now = new Date()) => goalWindow(g).start > parseDay(dayKey(now));
