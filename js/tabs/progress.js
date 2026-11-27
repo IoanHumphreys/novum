@@ -66,17 +66,14 @@ export function Progress({ s, go }) {
 
   return html`<${Page} title="Progress">
     <${WrappedCard} />
-    ${/* One ring per goal category, thinner when there are more so they all fit. The overall % sits
-         underneath the rings, not in the middle, where the inner rings would cover it. */ ''}
     <section class="group">
       <h2 class="group-h">2027 at a glance</h2>
       <div class="card glance">
         ${goals27.length ? html`
           <div class="glance-top">
-            <div class="gl-ring">
-              <${RingStack} size=${140} stroke=${byCat.length <= 2 ? 14 : byCat.length === 3 ? 12 : 9} gap=${3} rings=${byCat.slice(0, 5).map((c) => ({ pct: c.pct, color: c.color }))} />
+            <${RingStack} size=${150} stroke=${14} gap=${3} rings=${byCat.slice(0, 5).map((c) => ({ pct: c.pct, color: c.color }))}>
               <div class="gl-c"><b>${Math.round(overall * 100)}%</b><span>overall</span></div>
-            </div>
+            <//>
             <div class="gl-legend">${byCat.map((c) => html`<div class="gl-li"><i style="background:${c.color}"></i><span>${c.label}</span><b>${Math.round(c.pct * 100)}%</b></div>`)}</div>
           </div>`
         : html`<div class="glance-empty"><p>Add goals for 2027 to see all your rings here.</p><button class="btn btn-primary sm" onClick=${openNewYear}>New Year ideas</button></div>`}

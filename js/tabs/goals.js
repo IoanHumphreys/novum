@@ -137,9 +137,8 @@ export function GoalDetail({ id, close }) {
     <div class="sheet-body">
       <div class="detail-hero">
         <${Ring} pct=${p.pct} size=${168} stroke=${18} color=${g.color}>
-          <div class="dh-in"><span class="dh-e">${g.emoji}</span></div>
+          <div class="dh-in"><span class="dh-e">${g.emoji}</span><b>${Math.round(p.pct * 100)}%</b></div>
         <//>
-        <div class="dh-pct" style="--c:${g.color}">${Math.round(p.pct * 100)}<small>%</small></div>
         <h2 class="dh-name">${g.name}</h2>
         <div class="dh-label">${p.label} <span class="muted">${p.sub}</span></div>
         ${S.goalStartsLater(g) && html`<div class="dh-note">Counts from ${S.fmtDate(S.goalWindow(g).start)}. Ticks before then still build your streak.</div>`}
