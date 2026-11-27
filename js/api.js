@@ -46,6 +46,17 @@ export async function signup(fields) {
   setSession({ token: r.token, user: r.user });
   return r.user;
 }
+// { username: true/false, email: true/false } — true means free to use
+export const checkAvailable = (fields) => call('POST', '/auth/available', fields);
+// Email codes. sendEmailCode → { ok } or { skipped: true } when the server has email turned off
+export const sendEmailCode = (email, firstName) => call('POST', '/auth/email-code', { email, firstName });
+export const verifyEmailCode = (email, code) => call('POST', '/auth/email-verify', { email, code });
+export const requestReset = (email) => call('POST', '/auth/reset-request', { email });
+export async function resetPassword(email, code, password) {
+  const r = await call('POST', '/auth/reset', { email, code, password });
+  setSession({ token: r.token, user: r.user });
+  return r.user;
+}
 export async function login(loginId, password) {
   const r = await call('POST', '/auth/login', { login: loginId, password });
   setSession({ token: r.token, user: r.user });

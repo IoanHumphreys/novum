@@ -8,7 +8,7 @@ import { MILESTONES, HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, quitPr
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, enablePush, disablePush, sendTest, startPushSync, stopPushSync, deviceState, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from './sync.js';
-import { AuthScreen, DayZero, consumeNewSignup } from './onboarding.js';
+import { AuthScreen, DayZero, consumeNewSignup, CodeInput, Resend } from './onboarding.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -87,27 +87,44 @@ function Home({ s, go }) {
       sub="A new beginning. A new standard. A new you.">
     <p class="greet">${greet}${firstName() ? `, ${firstName()}` : ''}.</p>
 
-    ${hasQuits ? html`<div class="stack">
-      ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} />`)}
-    </div>` : html`<button class="card add-first tap" onClick=${openAddQuit}>
-      <span class="row-ic" style="background:#3B9BFF">${Icon.plus()}</span>
-      <span class="row-main"><span class="row-title">Track something you’re quitting</span><span class="row-sub">Vaping, smoking, alcohol, gambling and more</span></span>
-      <span class="row-chev">${Icon.chevron()}</span>
-    </button>`}
+    <section class="group first">
+      <h2 class="group-h">${hasQuits ? 'Your streaks' : 'Get started'}</h2>
+      ${hasQuits ? html`<div class="stack">
+        ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} />`)}
+      </div>` : html`<button class="card add-first tap" onClick=${openAddQuit}>
+        <span class="row-ic" style="background:#3B9BFF">${Icon.plus()}</span>
+        <span class="row-main"><span class="row-title">Track something you’re quitting</span><span class="row-sub">Vaping, smoking, alcohol, gambling and more</span></span>
+        <span class="row-chev">${Icon.chevron()}</span>
+      </button>`}
+    </section>
 
-    ${hasQuits && html`<${SosButton} />`}
-    ${s.reasons.length > 0 && html`<button class="why tap" onClick=${openReasons}>
-      <span class="why-k">Remember why</span>
-      <span class="why-t">“${s.reasons[Math.floor(now / 864e5) % s.reasons.length].text}”</span>
-    </button>`}
+    ${hasQuits && html`<section class="group">
+      <h2 class="group-h">When it gets hard</h2>
+      <div class="card support">
+        <button class="sup-sos" onClick=${openSos}>
+          <span class="sos-ic">🫁</span>
+          <span class="row-main"><span class="sos-t">Craving? Tap here</span><span class="sos-s">Five minutes of guided breathing. It will pass.</span></span>
+          <span class="row-chev">${Icon.chevron()}</span>
+        </button>
+        ${s.reasons.length > 0
+          ? html`<button class="sup-why" onClick=${openReasons}>
+              <span class="why-k">Remember why</span>
+              <span class="why-t">“${s.reasons[Math.floor(now / 864e5) % s.reasons.length].text}”</span>
+            </button>`
+          : html`<button class="sup-why add" onClick=${openReasons}>
+              <span class="why-k">Remember why</span>
+              <span class="why-add">+ Add your reasons for quitting</span>
+            </button>`}
+      </div>
+    </section>`}
 
-    ${monthly > 0 && html`<button class="card money-card tap" onClick=${() => go('progress')}>
-      <div class="mc-l">
-        <div class="kicker">${Icon.pound()} Money saved</div>
+    ${monthly > 0 && html`<section class="group">
+      <h2 class="group-h">Money saved</h2>
+      <button class="card money-card tap" onClick=${() => go('progress')}>
         <${MoneyTicker} quits=${s.quits} />
         <div class="mc-sub">${S.money(monthly, 0)} a month back in your pocket · ${S.money(monthly * 12, 0)} a year</div>
-      </div>
-    </button>`}
+      </button>
+    </section>`}
 
     ${hasQuits && html`<section class="group">
       <div class="group-h-row">
@@ -827,7 +844,7 @@ function BodyEditor({ close }) {
 function openAccount() { openSheet((close) => html`<${Account} close=${close} />`, { tall: true }); }
 function Account({ close }) {
   const user = A.getSession()?.user || {};
-  const [f, setF] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', username: user.username || '', email: user.email || '', phone: user.phone || '' });
+  const [f, setF] = useState({ firstName: user.firstName || '', lastName: user.lastName || '', username: user.username || '', phone: user.phone || '' });
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const changed = Object.keys(f).some((k) => f[k].trim() !== (user[k] || ''));
@@ -850,8 +867,8 @@ function Account({ close }) {
         <${Field} label="First name"><input autocomplete="given-name" value=${f.firstName} onInput=${set('firstName')} /><//>
         <${Field} label="Last name"><input autocomplete="family-name" value=${f.lastName} onInput=${set('lastName')} /><//>
         <${Field} label="Username"><input autocapitalize="none" autocorrect="off" spellcheck="false" value=${f.username} onInput=${set('username')} /><//>
-        <${Field} label="Email"><input type="email" autocapitalize="none" value=${f.email} onInput=${set('email')} /><//>
-        <${Field} label="Phone"><input type="tel" value=${f.phone} onInput=${set('phone')} /><//>
+        <${Row} title="Email" detail=${user.email} chevron onClick=${openChangeEmail} />
+        <${Field} label="Phone"><input type="tel" placeholder="Optional" value=${f.phone} onInput=${set('phone')} /><//>
       <//>
       <${Group}>
         <${Row} icon="🔑" iconBg="#8E8E93" title="Change password" chevron onClick=${openPassword} />
@@ -871,6 +888,47 @@ async function logOutEverywhereLocal() {
   await A.logout();
   S.closeUser({ wipe: true });
   if (uid) forgetMeta(uid);
+}
+
+function openChangeEmail() { openSheet((close) => html`<${ChangeEmail} close=${close} />`); }
+function ChangeEmail({ close }) {
+  const [email, setEmail] = useState('');
+  const [stage, setStage] = useState('email'); // email | code
+  const [code, setCode] = useState('');
+  const [sentAt, setSentAt] = useState(0);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const em = email.trim().toLowerCase();
+  const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em) && em !== (A.getSession()?.user?.email || '').toLowerCase();
+  const save = async (emailToken) => { await A.updateMe({ email: em, emailToken }); haptic(20); toast('Email updated'); close(); };
+  const start = async () => {
+    setBusy(true); setErr('');
+    try {
+      const r = await A.sendEmailCode(em, A.getSession()?.user?.firstName);
+      if (r.skipped) await save(); else { setSentAt(Date.now()); setStage('code'); }
+    } catch (e) { setErr(e.message); }
+    setBusy(false);
+  };
+  const confirm = async (c = code) => {
+    if (busy || c.length !== 6) return;
+    setBusy(true); setErr('');
+    try { const r = await A.verifyEmailCode(em, c); await save(r.emailToken); } catch (e) { setErr(e.message); setCode(''); setBusy(false); }
+  };
+  return html`
+    <${SheetBar} title="Change email" left=${html`<button class="link" onClick=${close}>Cancel</button>`} />
+    <div class="sheet-body">
+      ${stage === 'email' ? html`
+        <${Group} footer=${err ? html`<span class="err">${err}</span>` : 'We’ll send a code to the new address to confirm it’s yours.'}>
+          <${Field} label="New email"><input type="email" inputmode="email" autocapitalize="none" autocorrect="off" value=${email} onInput=${(e) => { setErr(''); setEmail(e.target.value); }} /><//>
+        <//>
+        <button class="btn btn-primary block" disabled=${!ok || busy} onClick=${start}>${busy ? 'Sending…' : 'Send code'}</button>`
+      : html`
+        <p class="confirm-text">Enter the 6-digit code we sent to <b>${em}</b>.</p>
+        <${CodeInput} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${confirm} />
+        ${err && html`<p class="wiz-err">${err}</p>`}
+        <button class="btn btn-primary block" disabled=${code.length !== 6 || busy} onClick=${() => confirm()}>${busy ? 'Confirming…' : 'Confirm'}</button>
+        <${Resend} sentAt=${sentAt} onResend=${start} />`}
+    </div>`;
 }
 
 function openPassword() { openSheet((close) => html`<${PasswordSheet} close=${close} />`); }

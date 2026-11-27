@@ -1,8 +1,8 @@
-// Welcome, sign up, log in, and "Day Zero" (first-time setup).
-import { useState } from '../vendor/preact-htm.js';
+// Welcome, step-by-step sign up, log in, and the "Day Zero" setup.
+import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { html, haptic, Icon, Segmented, toast } from './ui.js';
+import { html, haptic, Icon, Segmented, toast, useNow } from './ui.js';
 import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
 import { enablePush, pushSupported, isIOS, isStandalone } from './push.js';
 
@@ -10,24 +10,52 @@ import { enablePush, pushSupported, isIOS, isStandalone } from './push.js';
 let newSignup = false;
 export const consumeNewSignup = () => { const v = newSignup; newSignup = false; return v; };
 
-/* ============ shared bits ============ */
-function TextField({ label, hint, error, ...props }) {
-  return html`<label class="tf ${error ? 'bad' : ''}">
-    <span class="tf-l">${label}</span>
-    <input class="tf-i" ...${props} />
-    ${hint && html`<span class="tf-h">${hint}</span>`}
+const USERNAME_RE = /^[a-zA-Z0-9_.]{3,20}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_RE = /^\+?\d{7,15}$/;
+const cleanPhone = (p) => p.replace(/[\s()-]/g, '');
+
+/* ============ the setup shell ============ */
+// One question per screen. `dir` picks the slide direction; content rises in with a stagger.
+function Wizard({ step, total, dir, onBack, badge, children }) {
+  return html`<div class="wiz">
+    <div class="wiz-top">
+      ${onBack ? html`<button class="icon-btn" type="button" onClick=${onBack} aria-label="Back">${Icon.left()}</button>` : html`<span class="wiz-spacer"></span>`}
+      <div class="wiz-bar" role="progressbar" aria-valuemin="0" aria-valuemax=${total} aria-valuenow=${step + 1}><i style="width:${((step + 1) / total) * 100}%"></i></div>
+      <span class="wiz-badge">${badge || `${step + 1}/${total}`}</span>
+    </div>
+    <div class="wiz-body ${dir}" key=${step}>${children}</div>
+  </div>`;
+}
+function Q({ emoji, title, sub }) {
+  return html`${emoji && html`<div class="wiz-emoji">${emoji}</div>`}<h1 class="wiz-q">${title}</h1>${sub && html`<p class="wiz-sub">${sub}</p>`}`;
+}
+// Focus the first input when a step appears (opens the keyboard where the browser allows)
+function useAutoFocus(dep) {
+  const ref = useRef();
+  useEffect(() => { const t = setTimeout(() => ref.current?.focus({ preventScroll: true }), 380); return () => clearTimeout(t); }, [dep]);
+  return ref;
+}
+function BigInput({ inputRef, ...props }) {
+  return html`<input class="wiz-in" ref=${inputRef} ...${props} />`;
+}
+function Err({ children }) { return children ? html`<p class="wiz-err" role="alert">${children}</p>` : null; }
+
+// Six boxes over one hidden input; iOS can autofill the code straight from Mail
+export function CodeInput({ value, onChange, onComplete, inputRef }) {
+  return html`<label class="code">
+    <input ref=${inputRef} class="code-in" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" aria-label="6-digit code"
+      value=${value} onInput=${(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); onChange(v); if (v.length === 6) { haptic(10); onComplete?.(v); } }} />
+    <span class="code-boxes" aria-hidden="true">${Array.from({ length: 6 }, (_, k) => html`<i class=${`${k < value.length ? 'filled' : ''} ${k === Math.min(value.length, 5) ? 'cur' : ''}`}>${value[k] || ''}</i>`)}</span>
   </label>`;
 }
-function PasswordField({ label = 'Password', ...props }) {
-  const [show, setShow] = useState(false);
-  return html`<label class="tf">
-    <span class="tf-l">${label}</span>
-    <span class="tf-row">
-      <input class="tf-i" type=${show ? 'text' : 'password'} ...${props} />
-      <button type="button" class="tf-eye" onClick=${(e) => { e.preventDefault(); setShow(!show); }}>${show ? 'Hide' : 'Show'}</button>
-    </span>
-  </label>`;
+// "Send again" with a 30-second cooldown
+export function Resend({ sentAt, onResend }) {
+  const now = useNow(1000);
+  const left = Math.max(0, 30 - Math.floor((now - sentAt) / 1000));
+  return html`<button type="button" class="link center-link" disabled=${left > 0} onClick=${onResend}>${left > 0 ? `Send a new code in ${left}s` : 'Didn’t get it? Send a new code'}</button>`;
 }
+
 function HomeScreenTip() {
   if (!isIOS() || isStandalone()) return null;
   return html`<div class="hs-tip">
@@ -36,7 +64,7 @@ function HomeScreenTip() {
   </div>`;
 }
 
-/* ============ welcome / sign up / log in ============ */
+/* ============ welcome ============ */
 export function AuthScreen() {
   const [mode, setMode] = useState('welcome');
   if (mode === 'signup') return html`<${SignUp} back=${() => setMode('welcome')} toLogin=${() => setMode('login')} />`;
@@ -45,100 +73,306 @@ export function AuthScreen() {
     <div class="wl-hero">
       <img src="icons/icon-192.png" alt="" width="96" height="96" class="wl-logo" />
       <h1 class="wl-name">NOVUM</h1>
-      <p class="wl-tag">A new beginning.<br />A new standard.<br />A new you.</p>
+      <p class="wl-tag"><span>A new beginning.</span><span>A new standard.</span><span>A new you.</span></p>
     </div>
     <div class="wl-actions">
-      <button class="btn btn-primary block big" onClick=${() => { haptic(); setMode('signup'); }}>Create account</button>
+      <button class="btn btn-primary block big" onClick=${() => { haptic(); setMode('signup'); }}>Get started</button>
       <button class="btn btn-plain block big" onClick=${() => { haptic(); setMode('login'); }}>I already have an account</button>
       <${HomeScreenTip} />
     </div>
   </div>`;
 }
 
-function AuthHeader({ title, sub, back }) {
-  return html`<div class="auth-head">
-    <button class="icon-btn" onClick=${back} aria-label="Back">${Icon.left()}</button>
-    <div><h1 class="auth-title">${title}</h1>${sub && html`<p class="muted">${sub}</p>`}</div>
-  </div>`;
-}
+/* ============ sign up, one step at a time ============ */
+const SIGNUP_STEPS = ['name', 'username', 'email', 'code', 'phone', 'password'];
 
 function SignUp({ back, toLogin }) {
+  const [i, setI] = useState(0);
+  const [dir, setDir] = useState('fwd');
   const [f, setF] = useState({ firstName: '', lastName: '', username: '', email: '', phone: '', password: '' });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const ready = f.firstName.trim() && f.lastName.trim() && f.username.trim() && f.email.trim() && f.phone.trim() && f.password.length >= 8;
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!ready || busy) return;
-    setErr(''); setBusy(true);
+  const [showPw, setShowPw] = useState(false);
+  const [code, setCode] = useState('');
+  const [sentAt, setSentAt] = useState(0);
+  const [emailToken, setEmailToken] = useState('');
+  const [verifiedEmail, setVerifiedEmail] = useState('');
+  const [noCodes, setNoCodes] = useState(false); // server has email codes turned off
+  const step = SIGNUP_STEPS[i];
+  const focusRef = useAutoFocus(i);
+  const set = (k) => (e) => { setErr(''); setF({ ...f, [k]: e.target.value }); };
+  const at = (name) => SIGNUP_STEPS.indexOf(name);
+
+  const go = (n) => { haptic(); setErr(''); setDir(n > i ? 'fwd' : 'back'); setI(n); };
+  // Going back past the code step skips it (the email is already confirmed or codes are off)
+  const prev = () => (i === 0 ? back() : go(step === 'phone' ? at('email') : i - 1));
+
+  const uname = f.username.trim().replace(/^@/, '');
+  const email = f.email.trim().toLowerCase();
+  const valid = {
+    name: f.firstName.trim() && f.lastName.trim(),
+    username: USERNAME_RE.test(uname),
+    email: EMAIL_RE.test(email),
+    code: code.length === 6,
+    phone: !f.phone.trim() || PHONE_RE.test(cleanPhone(f.phone)),
+    password: f.password.length >= 8,
+  }[step];
+
+  const sendCode = async () => {
+    const r = await A.sendEmailCode(email, f.firstName.trim());
+    if (r.skipped) { setNoCodes(true); return false; }
+    setSentAt(Date.now()); setCode('');
+    return true;
+  };
+  const verify = async (c = code) => {
+    if (busy || c.length !== 6) return;
+    setBusy(true); setErr('');
+    try {
+      const r = await A.verifyEmailCode(email, c);
+      setEmailToken(r.emailToken); setVerifiedEmail(email);
+      setBusy(false); haptic(20); go(at('phone'));
+    } catch (x) { setBusy(false); setErr(x.message); setCode(''); }
+  };
+
+  const strength = (() => {
+    const p = f.password; let n = 0;
+    if (p.length >= 8) n++; if (p.length >= 12) n++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) n++; if (/\d/.test(p) || /[^\w]/.test(p)) n++;
+    return [null, { l: 'Weak', c: '#FF453A', w: 25 }, { l: 'Okay', c: '#FF9F0A', w: 50 }, { l: 'Good', c: '#30D158', w: 75 }, { l: 'Strong', c: '#30D158', w: 100 }][n];
+  })();
+
+  const submitAll = async () => {
+    setBusy(true); setErr('');
     try {
       newSignup = true;
-      await A.signup({ ...f, username: f.username.replace(/^@/, '') });
-      haptic(15);
-    } catch (x) { newSignup = false; setErr(x.message); setBusy(false); }
+      await A.signup({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: uname, email, phone: f.phone.trim() ? cleanPhone(f.phone) : '', password: f.password, emailToken });
+      haptic(20);
+    } catch (x) {
+      newSignup = false;
+      setBusy(false);
+      const m = x.message.toLowerCase();
+      const back = x.data?.needsEmailCode ? at('email') : m.includes('username') ? at('username') : m.includes('email') ? at('email') : m.includes('phone') ? at('phone') : -1;
+      if (x.data?.needsEmailCode) { setVerifiedEmail(''); setEmailToken(''); }
+      if (back >= 0) { setDir('back'); setI(back); }
+      setErr(x.message);
+    }
   };
-  return html`<form class="auth" onSubmit=${submit}>
-    <${AuthHeader} title="Create your account" sub="Your Novum, on any device." back=${back} />
-    <div class="card tf-card">
-      <div class="tf-pair">
-        <${TextField} label="First name" autocomplete="given-name" value=${f.firstName} onInput=${set('firstName')} maxlength="50" />
-        <${TextField} label="Last name" autocomplete="family-name" value=${f.lastName} onInput=${set('lastName')} maxlength="50" />
+
+  const next = async (e) => {
+    e?.preventDefault();
+    if (!valid || busy) return;
+    if (step === 'code') return verify();
+    if (step === 'username') {
+      setBusy(true);
+      try {
+        const r = await A.checkAvailable({ username: uname });
+        if (r.username === false) { setBusy(false); setErr(`@${uname} is taken. Try another.`); return; }
+      } catch (x) { if (!x.offline) { setBusy(false); setErr(x.message); return; } }
+      setBusy(false);
+    }
+    if (step === 'email') {
+      if (verifiedEmail === email || noCodes) { go(at('phone')); return; }
+      setBusy(true);
+      try {
+        const sent = await sendCode();
+        setBusy(false);
+        go(sent ? at('code') : at('phone'));
+      } catch (x) { setBusy(false); setErr(x.message); }
+      return;
+    }
+    if (i === SIGNUP_STEPS.length - 1) return submitAll();
+    go(i + 1);
+  };
+  const total = noCodes ? SIGNUP_STEPS.length - 1 : SIGNUP_STEPS.length;
+  const shown = noCodes && i > at('code') ? i - 1 : i;
+
+  return html`<form class="auth" onSubmit=${next} novalidate>
+    <${Wizard} step=${shown} total=${total} dir=${dir} onBack=${prev}>
+      ${step === 'name' && html`
+        <${Q} emoji="👋" title="First, what’s your name?" sub="This is how Novum will greet you." />
+        <div class="wiz-pair">
+          <${BigInput} inputRef=${focusRef} placeholder="First name" autocomplete="given-name" enterkeyhint="next" maxlength="50" value=${f.firstName} onInput=${set('firstName')} />
+          <${BigInput} placeholder="Last name" autocomplete="family-name" enterkeyhint="next" maxlength="50" value=${f.lastName} onInput=${set('lastName')} />
+        </div>`}
+
+      ${step === 'username' && html`
+        <${Q} emoji="✨" title=${`Nice to meet you, ${f.firstName.trim()}. Pick a username.`} sub="You can log in with it. Letters, numbers, dots and underscores." />
+        <div class="wiz-at"><span>@</span><${BigInput} inputRef=${focusRef} placeholder="yourname" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" maxlength="20" value=${f.username} onInput=${set('username')} /></div>
+        ${uname && !USERNAME_RE.test(uname) && html`<p class="wiz-hint">3–20 characters, no spaces.</p>`}`}
+
+      ${step === 'email' && html`
+        <${Q} emoji="✉️" title="What’s your email?" sub="Used to log in. Novum won’t send you marketing." />
+        <${BigInput} inputRef=${focusRef} type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" value=${f.email} onInput=${set('email')} />
+        ${!noCodes && verifiedEmail !== email && html`<p class="wiz-hint">We’ll email you a 6-digit code to confirm it’s you.</p>`}`}
+
+      ${step === 'code' && html`
+        <${Q} emoji="📬" title="Check your email." sub=${html`We sent a 6-digit code to <b class="wiz-em">${email}</b>. It can take a minute, so check spam too.`} />
+        <${CodeInput} inputRef=${focusRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
+        <${Resend} sentAt=${sentAt} onResend=${async () => { setErr(''); try { await sendCode(); toast('New code sent'); } catch (x) { setErr(x.message); } }} />
+        <button type="button" class="link center-link" onClick=${() => go(at('email'))}>Wrong email? Change it</button>`}
+
+      ${step === 'phone' && html`
+        <${Q} emoji="📱" title="Add a phone number?" sub="Optional. It’s encrypted and only used so whoever runs Novum can reach you about your account." />
+        <${BigInput} inputRef=${focusRef} type="tel" inputmode="tel" placeholder="07700 900123" autocomplete="tel" enterkeyhint="next" value=${f.phone} onInput=${set('phone')} />
+        ${f.phone.trim() && !PHONE_RE.test(cleanPhone(f.phone)) && html`<p class="wiz-hint">That doesn’t look like a full phone number yet.</p>`}`}
+
+      ${step === 'password' && html`
+        <${Q} emoji="🔒" title="Finally, create a password." sub="At least 8 characters. A short phrase is easy to remember and hard to guess." />
+        <div class="wiz-pw">
+          <${BigInput} inputRef=${focusRef} type=${showPw ? 'text' : 'password'} placeholder="Password" autocomplete="new-password" enterkeyhint="done" value=${f.password} onInput=${set('password')} />
+          <button type="button" class="tf-eye" onClick=${() => setShowPw(!showPw)}>${showPw ? 'Hide' : 'Show'}</button>
+        </div>
+        ${f.password && html`<div class="pw-meter"><i style="width:${strength ? strength.w : 10}%;background:${strength ? strength.c : '#FF453A'}"></i></div>
+          <p class="wiz-hint">${f.password.length < 8 ? `${8 - f.password.length} more character${8 - f.password.length === 1 ? '' : 's'}` : strength?.l}</p>`}
+        <p class="wiz-fine">Your data is encrypted on Novum’s server and only shown to you after you log in. Delete your account any time in Profile.</p>`}
+
+      <${Err}>${err}<//>
+      <div class="wiz-actions">
+        <button class="btn btn-primary block big" type="submit" disabled=${!valid || busy}>
+          ${busy ? ({ password: 'Creating your account…', email: 'Sending code…', code: 'Confirming…' }[step] || 'Checking…')
+            : step === 'password' ? 'Create account' : step === 'code' ? 'Confirm' : step === 'phone' && !f.phone.trim() ? 'Skip' : 'Continue'}
+        </button>
+        ${step === 'name' && html`<button type="button" class="link center-link" onClick=${toLogin}>Already have an account? Log in</button>`}
       </div>
-      <${TextField} label="Username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="@yourname"
-        hint="3–20 letters, numbers, dots or underscores" value=${f.username} onInput=${set('username')} maxlength="21" />
-      <${TextField} label="Email" type="email" autocomplete="email" autocapitalize="none" inputmode="email" value=${f.email} onInput=${set('email')} />
-      <${TextField} label="Phone number" type="tel" autocomplete="tel" inputmode="tel" placeholder="07700 900123" value=${f.phone} onInput=${set('phone')} />
-      <${PasswordField} autocomplete="new-password" placeholder="At least 8 characters" value=${f.password} onInput=${set('password')} />
-    </div>
-    ${err && html`<p class="auth-err">${err}</p>`}
-    <button class="btn btn-primary block big" type="submit" disabled=${!ready || busy}>${busy ? 'Creating account…' : 'Create account'}</button>
-    <p class="auth-fine">Your data is encrypted on Novum’s server and only shown to you after you log in. You can delete your account at any time in Profile.</p>
-    <button type="button" class="link center-link" onClick=${toLogin}>Already have an account? Log in</button>
+    <//>
   </form>`;
 }
 
+/* ============ log in ============ */
 function LogIn({ back, toSignup }) {
-  const [loginId, setLogin] = useState('');
+  const [resetting, setResetting] = useState(false);
+  if (resetting) return html`<${ResetPassword} back=${() => setResetting(false)} />`;
+  return html`<${LogInForm} back=${back} toSignup=${toSignup} forgot=${() => setResetting(true)} />`;
+}
+
+function ResetPassword({ back }) {
+  const [i, setI] = useState(0);
+  const [dir, setDir] = useState('fwd');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [pw, setPw] = useState('');
+  const [sentAt, setSentAt] = useState(0);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const focusRef = useAutoFocus(i);
+  const em = email.trim().toLowerCase();
+  const go = (n) => { haptic(); setErr(''); setDir(n > i ? 'fwd' : 'back'); setI(n); };
+  const send = async () => { await A.requestReset(em); setSentAt(Date.now()); setCode(''); };
+  const submit = async (e) => {
+    e?.preventDefault();
+    if (busy) return;
+    setBusy(true); setErr('');
+    try {
+      if (i === 0) { await send(); setBusy(false); go(1); return; }
+      if (i === 1) { setBusy(false); go(2); return; }
+      await A.resetPassword(em, code, pw);
+      haptic(20); toast('Password changed. You’re logged in.');
+    } catch (x) {
+      setBusy(false); setErr(x.message);
+      if (i === 2 && /code/i.test(x.message)) { setDir('back'); setI(1); setCode(''); }
+    }
+  };
+  const valid = [EMAIL_RE.test(em), code.length === 6, pw.length >= 8][i];
+  return html`<form class="auth" onSubmit=${submit} novalidate>
+    <${Wizard} step=${i} total=${3} dir=${dir} onBack=${i === 0 ? back : () => go(i - 1)} badge="Reset">
+      ${i === 0 && html`<${Q} emoji="🔐" title="Forgot your password?" sub="Enter your account’s email and we’ll send you a code to set a new one." />
+        <${BigInput} inputRef=${focusRef} type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" value=${email} onInput=${(e) => { setErr(''); setEmail(e.target.value); }} />`}
+      ${i === 1 && html`<${Q} emoji="📬" title="Check your email." sub=${html`If there’s an account for <b class="wiz-em">${em}</b>, a 6-digit code is on its way. Check spam too.`} />
+        <${CodeInput} inputRef=${focusRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${() => go(2)} />
+        <${Resend} sentAt=${sentAt} onResend=${async () => { try { await send(); toast('New code sent'); } catch (x) { setErr(x.message); } }} />`}
+      ${i === 2 && html`<${Q} emoji="🔒" title="Choose a new password." sub="At least 8 characters. You’ll be logged out on other devices." />
+        <${BigInput} inputRef=${focusRef} type="password" placeholder="New password" autocomplete="new-password" value=${pw} onInput=${(e) => { setErr(''); setPw(e.target.value); }} />`}
+      <${Err}>${err}<//>
+      <div class="wiz-actions">
+        <button class="btn btn-primary block big" type="submit" disabled=${!valid || busy}>${busy ? 'One moment…' : ['Send code', 'Continue', 'Set password and log in'][i]}</button>
+      </div>
+    <//>
+  </form>`;
+}
+
+function LogInForm({ back, toSignup, forgot }) {
+  const [loginId, setLogin] = useState('');
+  const [pw, setPw] = useState('');
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const focusRef = useAutoFocus(0);
   const submit = async (e) => {
     e.preventDefault();
     if (!loginId.trim() || !pw || busy) return;
     setErr(''); setBusy(true);
-    try { await A.login(loginId.trim(), pw); haptic(15); } catch (x) { setErr(x.message); setBusy(false); }
+    try { await A.login(loginId.trim(), pw); haptic(20); } catch (x) { setErr(x.message); setBusy(false); }
   };
-  return html`<form class="auth" onSubmit=${submit}>
-    <${AuthHeader} title="Welcome back" back=${back} />
-    <div class="card tf-card">
-      <${TextField} label="Email or username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" value=${loginId} onInput=${(e) => setLogin(e.target.value)} />
-      <${PasswordField} autocomplete="current-password" value=${pw} onInput=${(e) => setPw(e.target.value)} />
+  return html`<form class="auth" onSubmit=${submit} novalidate>
+    <div class="wiz">
+      <div class="wiz-top"><button class="icon-btn" type="button" onClick=${back} aria-label="Back">${Icon.left()}</button></div>
+      <div class="wiz-body fwd">
+        <${Q} emoji="🔑" title="Welcome back." sub="Log in with your username or email." />
+        <${BigInput} inputRef=${focusRef} placeholder="Username or email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" value=${loginId} onInput=${(e) => { setErr(''); setLogin(e.target.value); }} />
+        <div class="wiz-pw mt12">
+          <${BigInput} type=${show ? 'text' : 'password'} placeholder="Password" autocomplete="current-password" enterkeyhint="go" value=${pw} onInput=${(e) => { setErr(''); setPw(e.target.value); }} />
+          <button type="button" class="tf-eye" onClick=${() => setShow(!show)}>${show ? 'Hide' : 'Show'}</button>
+        </div>
+        <${Err}>${err}<//>
+        <div class="wiz-actions">
+          <button class="btn btn-primary block big" type="submit" disabled=${!loginId.trim() || !pw || busy}>${busy ? 'Logging in…' : 'Log in'}</button>
+          <button type="button" class="link center-link" onClick=${forgot}>Forgot your password?</button>
+          <button type="button" class="link center-link" onClick=${toSignup}>New here? Create an account</button>
+        </div>
+      </div>
     </div>
-    ${err && html`<p class="auth-err">${err}</p>`}
-    <button class="btn btn-primary block big" type="submit" disabled=${!loginId.trim() || !pw || busy}>${busy ? 'Logging in…' : 'Log in'}</button>
-    <p class="auth-fine">Forgot your password? Ask the person who invited you to Novum to reset it.</p>
-    <button type="button" class="link center-link" onClick=${toSignup}>New here? Create an account</button>
   </form>`;
 }
 
-/* ============ Day Zero ============ */
-const STEPS = ['about', 'habits', 'details', 'why', 'ready'];
+/* ============ date of birth: day / month / year wheels ============ */
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function DobPicker({ value, onChange }) {
+  const [y, m, d] = value ? value.split('-') : ['', '', ''];
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: 90 }, (_, k) => thisYear - 10 - k);
+  const dim = y && m ? new Date(+y, +m, 0).getDate() : 31;
+  const emit = (ny, nm, nd) => {
+    if (ny && nm && nd) {
+      const maxD = new Date(+ny, +nm, 0).getDate();
+      onChange(`${ny}-${nm}-${String(Math.min(+nd, maxD)).padStart(2, '0')}`);
+    } else onChange(`${ny || ''}-${nm || ''}-${nd || ''}`);
+  };
+  const sel = (label, val, opts, on, cls) => html`<label class="dob-f ${cls} ${val ? 'set' : ''}">
+    <span class="dob-l">${label}</span>
+    <select value=${val} onChange=${(e) => { haptic(4); on(e.target.value); }}>
+      <option value="" disabled selected=${!val}>${label}</option>
+      ${opts.map((o) => html`<option value=${o.v}>${o.t}</option>`)}
+    </select>
+    <span class="dob-v">${val ? opts.find((o) => o.v === val)?.t : '–'}</span>
+  </label>`;
+  return html`<div class="dob">
+    ${sel('Day', d, Array.from({ length: dim }, (_, k) => ({ v: String(k + 1).padStart(2, '0'), t: String(k + 1) })), (v) => emit(y, m, v), 'dob-d')}
+    ${sel('Month', m, MONTHS.map((t, k) => ({ v: String(k + 1).padStart(2, '0'), t })), (v) => emit(y, v, d), 'dob-m')}
+    ${sel('Year', y, years.map((v) => ({ v: String(v), t: String(v) })), (v) => emit(v, m, d), 'dob-y')}
+  </div>`;
+}
+
+/* ============ Day Zero, one step at a time ============ */
+const DZ = ['dob', 'height', 'weight', 'habits', 'details', 'why', 'ready'];
 const nowInput = () => S.toLocalInput(new Date());
 
 export function DayZero({ user }) {
   const s = S.getState();
   const latest = S.latestWeight(s.profile);
-  const [step, setStep] = useState(0);
-  const [about, setAbout] = useState(() => {
-    const cm = s.profile.heightCm || '';
-    const kg = latest ? +latest.toFixed(1) : '';
-    const totalIn = cm ? cm / 2.54 : 0;
-    const totalLb = kg ? kg * 2.20462 : 0;
-    return {
-      dob: s.profile.dob || '', hUnit: 'cm', cm: cm ? String(cm) : '', ft: cm ? String(Math.floor(totalIn / 12)) : '', inch: cm ? String(Math.round(totalIn % 12)) : '',
-      wUnit: 'kg', kg: kg ? String(kg) : '', st: kg ? String(Math.floor(totalLb / 14)) : '', lb: kg ? String(Math.round(totalLb % 14)) : '',
-    };
+  const [i, setI] = useState(0);
+  const [dir, setDir] = useState('fwd');
+  const step = DZ[i];
+  const focusRef = useAutoFocus(i);
+
+  const [dob, setDob] = useState(s.profile.dob || '');
+  const [hUnit, setHUnit] = useState('cm');
+  const [wUnit, setWUnit] = useState('kg');
+  const [h, setH] = useState(() => {
+    const cm = s.profile.heightCm; const tin = cm ? cm / 2.54 : 0;
+    return { cm: cm ? String(cm) : '', ft: cm ? String(Math.floor(tin / 12)) : '', inch: cm ? String(Math.round(tin % 12)) : '' };
+  });
+  const [w, setW] = useState(() => {
+    const kg = latest ? +latest.toFixed(1) : 0; const tlb = kg * 2.20462;
+    return { kg: kg ? String(kg) : '', st: kg ? String(Math.floor(tlb / 14)) : '', lb: kg ? String(Math.round(tlb % 14)) : '' };
   });
   const [picked, setPicked] = useState(() => s.quits.map((q) => q.kind));
   const [otherName, setOtherName] = useState(() => s.quits.find((q) => q.kind === 'other')?.label || '');
@@ -147,17 +381,23 @@ export function DayZero({ user }) {
   const [reasonTxt, setReasonTxt] = useState('');
   const [pushMsg, setPushMsg] = useState('');
 
-  const heightCm = about.hUnit === 'cm' ? parseFloat(about.cm) : (parseFloat(about.ft) || 0) * 30.48 + (parseFloat(about.inch) || 0) * 2.54;
-  const weightKg = about.wUnit === 'kg' ? parseFloat(about.kg) : ((parseFloat(about.st) || 0) * 14 + (parseFloat(about.lb) || 0)) / 2.20462;
-  const dobOk = /^\d{4}-\d{2}-\d{2}$/.test(about.dob) && S.parseDay(about.dob) < new Date() && S.parseDay(about.dob) > new Date(1900, 0, 1);
-  const ageNow = dobOk ? S.ageOf({ dob: about.dob }) : null;
-  const aboutOk = dobOk && ageNow >= 13 && heightCm >= 100 && heightCm <= 250 && weightKg >= 30 && weightKg <= 300;
-  const habitsOk = !picked.includes('other') || otherName.trim();
+  const heightCm = hUnit === 'cm' ? parseFloat(h.cm) : (parseFloat(h.ft) || 0) * 30.48 + (parseFloat(h.inch) || 0) * 2.54;
+  const weightKg = wUnit === 'kg' ? parseFloat(w.kg) : ((parseFloat(w.st) || 0) * 14 + (parseFloat(w.lb) || 0)) / 2.20462;
+  const dobOk = /^\d{4}-\d{2}-\d{2}$/.test(dob);
+  const age = dobOk ? S.ageOf({ dob }) : null;
   const detailFor = (k) => details[k] || { start: nowInput(), monthly: '' };
-  const detailsOk = picked.every((k) => { const d = detailFor(k); return d.start && !Number.isNaN(S.parseLocal(d.start).getTime()); });
-  const canNext = [aboutOk, habitsOk, detailsOk, true, true][step];
+  const valid = {
+    dob: dobOk && age >= 13,
+    height: heightCm >= 100 && heightCm <= 250,
+    weight: weightKg >= 30 && weightKg <= 300,
+    habits: !picked.includes('other') || otherName.trim(),
+    details: picked.every((k) => { const d = detailFor(k); return d.start && !Number.isNaN(S.parseLocal(d.start).getTime()); }),
+    why: true, ready: true,
+  }[step];
 
-  const go = (n) => { haptic(); setStep(n); window.scrollTo(0, 0); };
+  const go = (n) => { haptic(); setDir(n > i ? 'fwd' : 'back'); setI(n); window.scrollTo(0, 0); };
+  const next = (e) => { e?.preventDefault(); if (!valid) return; if (step === 'habits' && picked.length === 0) { go(DZ.indexOf('why')); return; } go(i + 1); };
+  const prev = () => { if (step === 'why' && picked.length === 0) { go(DZ.indexOf('habits')); return; } go(i - 1); };
   const toggle = (k) => {
     haptic();
     if (picked.includes(k)) { setPicked(picked.filter((x) => x !== k)); return; }
@@ -168,23 +408,21 @@ export function DayZero({ user }) {
   const addReason = (t) => { t = t.trim(); if (!t || reasons.includes(t)) return; haptic(10); setReasons([...reasons, t]); setReasonTxt(''); };
 
   const finish = () => {
-    haptic(20);
+    haptic(25);
     S.update((d) => {
-      d.profile.dob = about.dob;
+      d.profile.dob = dob;
       d.profile.heightCm = Math.round(heightCm);
       const kg = +weightKg.toFixed(1);
       if (!latest || Math.abs(latest - kg) >= 0.05) {
         const today = S.dayKey();
-        d.profile.weights = (d.profile.weights || []).filter((w) => w.date !== today);
+        d.profile.weights = (d.profile.weights || []).filter((x) => x.date !== today);
         d.profile.weights.push({ date: today, kg });
       }
       const old = Object.fromEntries(d.quits.map((q) => [q.kind, q]));
       d.quits = picked.map((k) => {
-        const a = addictionByKind(k);
-        const det = detailFor(k);
+        const a = addictionByKind(k); const det = detailFor(k);
         return {
-          best: 0, resets: [], ...(old[k] || {}),
-          id: old[k]?.id || k, kind: k,
+          best: 0, resets: [], ...(old[k] || {}), id: old[k]?.id || k, kind: k,
           label: k === 'other' ? otherName.trim() : (old[k]?.label || a.label),
           emoji: old[k]?.emoji || a.emoji, color: old[k]?.color || a.color,
           start: det.start, monthly: parseFloat(det.monthly) || 0,
@@ -197,98 +435,91 @@ export function DayZero({ user }) {
     });
     toast(`Welcome to Novum, ${user.firstName} 💙`);
   };
+  const turnOnPush = async () => { setPushMsg(''); try { await enablePush(); setPushMsg('on'); haptic(15); } catch (e) { setPushMsg(e.message); } };
 
-  const turnOnPush = async () => {
-    setPushMsg('');
-    try { await enablePush(); setPushMsg('on'); haptic(15); } catch (e) { setPushMsg(e.message); }
-  };
+  const bmiNow = valid && step === 'weight' ? S.bmi(weightKg, heightCm) : null;
+  const cta = step === 'why' && reasons.length === 0 ? 'Skip for now' : step === 'habits' && picked.length === 0 ? 'Nothing right now' : 'Continue';
 
-  const name = STEPS[step];
-  return html`<div class="auth dz">
-    <div class="dz-top">
-      ${step > 0 ? html`<button class="icon-btn" onClick=${() => go(step - 1)} aria-label="Back">${Icon.left()}</button>` : html`<span class="dz-badge">Day Zero</span>`}
-      <div class="dz-dots" aria-label=${`Step ${step + 1} of ${STEPS.length}`}>${STEPS.map((_, i) => html`<i class=${i <= step ? 'on' : ''}></i>`)}</div>
-    </div>
+  return html`<form class="auth" onSubmit=${next} novalidate>
+    <${Wizard} step=${i} total=${DZ.length} dir=${dir} onBack=${i > 0 ? prev : null} badge="Day Zero">
+      ${step === 'dob' && html`
+        <${Q} emoji="🎂" title=${`Hi ${user.firstName}. When’s your birthday?`} sub="Day Zero sets your baseline. Only you can see this." />
+        <${DobPicker} value=${dob} onChange=${setDob} />
+        ${dobOk && html`<p class="wiz-big-note">${age} years old</p>`}
+        ${dobOk && age < 13 && html`<${Err}>Novum is for ages 13 and up.<//>`}`}
 
-    ${name === 'about' && html`
-      <h1 class="auth-title">Hi ${user.firstName}. Let’s set your baseline.</h1>
-      <p class="muted dz-sub">Day Zero is where your new standard starts. These help Novum work out your BMI and track progress. Only you can see them.</p>
-      <div class="card tf-card">
-        <${TextField} label="Date of birth" type="date" max=${S.dayKey()} value=${about.dob} onInput=${(e) => setAbout({ ...about, dob: e.target.value })}
-          hint=${ageNow != null && ageNow >= 0 ? `${ageNow} years old` : ''} />
-      </div>
-      <div class="dz-label"><span>Height</span><${Segmented} small options=${[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft & in' }]} value=${about.hUnit} onChange=${(v) => setAbout({ ...about, hUnit: v })} /></div>
-      <div class="card tf-card">
-        ${about.hUnit === 'cm'
-          ? html`<${TextField} label="Height (cm)" type="number" inputmode="decimal" placeholder="181" value=${about.cm} onInput=${(e) => setAbout({ ...about, cm: e.target.value })} />`
-          : html`<div class="tf-pair"><${TextField} label="Feet" type="number" inputmode="numeric" placeholder="5" value=${about.ft} onInput=${(e) => setAbout({ ...about, ft: e.target.value })} />
-              <${TextField} label="Inches" type="number" inputmode="numeric" placeholder="11" value=${about.inch} onInput=${(e) => setAbout({ ...about, inch: e.target.value })} /></div>`}
-      </div>
-      <div class="dz-label"><span>Weight</span><${Segmented} small options=${[{ value: 'kg', label: 'kg' }, { value: 'st', label: 'st & lb' }]} value=${about.wUnit} onChange=${(v) => setAbout({ ...about, wUnit: v })} /></div>
-      <div class="card tf-card">
-        ${about.wUnit === 'kg'
-          ? html`<${TextField} label="Weight (kg)" type="number" inputmode="decimal" step="0.1" placeholder="70.2" value=${about.kg} onInput=${(e) => setAbout({ ...about, kg: e.target.value })} />`
-          : html`<div class="tf-pair"><${TextField} label="Stone" type="number" inputmode="numeric" placeholder="11" value=${about.st} onInput=${(e) => setAbout({ ...about, st: e.target.value })} />
-              <${TextField} label="Pounds" type="number" inputmode="decimal" placeholder="1" value=${about.lb} onInput=${(e) => setAbout({ ...about, lb: e.target.value })} /></div>`}
-      </div>
-      ${aboutOk && html`<p class="dz-calc">BMI ${S.bmi(weightKg, heightCm).toFixed(1)} · ${S.bmiBand(S.bmi(weightKg, heightCm)).label}</p>`}
-      ${dobOk && ageNow < 13 && html`<p class="auth-err">Novum is for ages 13 and up.</p>`}`}
+      ${step === 'height' && html`
+        <${Q} emoji="📏" title="How tall are you?" />
+        <div class="wiz-unit"><${Segmented} options=${[{ value: 'cm', label: 'cm' }, { value: 'ft', label: 'ft & in' }]} value=${hUnit} onChange=${setHUnit} /></div>
+        ${hUnit === 'cm'
+          ? html`<div class="wiz-num"><${BigInput} inputRef=${focusRef} type="number" inputmode="decimal" placeholder="181" value=${h.cm} onInput=${(e) => setH({ ...h, cm: e.target.value })} /><span>cm</span></div>`
+          : html`<div class="wiz-pair">
+              <div class="wiz-num"><${BigInput} inputRef=${focusRef} type="number" inputmode="numeric" placeholder="5" value=${h.ft} onInput=${(e) => setH({ ...h, ft: e.target.value })} /><span>ft</span></div>
+              <div class="wiz-num"><${BigInput} type="number" inputmode="numeric" placeholder="11" value=${h.inch} onInput=${(e) => setH({ ...h, inch: e.target.value })} /><span>in</span></div></div>`}`}
 
-    ${name === 'habits' && html`
-      <h1 class="auth-title">What are you leaving behind?</h1>
-      <p class="muted dz-sub">Pick everything you’re quitting or cutting out. Each one gets its own counter, milestones and money tracker.</p>
-      <div class="pick-grid">
-        ${ADDICTIONS.map((a) => html`<button class="pick ${picked.includes(a.kind) ? 'on' : ''}" style="--c:${a.color}" onClick=${() => toggle(a.kind)} aria-pressed=${picked.includes(a.kind)}>
-          <span class="pick-e">${a.emoji}</span><span class="pick-l">${a.label}</span><span class="pick-tick">${Icon.check()}</span>
-        </button>`)}
-      </div>
-      ${picked.includes('other') && html`<div class="card tf-card mt16"><${TextField} label="What is it?" placeholder="e.g. Social media" maxlength="24" value=${otherName} onInput=${(e) => setOtherName(e.target.value)} /></div>`}
-      ${picked.length === 0 && html`<p class="muted dz-note">Not quitting anything right now? That’s fine. Continue, and use Novum for goals and habits. You can add things later in Profile.</p>`}`}
+      ${step === 'weight' && html`
+        <${Q} emoji="⚖️" title="And your weight?" sub="Used for BMI and to track changes over time." />
+        <div class="wiz-unit"><${Segmented} options=${[{ value: 'kg', label: 'kg' }, { value: 'st', label: 'st & lb' }]} value=${wUnit} onChange=${setWUnit} /></div>
+        ${wUnit === 'kg'
+          ? html`<div class="wiz-num"><${BigInput} inputRef=${focusRef} type="number" inputmode="decimal" step="0.1" placeholder="70.2" value=${w.kg} onInput=${(e) => setW({ ...w, kg: e.target.value })} /><span>kg</span></div>`
+          : html`<div class="wiz-pair">
+              <div class="wiz-num"><${BigInput} inputRef=${focusRef} type="number" inputmode="numeric" placeholder="11" value=${w.st} onInput=${(e) => setW({ ...w, st: e.target.value })} /><span>st</span></div>
+              <div class="wiz-num"><${BigInput} type="number" inputmode="decimal" placeholder="1" value=${w.lb} onInput=${(e) => setW({ ...w, lb: e.target.value })} /><span>lb</span></div></div>`}
+        ${bmiNow && html`<p class="wiz-big-note">BMI ${bmiNow.toFixed(1)} · ${S.bmiBand(bmiNow).label}</p>`}`}
 
-    ${name === 'details' && html`
-      <h1 class="auth-title">${picked.length ? 'When did you stop?' : 'Nothing to set up here'}</h1>
-      <p class="muted dz-sub">${picked.length ? 'Pick the time you last used it. Quitting soon? Pick your quit date and Novum will count down to it. Spending works out how much you save.' : 'Carry on to the next step.'}</p>
-      ${picked.map((k) => {
-        const a = addictionByKind(k); const d = detailFor(k);
-        return html`<div class="card tf-card dz-q" key=${k} style="--c:${a.color}">
-          <div class="dz-q-h"><span class="row-ic" style="background:${a.color}">${a.emoji}</span><b>${k === 'other' ? otherName : a.label}</b></div>
-          <${TextField} label="Quit date and time" type="datetime-local" value=${d.start} onInput=${(e) => setDetail(k, { start: e.target.value })} />
-          <${TextField} label="What it cost you per month (£)" type="number" inputmode="decimal" placeholder="e.g. 45" value=${d.monthly} onInput=${(e) => setDetail(k, { monthly: e.target.value })}
-            hint=${parseFloat(d.monthly) > 0 ? `That’s ${S.money(parseFloat(d.monthly) * 12, 0)} a year back in your pocket.` : 'Not sure? Use a rough middle figure.'} />
-        </div>`;
-      })}`}
-
-    ${name === 'why' && html`
-      <h1 class="auth-title">Why are you doing this?</h1>
-      <p class="muted dz-sub">Write your reasons in your own words. Novum shows them when cravings hit. You can skip this and add them later.</p>
-      <div class="card entry-add">
-        <input placeholder="I’m doing this because…" maxlength="140" value=${reasonTxt} onInput=${(e) => setReasonTxt(e.target.value)} onKeyDown=${(e) => e.key === 'Enter' && addReason(reasonTxt)} />
-        <button class="btn btn-primary sm" disabled=${!reasonTxt.trim()} onClick=${() => addReason(reasonTxt)}>Add</button>
-      </div>
-      ${reasons.length > 0 && html`<div class="card list mt16">${reasons.map((t) => html`<div class="row" key=${t}>
-        <span class="row-ic" style="background:#3B9BFF">💙</span><span class="row-main"><span class="row-title">${t}</span></span>
-        <button class="icon-btn muted" aria-label="Remove" onClick=${() => setReasons(reasons.filter((x) => x !== t))}>${Icon.trash()}</button></div>`)}</div>`}
-      <div class="chip-row dz-ideas">${REASON_IDEAS.filter((t) => !reasons.includes(t)).map((t) => html`<button class="chip big" onClick=${() => addReason(t)}>+ ${t}</button>`)}</div>`}
-
-    ${name === 'ready' && html`
-      <div class="dz-ready">
-        <div class="ny-year xl">Day Zero</div>
-        <h1 class="auth-title center">You’re set, ${user.firstName}.</h1>
-        <p class="muted center">${picked.length ? `Tracking ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}. Every hour from here counts.` : 'Head to Goals to plan your 2027.'}</p>
-      </div>
-      <div class="card list">
-        <div class="row"><span class="row-ic" style="background:#FF453A">🔔</span>
-          <span class="row-main"><span class="row-title">Reminders and milestones</span>
-            <span class="row-sub">${pushMsg === 'on' ? 'On. You’re all set.' : pushMsg || (pushSupported() ? 'Get a nudge when you hit milestones and at check-in time.' : 'Add Novum to your Home Screen first, then turn these on in Profile.')}</span></span>
-          ${pushSupported() && pushMsg !== 'on' && html`<button class="btn btn-tinted sm" onClick=${turnOnPush}>Turn on</button>`}
+      ${step === 'habits' && html`
+        <${Q} emoji="🚪" title="What are you leaving behind?" sub="Pick everything you’re quitting. Each gets its own counter, milestones and money tracker." />
+        <div class="pick-grid">
+          ${ADDICTIONS.map((a) => html`<button type="button" class="pick ${picked.includes(a.kind) ? 'on' : ''}" style="--c:${a.color}" onClick=${() => toggle(a.kind)} aria-pressed=${picked.includes(a.kind)}>
+            <span class="pick-e">${a.emoji}</span><span class="pick-l">${a.label}</span><span class="pick-tick">${Icon.check()}</span>
+          </button>`)}
         </div>
-      </div>
-      <${HomeScreenTip} />`}
+        ${picked.includes('other') && html`<${BigInput} class="wiz-in mt12" placeholder="What is it? e.g. Social media" maxlength="24" value=${otherName} onInput=${(e) => setOtherName(e.target.value)} />`}`}
 
-    <div class="dz-foot">
-      ${step < STEPS.length - 1
-        ? html`<button class="btn btn-primary block big" disabled=${!canNext} onClick=${() => go(step + 1)}>${name === 'why' && reasons.length === 0 ? 'Skip for now' : 'Continue'}</button>`
-        : html`<button class="btn btn-primary block big" onClick=${finish}>Start my new standard</button>`}
-    </div>
-  </div>`;
+      ${step === 'details' && html`
+        <${Q} emoji="🗓️" title="When did you stop?" sub="The last time you used it. Quitting soon? Pick the date and Novum counts down to it." />
+        ${picked.map((k) => {
+          const a = addictionByKind(k); const d = detailFor(k);
+          return html`<div class="card dz-q" key=${k}>
+            <div class="dz-q-h"><span class="row-ic" style="background:${a.color}">${a.emoji}</span><b>${k === 'other' ? otherName : a.label}</b></div>
+            <label class="dz-f"><span>Quit</span><input type="datetime-local" value=${d.start} onInput=${(e) => setDetail(k, { start: e.target.value })} /></label>
+            <label class="dz-f"><span>Cost per month</span><span class="dz-money">£<input type="number" inputmode="decimal" placeholder="0" value=${d.monthly} onInput=${(e) => setDetail(k, { monthly: e.target.value })} /></span></label>
+            ${parseFloat(d.monthly) > 0 && html`<p class="dz-save">${S.money(parseFloat(d.monthly) * 12, 0)} a year back in your pocket</p>`}
+          </div>`;
+        })}`}
+
+      ${step === 'why' && html`
+        <${Q} emoji="💙" title="Why are you doing this?" sub="In your own words. Novum shows these when cravings hit." />
+        <div class="wiz-add">
+          <${BigInput} inputRef=${focusRef} placeholder="I’m doing this because…" maxlength="140" enterkeyhint="done" value=${reasonTxt} onInput=${(e) => setReasonTxt(e.target.value)}
+            onKeyDown=${(e) => { if (e.key === 'Enter') { e.preventDefault(); addReason(reasonTxt); } }} />
+          <button type="button" class="btn btn-primary sm" disabled=${!reasonTxt.trim()} onClick=${() => addReason(reasonTxt)}>Add</button>
+        </div>
+        ${reasons.length > 0 && html`<div class="card list mt12">${reasons.map((t) => html`<div class="row pop" key=${t}>
+          <span class="row-main"><span class="row-title">${t}</span></span>
+          <button type="button" class="icon-btn muted" aria-label="Remove" onClick=${() => setReasons(reasons.filter((x) => x !== t))}>${Icon.trash()}</button></div>`)}</div>`}
+        <div class="chip-row dz-ideas">${REASON_IDEAS.filter((t) => !reasons.includes(t)).slice(0, 5).map((t) => html`<button type="button" class="chip big" onClick=${() => addReason(t)}>+ ${t}</button>`)}</div>`}
+
+      ${step === 'ready' && html`
+        <div class="dz-ready">
+          <div class="ready-ring"><span>✓</span></div>
+          <h1 class="wiz-q center">You’re set, ${user.firstName}.</h1>
+          <p class="wiz-sub center">${picked.length ? `Tracking ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}. Every hour from here counts.` : 'Head to Goals to plan your 2027.'}</p>
+        </div>
+        <div class="card list">
+          <div class="row"><span class="row-ic" style="background:#FF453A">🔔</span>
+            <span class="row-main"><span class="row-title">Reminders and milestones</span>
+              <span class="row-sub">${pushMsg === 'on' ? 'On. You’re all set.' : pushMsg || (pushSupported() ? 'A nudge when you hit milestones and at check-in time.' : 'Add Novum to your Home Screen first, then turn these on in Profile.')}</span></span>
+            ${pushSupported() && pushMsg !== 'on' && html`<button type="button" class="btn btn-tinted sm" onClick=${turnOnPush}>Turn on</button>`}
+          </div>
+        </div>
+        <${HomeScreenTip} />`}
+
+      <div class="wiz-actions">
+        ${step === 'ready'
+          ? html`<button type="button" class="btn btn-primary block big glow" onClick=${finish}>Start my new standard</button>`
+          : html`<button type="submit" class="btn btn-primary block big" disabled=${!valid}>${cta}</button>`}
+      </div>
+    <//>
+  </form>`;
 }
