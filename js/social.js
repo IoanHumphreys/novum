@@ -5,6 +5,7 @@ import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, toast, use
 import * as S from './store.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
+import { Avatar, openPerson } from './profile.js';
 
 const DAY = 864e5;
 
@@ -85,7 +86,7 @@ export function BuddiesSection() {
   return html`<section class="group">
     <div class="group-h-row"><h2 class="group-h">Buddies</h2>${!none && html`<button class="link sm" onClick=${openBuddies}>See all</button>`}</div>
     ${d.incoming.map((b) => html`<div class="card buddy-req" key=${'in' + b.username}>
-      <span class="avatar sm">${initial(b)}</span>
+      <${Avatar} a=${b.avatar} name=${b.firstName} size=${36} />
       <span class="row-main"><span class="row-title">${b.firstName} wants to be buddies</span><span class="row-sub">@${b.username}</span></span>
       <button class="btn btn-tinted sm" onClick=${() => respond(b, true)}>Accept</button>
       <button class="icon-btn muted" aria-label="Decline" onClick=${() => respond(b, false)}>×</button>
@@ -97,8 +98,10 @@ export function BuddiesSection() {
       </button>`
     : d.buddies.length > 0 && html`<div class="card list">
         ${d.buddies.slice(0, 4).map((b) => html`<div class="row buddy-row" key=${b.username}>
-          <span class="avatar sm">${initial(b)}</span>
-          <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">${streakLine(b, now)}</span></span>
+          <button class="buddy-who" onClick=${() => openPerson(b.username)}>
+            <${Avatar} a=${b.avatar} name=${b.firstName} size=${40} />
+            <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">${streakLine(b, now)}</span></span>
+          </button>
           <button class="cheer-btn" aria-label=${`Send ${b.firstName} a cheer`} onClick=${() => sendCheer(b, 'keepgoing')}>💪</button>
         </div>`)}
       </div>`}
@@ -136,7 +139,7 @@ function Buddies({ close }) {
   return html`
     <${SheetBar} title="Buddies" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
-      <${Group} footer="Buddies only see each quit’s name, emoji and how long it’s been. Never your check-ins, notes, money or weight.">
+      <${Group} footer="Buddies (and anyone who can see your profile) see each quit’s name, emoji and how long it’s been. Never your check-ins, notes, money or weight.">
         <div class="row">
           <span class="row-ic" style="background:#3B9BFF">👀</span>
           <span class="row-main"><span class="row-title">Share my streaks with buddies</span></span>
@@ -154,7 +157,7 @@ function Buddies({ close }) {
 
       ${d.incoming.length > 0 && html`<${Group} header="Requests">
         ${d.incoming.map((b) => html`<div class="row" key=${b.username}>
-          <span class="avatar sm">${initial(b)}</span>
+          <${Avatar} a=${b.avatar} name=${b.firstName} size=${36} />
           <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">@${b.username}</span></span>
           <button class="btn btn-tinted sm" onClick=${() => respond(b, true)}>Accept</button>
           <button class="icon-btn muted" aria-label="Decline" onClick=${() => respond(b, false)}>×</button>
@@ -164,8 +167,10 @@ function Buddies({ close }) {
       ${d.buddies.length > 0 && html`<${Group} header="Your buddies" footer="Cheers arrive as a notification. You can send each buddy up to five a day.">
         ${d.buddies.map((b) => html`<div class="buddy-card" key=${b.username}>
           <div class="row">
-            <span class="avatar sm">${initial(b)}</span>
-            <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">@${b.username} · ${streakLine(b, now)}</span></span>
+            <button class="buddy-who" onClick=${() => openPerson(b.username)}>
+              <${Avatar} a=${b.avatar} name=${b.firstName} size=${40} />
+              <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">@${b.username} · ${streakLine(b, now)}</span></span>
+            </button>
             <button class="icon-btn muted" aria-label=${`Remove ${b.firstName}`} onClick=${() => remove(b)}>${Icon.trash()}</button>
           </div>
           ${b.card && b.card.quits.some((q) => q.bestMs > 0) && html`<p class="buddy-best">Best run: ${b.card.quits.filter((q) => q.bestMs > 0).map((q) => `${q.emoji} ${Math.floor(Math.max(q.bestMs, now - q.startMs) / DAY)} days`).join(' · ')}</p>`}
@@ -175,7 +180,7 @@ function Buddies({ close }) {
 
       ${d.outgoing.length > 0 && html`<${Group} header="Waiting for them">
         ${d.outgoing.map((b) => html`<div class="row" key=${b.username}>
-          <span class="avatar sm">${initial(b)}</span>
+          <${Avatar} a=${b.avatar} name=${b.firstName} size=${36} />
           <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">@${b.username} · request sent</span></span>
           <button class="link sm" onClick=${() => remove(b, true)}>Cancel</button>
         </div>`)}

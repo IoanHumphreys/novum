@@ -46,7 +46,9 @@ export function defaultState() {
     wishlist: [],
     // milestones already celebrated: { '<quitId>@<start>': days }
     celebrated: {},
-    shareStreaks: false, // show my streaks to buddies
+    shareStreaks: false, // show my streaks to buddies (and followers)
+    // profile: DiceBear avatar { style, seed, bg }, bio, 'buddies' (private) | 'public'
+    social: { avatar: null, bio: '', visibility: 'buddies' },
     notifyPrefs: { ...DEFAULT_PREFS },
     createdAt: new Date().toISOString(),
     savedAt: 0,
@@ -74,6 +76,7 @@ export function migrate(s) {
     quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],
     wishlist: s.wishlist || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
+    social: { avatar: null, bio: '', visibility: 'buddies', ...(s.social || {}) },
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };
 }

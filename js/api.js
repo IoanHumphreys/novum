@@ -133,3 +133,16 @@ export const adminOverview = () => call('GET', '/admin/overview');
 export const adminResetPassword = (userId) => call('POST', '/admin/reset-password', { userId });
 
 export const authConfig = () => call('GET', '/auth/config');
+
+/* ---------- profiles and people ---------- */
+export const putProfile = (p) => call('PUT', '/me/profile', p);
+export const people = (q = '') => call('GET', `/people${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+export const person = (username) => call('GET', `/people/${encodeURIComponent(username)}`);
+export const follows = () => call('GET', '/follows');
+export const follow = (username) => call('POST', '/follow', { username });
+export const unfollow = (username) => call('POST', '/unfollow', { username });
+export const followRespond = (username, accept) => call('POST', '/follow/respond', { username, accept });
+export const removeFollower = (username) => call('POST', '/followers/remove', { username });
+export const block = (username) => call('POST', '/block', { username });
+export const unblock = (username) => call('POST', '/unblock', { username });
+export const report = (username, reason, note) => call('POST', '/report', { username, reason, note });

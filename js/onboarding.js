@@ -117,16 +117,43 @@ export function AuthScreen() {
   if (mode === 'signup') return html`<${SignUp} back=${() => setMode('welcome')} toLogin=${() => setMode('login')} />`;
   if (mode === 'login') return html`<${LogIn} back=${() => setMode('welcome')} toSignup=${() => setMode('signup')} />`;
   return html`<div class="auth welcome">
+    <div class="wl-sky" aria-hidden="true"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div>
     <div class="wl-hero">
-      <img src="icons/icon-192.png" alt="" width="96" height="96" class="wl-logo" />
+      <div class="wl-mark">
+        <svg class="wl-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54" /><circle class="fg" cx="60" cy="60" r="54" /></svg>
+        <img src="icons/icon-192.png" alt="" width="84" height="84" class="wl-logo" />
+      </div>
       <h1 class="wl-name">NOVUM</h1>
       <p class="wl-tag"><span>A new beginning.</span><span>A new standard.</span><span>A new you.</span></p>
     </div>
+    <${WelcomeDemo} />
     <div class="wl-actions">
-      <button class="btn btn-primary block big" onClick=${() => { haptic(); setMode('signup'); }}>Get started</button>
+      <button class="btn btn-primary block big glow" onClick=${() => { haptic(); setMode('signup'); }}>Get started. It’s free</button>
       <button class="btn btn-plain block big" onClick=${() => { haptic(); setMode('login'); }}>I already have an account</button>
+      <p class="wl-fine">🔒 Private by default · Your data is encrypted</p>
       <${HomeScreenTip} />
     </div>
+  </div>`;
+}
+
+// A live preview of what Novum does: a ticking streak, money adding up, a milestone and a cheer
+const DEMO_START = Date.now() - (16 * 864e5 + 4 * 36e5 + 22 * 6e4);
+function WelcomeDemo() {
+  const now = useNow(1000);
+  const ms = now - DEMO_START;
+  const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4), sec = Math.floor((ms % 6e4) / 1000);
+  const p2 = (n) => String(n).padStart(2, '0');
+  const saved = (45 * ms) / 864e5 / 30.4375;
+  return html`<div class="wl-demo" aria-hidden="true">
+    <div class="wd-card wd-streak">
+      <div class="wd-k">💨 Vape-free</div>
+      <div class="wd-time"><b>${d}</b><small>d</small> <b>${p2(h)}</b><small>h</small> <b>${p2(m)}</b><small>m</small> <b class="dim">${p2(sec)}</b><small>s</small></div>
+    </div>
+    <div class="wd-row">
+      <div class="wd-card wd-money"><div class="wd-k">💷 Saved</div><b>£${saved.toFixed(2)}</b></div>
+      <div class="wd-card wd-badge"><span>🏅</span><div><b>2 weeks</b><small>unlocked</small></div></div>
+    </div>
+    <div class="wd-card wd-cheer"><span class="wd-av">J</span><span><b>Jamie</b> sent you 💪 <small>keep going</small></span></div>
   </div>`;
 }
 

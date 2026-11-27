@@ -1,6 +1,6 @@
 // Novum service worker: precache the app shell, serve cache-first, refresh in the background.
 // Bump VERSION when you deploy changes so old caches are cleared.
-const VERSION = 'novum-v16';
+const VERSION = 'novum-v17';
 const ASSETS = [
   './',
   'index.html',
@@ -19,6 +19,7 @@ const ASSETS = [
   'js/celebrate.js',
   'js/social.js',
   'js/admin.js',
+  'js/profile.js',
   'vendor/preact-htm.js',
   'icons/icon-192.png',
   'icons/icon-512.png',

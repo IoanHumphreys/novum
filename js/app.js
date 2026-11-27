@@ -13,6 +13,7 @@ import { InstallBanner, openInstallGuide, canInstall, installEnv, maybeWelcomeIn
 import { checkMilestones, celebrate, CelebrationHost, openShareSheet, cardFor } from './celebrate.js';
 import { BuddiesSection, openBuddies, startShareSync, stopShareSync, resetBuddies } from './social.js';
 import { openAdmin } from './admin.js';
+import { ProfileHeader, startProfileSync, stopProfileSync, openPeople } from './profile.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -770,11 +771,7 @@ function Profile({ s }) {
   };
 
   return html`<${Page} title="Profile">
-    <button class="card profile-card tap" onClick=${openAccount}>
-      <span class="avatar">${initials}</span>
-      <span class="row-main"><span class="pc-name">${user.firstName} ${user.lastName}</span><span class="row-sub">@${user.username}</span></span>
-      <span class="row-chev">${Icon.chevron()}</span>
-    </button>
+    <${ProfileHeader} s=${s} onAccount=${openAccount} />
 
     <${Group} header="Body" footer="BMI is a rough guide. It doesn’t tell muscle from fat, so use it alongside how you feel and perform.">
       <${Row} icon="🎂" iconBg="#BF5AF2" title="Age and height" detail=${`${age ?? '–'} · ${p.heightCm ? `${p.heightCm} cm` : '–'}`} chevron onClick=${openBodyEditor} />
@@ -796,6 +793,7 @@ function Profile({ s }) {
     <${Group} header="Staying quit">
       <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" sub=${s.reasons.length ? `${s.reasons.length} reason${s.reasons.length === 1 ? '' : 's'} · shown during SOS` : 'Why you quit, for the hard moments'} chevron onClick=${openReasons} />
       ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" sub="What’s improving, stage by stage" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
+      <${Row} icon="👥" iconBg="#5E5CE6" title="People" sub="Find friends, followers and who you follow" chevron onClick=${() => openPeople('discover')} />
       <${Row} icon="🤝" iconBg="#FF9F0A" title="Buddies" sub=${s.shareStreaks ? 'Sharing your streaks' : 'Quit with friends and cheer each other on'} chevron onClick=${openBuddies} />
       ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="What it could buy" sub=${s.wishlist.length ? `${s.wishlist.length} thing${s.wishlist.length === 1 ? '' : 's'} you’re saving for` : 'Turn money saved into something real'} chevron onClick=${openWishlist} />`}
     <//>
@@ -1698,7 +1696,7 @@ function NotifySettings({ s }) {
       </div>
       <div class="row">
         <span class="row-ic" style="background:#FF9F0A">🤝</span>
-        <span class="row-main"><span class="row-title">Buddies</span><span class="row-sub">Buddy requests and cheers</span></span>
+        <span class="row-main"><span class="row-title">Buddies and followers</span><span class="row-sub">Requests, new followers and cheers</span></span>
         <${Toggle} on=${n.buddies} label="Buddy notifications" onChange=${(v) => setN({ buddies: v })} />
       </div>
       <${Row} icon="📨" iconBg="#3B9BFF" title="Send a test notification" sub="Arrives after 10 seconds. Close Novum or open another app to see the banner" chevron onClick=${test} />`}
@@ -1778,7 +1776,7 @@ function Root() {
 
   const uid = session?.user?.id;
   useEffect(() => {
-    if (!uid) { stopSync(); stopPushSync(); stopShareSync(); resetBuddies(); S.closeUser({ wipe: false }); setReady(true); return; }
+    if (!uid) { stopSync(); stopPushSync(); stopShareSync(); stopProfileSync(); resetBuddies(); S.closeUser({ wipe: false }); setReady(true); return; }
     S.openUser(uid);
     // New account on a device that already had pre-account Novum data: bring it across
     if (consumeNewSignup()) {
@@ -1793,6 +1791,7 @@ function Root() {
     Promise.resolve(startSync(uid)).finally(() => setReady(true));
     startPushSync();
     startShareSync();
+    startProfileSync();
     A.refreshMe().catch(() => { /* offline or expired: handled by api.js */ });
   }, [uid]);
 

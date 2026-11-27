@@ -42,6 +42,13 @@ function Admin({ close }) {
             sub=${`Seen ${ago(u.lastSeen)} · ${u.devices} notif. device${u.devices === 1 ? '' : 's'} · ${u.buddies} buddies`} chevron onClick=${() => openUser(u)} />`)}
         <//>
 
+        ${d.reports?.length > 0 && html`<${Group} header="Reports" footer="Reported people are blocked for the reporter if they chose to. Reset a password or ask them to delete their account if needed.">
+          ${d.reports.map((r, i) => html`<div class="row" key=${i}>
+            <span class="row-ic" style="background:#FF9F0A">🚩</span>
+            <span class="row-main"><span class="row-title">@${r.reported} · ${r.reason}</span><span class="row-sub">From @${r.reporter} · ${when(r.at)}${r.note ? ` · “${r.note}”` : ''}</span></span>
+          </div>`)}
+        <//>`}
+
         <${Group} header="Recent emails (7 days)" footer="Codes are hidden. If someone says a code never came, look for their address here.">
           ${d.mail.length ? d.mail.map((m, i) => html`<div class="row" key=${i}>
             <span class="row-main"><span class="row-title">${EVENT[m.event] || m.event} · ${m.to}</span><span class="row-sub">${when(m.at)} · ${m.subject}</span></span>
