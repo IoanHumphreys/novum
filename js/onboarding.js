@@ -6,6 +6,9 @@ import { html, haptic, Icon, Segmented, Toggle, toast, useNow, capName } from '.
 import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
 import { enablePush, pushSupported, isStandalone } from './push.js';
 import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
+import { openPrivacy } from './privacy.js';
+
+export const MIN_AGE = 16;
 
 // Set just before a sign-up so the app can bring over pre-account data on this device
 let newSignup = false;
@@ -130,7 +133,7 @@ export function AuthScreen() {
     <div class="wl-actions">
       <button class="btn btn-primary block big glow" onClick=${() => { haptic(); setMode('signup'); }}>Get started. It’s free</button>
       <button class="btn btn-plain block big" onClick=${() => { haptic(); setMode('login'); }}>I already have an account</button>
-      <p class="wl-fine">🔒 Private by default · Your data is encrypted</p>
+      <p class="wl-fine">🔒 Private by default · Encrypted · <button type="button" class="link inline" onClick=${openPrivacy}>Privacy</button></p>
       <${HomeScreenTip} />
     </div>
   </div>`;
@@ -158,12 +161,13 @@ function WelcomeDemo() {
 }
 
 /* ============ sign up, one step at a time ============ */
-const SIGNUP_STEPS = ['name', 'username', 'email', 'code', 'password'];
+const SIGNUP_STEPS = ['name', 'dob', 'username', 'email', 'code', 'password'];
 
 function SignUp({ back, toLogin }) {
   const [i, setI] = useState(0);
   const [dir, setDir] = useState('fwd');
-  const [f, setF] = useState({ firstName: '', lastName: '', username: '', email: '', password: '' });
+  const [f, setF] = useState({ firstName: '', lastName: '', username: '', email: '', password: '', dob: '' });
+  const [consent, setConsent] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -185,11 +189,13 @@ function SignUp({ back, toLogin }) {
   const email = f.email.trim().toLowerCase();
   const valid = {
     name: f.firstName.trim() && f.lastName.trim(),
+    dob: /^\d{4}-\d{2}-\d{2}$/.test(f.dob) && S.ageOf({ dob: f.dob }) >= MIN_AGE,
     username: USERNAME_RE.test(uname),
     email: EMAIL_RE.test(email),
     code: code.length === 6,
-    password: f.password.length >= 8,
+    password: f.password.length >= 8 && consent,
   }[step];
+  const signupAge = /^\d{4}-\d{2}-\d{2}$/.test(f.dob) ? S.ageOf({ dob: f.dob }) : null;
 
   const ts = useTurnstile();
   const sendCode = async () => {
@@ -220,13 +226,13 @@ function SignUp({ back, toLogin }) {
     setBusy(true); setErr('');
     try {
       newSignup = true;
-      await A.signup({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: uname, email, password: f.password, emailToken });
+      await A.signup({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), username: uname, email, password: f.password, emailToken, dob: f.dob, consent });
       haptic(20);
     } catch (x) {
       newSignup = false;
       setBusy(false);
       const m = x.message.toLowerCase();
-      const back = x.data?.needsEmailCode ? at('email') : m.includes('username') ? at('username') : m.includes('email') ? at('email') : -1;
+      const back = x.data?.needsEmailCode ? at('email') : x.data?.tooYoung ? at('dob') : m.includes('username') ? at('username') : m.includes('email') ? at('email') : -1;
       if (x.data?.needsEmailCode) { setVerifiedEmail(''); setEmailToken(''); }
       if (back >= 0) { setDir('back'); setI(back); }
       setErr(x.message);
@@ -270,6 +276,11 @@ function SignUp({ back, toLogin }) {
           <${BigInput} placeholder="Last name" autocomplete="family-name" autocapitalize="words" enterkeyhint="next" maxlength="50" value=${f.lastName} onInput=${(e) => { setErr(''); setF({ ...f, lastName: capName(e.target.value) }); }} />
         </div>`}
 
+      ${step === 'dob' && html`
+        <${Q} emoji="🎂" title="When’s your birthday?" sub=${`Novum is for people aged ${MIN_AGE} and over. Under 18? Your profile stays private and only buddies can see it.`} />
+        <${DobPicker} value=${f.dob} onChange=${(v) => { setErr(''); setF({ ...f, dob: v }); }} />
+        ${signupAge != null && signupAge < MIN_AGE && html`<p class="wiz-err">Sorry, Novum is for people aged ${MIN_AGE} and over. If you want help quitting, talk to a parent, your GP or visit talktofrank.com.</p>`}`}
+
       ${step === 'username' && html`
         <${Q} emoji="✨" title=${`Nice to meet you, ${f.firstName.trim()}. Pick a username.`} sub="You can log in with it. Letters, numbers, dots and underscores." />
         <div class="wiz-at"><span>@</span><${BigInput} inputRef=${focusRef} placeholder="yourname" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" maxlength="20" value=${f.username} onInput=${set('username')} /></div>
@@ -284,6 +295,7 @@ function SignUp({ back, toLogin }) {
         <${Q} emoji="📬" title="Check your email." sub=${html`We sent a 6-digit code to <b class="wiz-em">${email}</b>. It can take a minute, so check spam too.`} />
         <${CodeInput} inputRef=${focusRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
         <${Resend} sentAt=${sentAt} onResend=${async () => { setErr(''); try { await sendCode(); toast('New code sent'); } catch (x) { setErr(x.message); } }} />
+        <p class="wiz-hint center">Already have a Novum account with this email? We’ll have emailed you to log in instead.</p>
         <button type="button" class="link center-link" onClick=${() => go(at('email'))}>Wrong email? Change it</button>`}
 
       ${step === 'password' && html`
@@ -294,7 +306,12 @@ function SignUp({ back, toLogin }) {
         </div>
         ${f.password && html`<div class="pw-meter"><i style="width:${strength ? strength.w : 10}%;background:${strength ? strength.c : '#FF453A'}"></i></div>
           <p class="wiz-hint">${f.password.length < 8 ? `${8 - f.password.length} more character${8 - f.password.length === 1 ? '' : 's'}` : strength?.l}</p>`}
-        <p class="wiz-fine">Your data is encrypted on Novum’s server and only shown to you after you log in. Delete your account any time in Profile.</p>`}
+        <label class="consent">
+          <input type="checkbox" checked=${consent} onChange=${(e) => { haptic(6); setConsent(e.target.checked); }} />
+          <span class="consent-box">${Icon.check()}</span>
+          <span>I’ve read the <button type="button" class="link inline" onClick=${(e) => { e.preventDefault(); openPrivacy(); }}>privacy notice</button> and agree to Novum storing what I’m quitting, my check-ins and health details to run the app.</span>
+        </label>
+        <p class="wiz-fine">Your data is encrypted on Novum’s server. Export or delete everything any time in Profile.</p>`}
 
       <${Err}>${err}<//>
       <div class="ts-box" ref=${ts.box}></div>
@@ -467,12 +484,13 @@ const nowInput = () => S.toLocalInput(new Date());
 export function DayZero({ user }) {
   const s = S.getState();
   const latest = S.latestWeight(s.profile);
-  const [i, setI] = useState(0);
+  const dobKnown = !!user.dob;
+  const [i, setI] = useState(dobKnown ? 1 : 0);
   const [dir, setDir] = useState('fwd');
   const step = DZ[i];
   const focusRef = useAutoFocus(i);
 
-  const [dob, setDob] = useState(s.profile.dob || '');
+  const [dob, setDob] = useState(s.profile.dob || user.dob || '');
   const [hUnit, setHUnit] = useState('cm');
   const [wUnit, setWUnit] = useState('kg');
   const [h, setH] = useState(() => {
@@ -496,7 +514,7 @@ export function DayZero({ user }) {
   const age = dobOk ? S.ageOf({ dob }) : null;
   const detailFor = (k) => details[k] || { start: nowInput(), monthly: '' };
   const valid = {
-    dob: dobOk && age >= 13,
+    dob: dobOk && age >= MIN_AGE,
     height: heightCm >= 100 && heightCm <= 250,
     weight: weightKg >= 30 && weightKg <= 300,
     habits: !picked.includes('other') || otherName.trim(),
@@ -544,6 +562,7 @@ export function DayZero({ user }) {
     });
     // The ready step already offered notifications, so skip the "you added it" welcome in the Home Screen app
     if (isStandalone()) markWelcomed();
+    if (!user.dob && dob) A.updateMe({ dob }).catch(() => { /* sent again on next open */ });
     toast(`Welcome to Novum, ${user.firstName} 💙`);
   };
   const turnOnPush = async () => { setPushMsg(''); try { await enablePush(); setPushMsg('on'); haptic(15); } catch (e) { setPushMsg(e.message); } };
@@ -552,12 +571,12 @@ export function DayZero({ user }) {
   const cta = step === 'why' && reasons.length === 0 ? 'Skip for now' : step === 'habits' && picked.length === 0 ? 'Nothing right now' : 'Continue';
 
   return html`<form class="auth" onSubmit=${next} novalidate>
-    <${Wizard} step=${i} total=${DZ.length} dir=${dir} onBack=${i > 0 ? prev : null} badge="Day Zero">
+    <${Wizard} step=${i} total=${DZ.length} dir=${dir} onBack=${i > (dobKnown ? 1 : 0) ? prev : null} badge="Day Zero">
       ${step === 'dob' && html`
         <${Q} emoji="🎂" title=${`Hi ${user.firstName}. When’s your birthday?`} sub="Day Zero sets your baseline. Only you can see this." />
         <${DobPicker} value=${dob} onChange=${setDob} />
         ${dobOk && html`<p class="wiz-big-note">${age} years old</p>`}
-        ${dobOk && age < 13 && html`<${Err}>Novum is for ages 13 and up.<//>`}`}
+        ${dobOk && age < MIN_AGE && html`<${Err}>Novum is for ages ${MIN_AGE} and up.<//>`}`}
 
       ${step === 'height' && html`
         <${Q} emoji="📏" title="How tall are you?" />

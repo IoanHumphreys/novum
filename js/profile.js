@@ -112,7 +112,8 @@ function EditProfile({ close }) {
   const user = A.getSession()?.user || {};
   const [avatar, setAvatar] = useState(s.social.avatar);
   const [bio, setBio] = useState(s.social.bio || '');
-  const [vis, setVis] = useState(s.social.visibility || 'buddies');
+  const adult = user.adult !== false;
+  const [vis, setVis] = useState(adult ? s.social.visibility || 'buddies' : 'buddies');
   const [share, setShare] = useState(s.shareStreaks);
   const [stories, setStories] = useState(() => Object.fromEntries(s.quits.map((q) => [q.id, { text: q.story || '', shared: !!q.storyShared }])));
   const setStory = (id, patch) => setStories({ ...stories, [id]: { ...stories[id], ...patch } });
@@ -139,7 +140,8 @@ function EditProfile({ close }) {
       <${Group} header="Who can see my profile" footer=${vis === 'public'
         ? 'Anyone on Novum can find you in Discover and follow you straight away.'
         : 'Only your buddies and people you’ve approved to follow you. Others just see your name and avatar.'}>
-        <div class="pad"><${Segmented} options=${[{ value: 'buddies', label: '🔒 Private' }, { value: 'public', label: '🌍 Public' }]} value=${vis} onChange=${setVis} /></div>
+        ${adult ? html`<div class="pad"><${Segmented} options=${[{ value: 'buddies', label: '🔒 Private' }, { value: 'public', label: '🌍 Public' }]} value=${vis} onChange=${setVis} /></div>`
+          : html`<div class="row"><span class="row-main"><span class="row-title">🔒 Private</span><span class="row-sub">Under-18 profiles always stay private. Only your buddies can see them.</span></span></div>`}
         <div class="row">
           <span class="row-main"><span class="row-title">Show my streaks</span><span class="row-sub">How long you’ve been free of each thing</span></span>
           <${Toggle} on=${share} label="Show my streaks" onChange=${setShare} />
@@ -174,6 +176,10 @@ function People({ tab0, close }) {
   }, [q, tab]);
   const respond = async (p, accept) => { haptic(); try { await A.followRespond(p.username, accept); toast(accept ? `${p.firstName} can now see your profile` : 'Request declined'); } catch (e) { toast(e.message); } loadFollows(); };
   const rows = tab === 'discover' ? list : tab === 'following' ? f?.following : f?.followers;
+  const minor = A.getSession()?.user?.adult === false;
+  if (minor) return html`
+    <${SheetBar} title="People" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body"><div class="card pad pp-private">🔒 <b>Discover and following are for over-18s.</b><br />To keep you safe, strangers can’t find or follow you. Add friends as buddies with their @username instead.</div></div>`;
   return html`
     <${SheetBar} title="People" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
@@ -246,7 +252,7 @@ function Person({ username, close, onChange }) {
         <h2 class="auth-title center">${p.firstName}</h2>
         <div class="row-sub center">@${p.username} · ${p.public ? '🌍 Public' : '🔒 Private'}${r.followsMe === 'accepted' ? ' · Follows you' : ''}</div>
         <div class="ph-counts center"><span><b>${p.counts.followers}</b> followers</span><span><b>${p.counts.following}</b> following</span></div>
-        ${!r.blockedByMe && html`<div class="pp-actions">${followBtn}${buddyBtn}</div>`}
+        ${!r.blockedByMe && html`<div class="pp-actions">${p.canFollow !== false && followBtn}${buddyBtn}</div>`}
       </div>
       ${r.blockedByMe ? html`<p class="muted center">You’ve blocked ${p.firstName}. Tap ••• to unblock.</p>`
       : p.private ? html`<div class="card pad pp-private">🔒 <b>${p.firstName}’s profile is private.</b><br />Follow to send a request, or become buddies to see their streaks and story.</div>`

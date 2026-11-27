@@ -14,6 +14,7 @@ import { checkMilestones, celebrate, CelebrationHost, openShareSheet, cardFor } 
 import { BuddiesSection, openBuddies, startShareSync, stopShareSync, resetBuddies } from './social.js';
 import { openAdmin } from './admin.js';
 import { ProfileHeader, startProfileSync, stopProfileSync, openPeople } from './profile.js';
+import { openPrivacy } from './privacy.js';
 
 const DAY = 864e5;
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -806,6 +807,7 @@ function Profile({ s }) {
 
     <${Group} header="Your data" footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
       <${SyncRow} />
+      <${Row} icon="🔒" iconBg="#8E8E93" title="Privacy notice" sub="What’s stored, who can see it, your rights" chevron onClick=${openPrivacy} />
       <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export a copy" sub="Saves a .json file" chevron onClick=${doExport} />
       <${Row} icon=${Icon.download()} iconBg="#30D158" title="Restore from a file" sub="Replaces your account’s data" chevron onClick=${() => fileRef.current.click()} />
       <${Row} icon="↺" iconBg="#FF9F0A" title="Start over" sub="Clears your data and reruns Day Zero" onClick=${() => confirmSheet({
@@ -845,7 +847,12 @@ function BodyEditor({ close }) {
   const [cm, setCm] = useState(p.heightCm ? String(p.heightCm) : '');
   const dobOk = /^\d{4}-\d{2}-\d{2}$/.test(dob) && S.parseDay(dob) < new Date();
   const ok = dobOk && +cm >= 100 && +cm <= 250;
-  const save = () => { S.update((d) => { d.profile.dob = dob; d.profile.heightCm = Math.round(+cm); }); haptic(12); close(); };
+  const save = async () => {
+    if (dob !== p.dob) {
+      try { await A.updateMe({ dob }); } catch (e) { toast(e.message); return; }
+    }
+    S.update((d) => { d.profile.dob = dob; d.profile.heightCm = Math.round(+cm); }); haptic(12); close();
+  };
   return html`
     <${SheetBar} title="Age and height" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" disabled=${!ok} onClick=${save}>Save</button>`} />
     <div class="sheet-body">
@@ -1792,7 +1799,10 @@ function Root() {
     startPushSync();
     startShareSync();
     startProfileSync();
-    A.refreshMe().catch(() => { /* offline or expired: handled by api.js */ });
+    A.refreshMe().then((u) => {
+      const dob = S.getState().profile.dob;
+      if (u && !u.dob && dob) A.updateMe({ dob }).catch(() => { /* try again next open */ });
+    }).catch(() => { /* offline or expired: handled by api.js */ });
   }, [uid]);
 
   let body;
