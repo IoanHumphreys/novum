@@ -2,7 +2,7 @@
 // addiction, and people: search, Discover, following, followers, blocking and reporting.
 // Profiles are private by default: only buddies and approved followers see them.
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
-import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast } from './ui.js';
+import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast, Skeleton } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
@@ -202,7 +202,7 @@ function People({ tab0, close }) {
       <//>`}
       <${Group} header=${tab === 'discover' ? (q.trim().length >= 2 ? 'Results' : 'Public profiles') : ''}
         footer=${tab === 'discover' && !q ? 'Only people who’ve made their profile public show here. Search to find a friend.' : ''}>
-        ${rows == null ? html`<div class="row"><span class="row-main"><span class="row-sub">Loading…</span></span></div>`
+        ${rows == null ? html`<${Skeleton} rows=${3} avatar />`
           : rows.length === 0 ? html`<div class="row"><span class="row-main"><span class="row-sub">${tab === 'discover' ? (q ? 'No one found.' : 'No public profiles yet.') : tab === 'following' ? 'You’re not following anyone yet.' : 'No followers yet.'}</span></span></div>`
           : rows.map((p) => html`<button class="row tap" key=${p.username} onClick=${() => openPerson(p.username, loadFollows)}>
               <${Avatar} a=${p.avatar} name=${p.firstName} size=${40} />
@@ -230,7 +230,7 @@ function Person({ username, close, onChange }) {
   useEffect(() => { load(); }, []);
   const act = async (fn, msg) => { if (busy) return; setBusy(true); haptic(10); try { await fn(); if (msg) toast(msg); } catch (e) { toast(e.message); } setBusy(false); load(); refreshBuddies(); onChange?.(); };
   if (err) return html`<${SheetBar} right=${html`<button class="link b" onClick=${close}>Done</button>`} /><div class="sheet-body"><p class="muted center sheet-intro">${err}</p></div>`;
-  if (!p) return html`<${SheetBar} right=${html`<button class="link b" onClick=${close}>Done</button>`} /><div class="sheet-body"><p class="muted center sheet-intro">Loading…</p></div>`;
+  if (!p) return html`<${SheetBar} right=${html`<button class="link b" onClick=${close}>Done</button>`} /><div class="sheet-body"><div class="sk sk-banner"></div><div class="pp-top"><i class="sk sk-av big"></i><i class="sk sk-l" style="width:40%"></i><i class="sk sk-s" style="width:30%"></i></div><${Skeleton} rows=${2} /></div>`;
   const r = p.relation;
   const now = Date.now();
   const followBtn = r.following === 'accepted'

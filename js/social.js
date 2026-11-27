@@ -1,7 +1,7 @@
 // Buddies: add friends by username, see each other's streaks (only if you choose to share),
 // and send a quick cheer that arrives as a notification.
 import { useState, useEffect } from '../vendor/preact-htm.js';
-import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, toast, useNow } from './ui.js';
+import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, toast, useNow, Skeleton } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
@@ -118,6 +118,8 @@ function Buddies({ close }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [sharing, setSharing] = useState(s.shareStreaks);
+  const [shareMs, setShareMs] = useState(!!s.social?.shareMilestones);
+  const setMs = (v) => { setShareMs(v); S.update((x) => { x.social = { ...x.social, shareMilestones: v }; }); toast(v ? 'Buddies will hear about your milestones' : 'Milestones stay private'); };
   const add = async () => {
     const u = name.trim().replace(/^@/, '');
     if (!u || busy) return;
@@ -144,6 +146,11 @@ function Buddies({ close }) {
           <span class="row-ic" style="background:#3B9BFF">👀</span>
           <span class="row-main"><span class="row-title">Share my streaks with buddies</span></span>
           <${Toggle} on=${sharing} label="Share my streaks" onChange=${setShare} />
+        </div>
+        <div class="row">
+          <span class="row-ic" style="background:#FFD60A">🎉</span>
+          <span class="row-main"><span class="row-title">Tell buddies about my milestones</span><span class="row-sub">“Ioan hit 1 month vaping-free” with a button to cheer</span></span>
+          <${Toggle} on=${shareMs} label="Tell buddies about milestones" onChange=${setMs} />
         </div>
       <//>
 
@@ -186,6 +193,7 @@ function Buddies({ close }) {
         </div>`)}
       <//>`}
 
+      ${!d.loaded && html`<${Skeleton} rows=${2} avatar />`}
       ${d.loaded && !d.buddies.length && !d.incoming.length && !d.outgoing.length && html`<p class="muted center sheet-intro">No buddies yet. Quitting is easier with someone in your corner.</p>`}
     </div>`;
 }

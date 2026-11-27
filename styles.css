@@ -1148,3 +1148,66 @@ input:autofill { background: transparent; }
 .bp-pal.on i { box-shadow: 0 0 0 3px #0c1019, 0 0 0 5px var(--accent); transform: scale(1.06); }
 .bp-pal.on span { color: var(--text); }
 .ph .ph-req { width: calc(100% - 32px); }
+
+/* ---------- activity bell and feed ---------- */
+.bell { position: relative; }
+.bell-dot { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--red); color: #fff;
+  font-size: 11px; font-weight: 800; font-style: normal; display: grid; place-items: center; border: 2px solid var(--bg); animation: pop 0.5s var(--bounce); }
+.act { display: flex; gap: 12px; padding: 12px 14px; position: relative; }
+.act + .act { border-top: 0.5px solid var(--sep); }
+.act.new { background: rgba(59, 155, 255, 0.07); }
+.act.new::after { content: ''; position: absolute; left: 5px; top: 28px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.act-av { flex: none; border-radius: 50%; align-self: flex-start; }
+.act-main { flex: 1; min-width: 0; }
+.act-t { font-size: 15px; line-height: 1.4; }
+.act-t i { font-style: normal; color: var(--text-2); }
+.act-when { color: var(--text-3); font-size: 13px; margin-left: 4px; white-space: nowrap; }
+.act-btns { display: flex; gap: 8px; margin-top: 8px; }
+.act-cheers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.cheer.sm { min-height: 50px; padding: 6px 2px; font-size: 10.5px; }
+.cheer.sm span { font-size: 18px; }
+.act-done { margin-top: 6px; font-size: 13px; color: var(--green); font-weight: 600; }
+.act-empty { text-align: center; padding: 40px 20px; }
+.act-empty b { display: block; font-size: 18px; margin-top: 6px; }
+
+/* ---------- SOS: ask buddies ---------- */
+.sos-ask { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; margin-top: 12px; border-radius: var(--r-md); text-align: left;
+  background: rgba(255, 159, 10, 0.12); border: 0.5px solid rgba(255, 159, 10, 0.3); }
+.sos-ask > span:first-child { font-size: 24px; }
+.sos-ask b { display: block; font-size: 15px; }
+.sos-ask small { color: var(--text-2); font-size: 13px; }
+.sos-cheers { margin-top: 12px; padding: 12px 14px; }
+.sos-cheers-h { font-size: 14px; color: var(--text-2); }
+.sos-cheer { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 15px; animation: rise 0.5s var(--bounce) both; }
+
+/* ---------- pull to refresh ---------- */
+.ptr { display: flex; align-items: flex-end; justify-content: center; overflow: hidden; transition: height 0.3s var(--spring), opacity 0.2s; }
+.ptr svg { width: 26px; height: 26px; margin-bottom: 12px; fill: none; stroke: var(--text-2); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.ptr.ready svg { stroke: var(--accent); }
+.ptr.busy svg { stroke: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- loading placeholders ---------- */
+.sk { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--fill) 0%, var(--fill-2) 50%, var(--fill) 100%); background-size: 200% 100%; animation: shimmer 1.3s ease-in-out infinite; }
+.sk-av { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+.sk-av.big { width: 96px; height: 96px; margin-bottom: 10px; }
+.sk-l { height: 14px; margin: 3px 0 8px; }
+.sk-s { height: 11px; width: 35%; }
+.sk-banner { height: 120px; border-radius: 18px; margin-bottom: -40px; }
+.skel .row { gap: 12px; min-height: 64px; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ---------- Home greeting with avatar ---------- */
+.greet { display: flex; align-items: center; gap: 10px; }
+.greet-av { flex: none; border-radius: 50%; }
+
+/* ---------- Day Zero: make it yours ---------- */
+.dz-look { margin-top: 22px; }
+.dz-look-name { text-align: center; font-size: 20px; font-weight: 800; margin-top: 8px; }
+.dz-look-name span { display: block; font-size: 14px; font-weight: 500; color: var(--text-2); }
+.dz-look-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.dz-look .ep-av .av { box-shadow: 0 0 0 5px var(--bg); }
+
+/* ---------- admin ---------- */
+.tile.warn b { color: var(--orange, #ff9f0a); }
+@media (prefers-reduced-motion: reduce) { .sk, .ptr.busy svg { animation: none; } }

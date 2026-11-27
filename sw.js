@@ -1,6 +1,8 @@
 // Novum service worker: precache the app shell, serve cache-first, refresh in the background.
 // Bump VERSION when you deploy changes so old caches are cleared.
-const VERSION = 'novum-v19';
+const VERSION = 'novum-v21';
+// Cartoon avatars from DiceBear are kept here (separately, so updates don't wipe them) for instant, offline loading
+const AVATARS = 'novum-avatars';
 const ASSETS = [
   './',
   'index.html',
@@ -22,6 +24,15 @@ const ASSETS = [
   'js/profile.js',
   'js/privacy.js',
   'js/banner.js',
+  'js/shared.js',
+  'js/activity.js',
+  'js/quits.js',
+  'js/sos.js',
+  'js/tabs/home.js',
+  'js/tabs/checkin.js',
+  'js/tabs/goals.js',
+  'js/tabs/progress.js',
+  'js/tabs/me.js',
   'js/boot.js',
   'vendor/preact-htm.js',
   'icons/icon-192.png',
@@ -39,7 +50,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== AVATARS).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -75,6 +86,22 @@ self.addEventListener('notificationclick', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
+  if (req.method === 'GET' && new URL(req.url).hostname === 'api.dicebear.com') {
+    e.respondWith((async () => {
+      const c = await caches.open(AVATARS);
+      const hit = await c.match(req);
+      if (hit) return hit;
+      try {
+        const res = await fetch(req);
+        if (res.ok || res.type === 'opaque') {
+          await c.put(req, res.clone());
+          c.keys().then((ks) => ks.length > 300 && Promise.all(ks.slice(0, ks.length - 300).map((k) => c.delete(k))));
+        }
+        return res;
+      } catch { return hit || Response.error(); }
+    })());
+    return;
+  }
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 
   // Page loads: serve the cached shell when offline

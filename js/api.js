@@ -146,3 +146,20 @@ export const removeFollower = (username) => call('POST', '/followers/remove', { 
 export const block = (username) => call('POST', '/block', { username });
 export const unblock = (username) => call('POST', '/unblock', { username });
 export const report = (username, reason, note) => call('POST', '/report', { username, reason, note });
+
+/* ---------- activity, SOS, milestones, error reports ---------- */
+export const activity = () => call('GET', '/activity');
+export const activityRead = () => call('POST', '/activity/read', {});
+export const sos = () => call('POST', '/sos', {});
+export const shareMilestone = (m) => call('POST', '/milestone', m);
+// Fire-and-forget: tells the admin page something broke in the app
+export function reportError(place, message, detail) {
+  try {
+    fetch(serverURL() + '/errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(getSession()?.token ? { Authorization: `Bearer ${getSession().token}` } : {}) },
+      body: JSON.stringify({ place, message, detail }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch { /* never throw from the error reporter */ }
+}

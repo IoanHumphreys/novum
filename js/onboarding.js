@@ -7,6 +7,8 @@ import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
 import { enablePush, pushSupported, isStandalone } from './push.js';
 import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
 import { openPrivacy } from './privacy.js';
+import { Avatar, openAvatarPicker } from './profile.js';
+import { Banner, openBannerPicker, PALETTES } from './banner.js';
 
 export const MIN_AGE = 16;
 
@@ -478,7 +480,7 @@ function DobPicker({ value, onChange }) {
 }
 
 /* ============ Day Zero, one step at a time ============ */
-const DZ = ['dob', 'height', 'weight', 'habits', 'details', 'why', 'ready'];
+const DZ = ['dob', 'height', 'weight', 'habits', 'details', 'why', 'look', 'ready'];
 const nowInput = () => S.toLocalInput(new Date());
 
 export function DayZero({ user }) {
@@ -507,6 +509,12 @@ export function DayZero({ user }) {
   const [reasons, setReasons] = useState(() => s.reasons.map((r) => r.text));
   const [reasonTxt, setReasonTxt] = useState('');
   const [pushMsg, setPushMsg] = useState('');
+  // A random avatar and banner to start with, so no profile starts blank
+  const rnd = () => Math.random().toString(36).slice(2, 8);
+  const [look, setLook] = useState(() => ({
+    avatar: s.social?.avatar || { style: ['adventurer', 'big-smile', 'lorelei', 'notionists'][Math.floor(Math.random() * 4)], seed: rnd(), bg: ['b6e3f4', 'c0aede', 'ffdfbf', 'c1f4c5'][Math.floor(Math.random() * 4)] },
+    banner: s.social?.banner || { style: ['mesh', 'aurora'][Math.floor(Math.random() * 2)], palette: Object.keys(PALETTES)[Math.floor(Math.random() * Object.keys(PALETTES).length)], seed: rnd() },
+  }));
 
   const heightCm = hUnit === 'cm' ? parseFloat(h.cm) : (parseFloat(h.ft) || 0) * 30.48 + (parseFloat(h.inch) || 0) * 2.54;
   const weightKg = wUnit === 'kg' ? parseFloat(w.kg) : ((parseFloat(w.st) || 0) * 14 + (parseFloat(w.lb) || 0)) / 2.20462;
@@ -519,7 +527,7 @@ export function DayZero({ user }) {
     weight: weightKg >= 30 && weightKg <= 300,
     habits: !picked.includes('other') || otherName.trim(),
     details: picked.every((k) => { const d = detailFor(k); return d.start && !Number.isNaN(S.parseLocal(d.start).getTime()); }),
-    why: true, ready: true,
+    why: true, look: true, ready: true,
   }[step];
 
   const go = (n) => { haptic(); setDir(n > i ? 'fwd' : 'back'); setI(n); window.scrollTo(0, 0); };
@@ -558,6 +566,7 @@ export function DayZero({ user }) {
       const have = new Set(d.reasons.map((r) => r.text));
       reasons.filter((t) => !have.has(t)).forEach((t) => d.reasons.push({ id: S.uid(), text: t }));
       d.reasons = d.reasons.filter((r) => reasons.includes(r.text));
+      d.social = { ...d.social, avatar: look.avatar, banner: look.banner };
       d.setupDone = true;
     });
     // The ready step already offered notifications, so skip the "you added it" welcome in the Home Screen app
@@ -629,6 +638,18 @@ export function DayZero({ user }) {
           <span class="row-main"><span class="row-title">${t}</span></span>
           <button type="button" class="icon-btn muted" aria-label="Remove" onClick=${() => setReasons(reasons.filter((x) => x !== t))}>${Icon.trash()}</button></div>`)}</div>`}
         <div class="chip-row dz-ideas">${REASON_IDEAS.filter((t) => !reasons.includes(t)).slice(0, 5).map((t) => html`<button type="button" class="chip big" onClick=${() => addReason(t)}>+ ${t}</button>`)}</div>`}
+
+      ${step === 'look' && html`
+        <${Q} emoji="🎨" title="Make it yours." sub="Pick a cartoon avatar and a banner. Only your buddies see your profile unless you make it public later." />
+        <div class="ep-top dz-look">
+          <button type="button" class="ep-banner" aria-label="Change banner" onClick=${() => openBannerPicker(look.banner, (b) => setLook({ ...look, banner: b }))}><${Banner} b=${look.banner} /><span class="ph-banner-edit">🎨</span></button>
+          <button type="button" class="ep-av" aria-label="Change avatar" onClick=${() => openAvatarPicker(look.avatar, (a) => setLook({ ...look, avatar: a }))}><${Avatar} a=${look.avatar} name=${user.firstName} size=${104} /></button>
+          <div class="dz-look-name">${user.firstName} ${user.lastName}<span>@${user.username}</span></div>
+        </div>
+        <div class="dz-look-btns">
+          <button type="button" class="btn btn-tinted" onClick=${() => openAvatarPicker(look.avatar, (a) => setLook({ ...look, avatar: a }))}>Change avatar</button>
+          <button type="button" class="btn btn-tinted" onClick=${() => openBannerPicker(look.banner, (b) => setLook({ ...look, banner: b }))}>Change banner</button>
+        </div>`}
 
       ${step === 'ready' && html`
         <div class="dz-ready">

@@ -33,7 +33,8 @@ function rng(str) {
 }
 const alpha = (hex, a) => `${hex}${Math.round(a * 255).toString(16).padStart(2, '0')}`;
 
-export function bannerCSS(b) {
+// A banner is a list of layers (top first). The same list draws the CSS banner and the canvas share card.
+export function bannerLayers(b) {
   const { style, palette, seed } = b && PALETTES[b.palette] ? b : DEFAULT_BANNER;
   const [c0, c1, c2, c3] = PALETTES[palette];
   const r = rng(`${style}:${palette}:${seed}`);
@@ -41,21 +42,101 @@ export function bannerCSS(b) {
   const deg = () => Math.round(r() * 360);
   const pick = () => [c1, c2, c3][Math.floor(r() * 3)];
   switch (style) {
-    case 'linear':
-      return `linear-gradient(${deg()}deg, ${c0} 0%, ${c1} ${30 + pct() / 5}%, ${c2} ${65 + pct() / 5}%, ${c3} 100%)`;
-    case 'radial':
-      return `radial-gradient(circle at ${pct()}% ${pct()}%, ${c3} 0%, ${c2} 22%, ${c1} 48%, ${c0} 85%)`;
-    case 'conic':
-      return `conic-gradient(from ${deg()}deg at ${20 + pct() * 0.6}% ${20 + pct() * 0.6}%, ${c0}, ${c1}, ${c2}, ${c3}, ${c1}, ${c0})`;
-    case 'aurora':
-      return [0, 1, 2].map(() => `radial-gradient(ellipse ${60 + pct() * 0.6}% ${30 + pct() * 0.3}% at ${pct()}% ${pct()}%, ${alpha(pick(), 0.75)} 0%, transparent 70%)`).join(', ') + `, linear-gradient(180deg, ${c0}, #04060b)`;
+    case 'linear': {
+      const a = deg(), p1 = 30 + pct() / 5, p2 = 65 + pct() / 5;
+      return [{ t: 'linear', a, stops: [[c0, 0], [c1, p1], [c2, p2], [c3, 100]] }];
+    }
+    case 'radial': {
+      const x = pct(), y = pct();
+      return [{ t: 'radial', x, y, circle: true, stops: [[c3, 0], [c2, 22], [c1, 48], [c0, 85]] }];
+    }
+    case 'conic': {
+      const from = deg(), x = 20 + pct() * 0.6, y = 20 + pct() * 0.6;
+      return [{ t: 'conic', from, x, y, colors: [c0, c1, c2, c3, c1, c0] }];
+    }
+    case 'aurora': {
+      const blobs = [0, 1, 2].map(() => ({ t: 'radial', w: 60 + pct() * 0.6, h: 30 + pct() * 0.3, x: pct(), y: pct(), stops: [[alpha(pick(), 0.75), 0], ['transparent', 70]] }));
+      return [...blobs, { t: 'linear', a: 180, stops: [[c0, 0], ['#04060b', 100]] }];
+    }
     case 'stripes': {
       const a = deg(), w = 14 + Math.round(r() * 26);
-      return `repeating-linear-gradient(${a}deg, rgba(255,255,255,0.10) 0 ${w}px, transparent ${w}px ${w * 2}px), linear-gradient(${a + 90}deg, ${c1}, ${c2} 60%, ${c3})`;
+      return [{ t: 'stripes', a, w, color: 'rgba(255,255,255,0.10)' }, { t: 'linear', a: a + 90, stops: [[c1, 0], [c2, 60], [c3, 100]] }];
     }
-    default: // mesh
-      return [c1, c2, c3, pick()].map((c) => `radial-gradient(at ${pct()}% ${pct()}%, ${c} 0px, transparent 55%)`).join(', ') + `, ${c0}`;
+    default: { // mesh
+      const blobs = [c1, c2, c3, pick()].map((c) => ({ t: 'radial', x: pct(), y: pct(), stops: [[c, 0], ['transparent', 55]] }));
+      return [...blobs, { t: 'solid', c: c0 }];
+    }
   }
+}
+
+export function bannerCSS(b) {
+  const st = (stops) => stops.map(([c, p]) => `${c} ${p}%`).join(', ');
+  return bannerLayers(b).map((l) => {
+    switch (l.t) {
+      case 'solid': return l.c;
+      case 'linear': return `linear-gradient(${l.a}deg, ${st(l.stops)})`;
+      case 'radial': return `radial-gradient(${l.circle ? 'circle' : l.w ? `ellipse ${l.w}% ${l.h}%` : 'ellipse'} at ${l.x}% ${l.y}%, ${st(l.stops)})`;
+      case 'conic': return `conic-gradient(from ${l.from}deg at ${l.x}% ${l.y}%, ${l.colors.join(', ')})`;
+      case 'stripes': return `repeating-linear-gradient(${l.a}deg, ${l.color} 0 ${l.w}px, transparent ${l.w}px ${l.w * 2}px)`;
+      default: return '';
+    }
+  }).join(', ');
+}
+
+// Paint the banner onto a canvas rectangle (for the share card). `scale` turns on-screen px into canvas px.
+export function paintBanner(ctx, b, X, Y, W, H, scale = 3) {
+  const layers = bannerLayers(b).slice().reverse(); // canvas paints bottom first
+  const clear = (c) => (c === 'transparent' ? 'rgba(0,0,0,0)' : c);
+  // CSS fades to "transparent" through the colour itself, not through black: copy the colour with alpha 0
+  const fadeOf = (stops) => stops.map(([c, p], i) => [c === 'transparent' ? toAlpha0(stops[i - 1]?.[0] || stops[i + 1]?.[0]) : c, p]);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(X, Y, W, H); ctx.clip();
+  for (const l of layers) {
+    if (l.t === 'solid') { ctx.fillStyle = l.c; ctx.fillRect(X, Y, W, H); continue; }
+    if (l.t === 'linear') {
+      // CSS angle: 0deg points up, clockwise; the line spans the box corners
+      const rad = (l.a * Math.PI) / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
+      const half = (Math.abs(W * dx) + Math.abs(H * dy)) / 2, cx = X + W / 2, cy = Y + H / 2;
+      const g = ctx.createLinearGradient(cx - dx * half, cy - dy * half, cx + dx * half, cy + dy * half);
+      fadeOf(l.stops).forEach(([c, p]) => g.addColorStop(p / 100, clear(c)));
+      ctx.fillStyle = g; ctx.fillRect(X, Y, W, H); continue;
+    }
+    if (l.t === 'radial') {
+      const cx = X + (W * l.x) / 100, cy = Y + (H * l.y) / 100;
+      let rx, ry;
+      const fx = Math.max(cx - X, X + W - cx), fy = Math.max(cy - Y, Y + H - cy);
+      if (l.circle) rx = ry = Math.hypot(fx, fy);
+      else if (l.w) { rx = (W * l.w) / 100; ry = (H * l.h) / 100; }
+      else { rx = fx * Math.SQRT2; ry = fy * Math.SQRT2; }
+      ctx.save();
+      ctx.translate(cx, cy); ctx.scale(1, ry / rx);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+      fadeOf(l.stops).forEach(([c, p]) => g.addColorStop(p / 100, clear(c)));
+      ctx.fillStyle = g; ctx.fillRect(-W * 3, -H * 3 * (rx / ry), W * 6, H * 6 * (rx / ry));
+      ctx.restore(); continue;
+    }
+    if (l.t === 'conic' && ctx.createConicGradient) {
+      const g = ctx.createConicGradient(((l.from - 90) * Math.PI) / 180, X + (W * l.x) / 100, Y + (H * l.y) / 100);
+      l.colors.forEach((c, i) => g.addColorStop(i / (l.colors.length - 1), c));
+      ctx.fillStyle = g; ctx.fillRect(X, Y, W, H); continue;
+    }
+    if (l.t === 'conic') { ctx.fillStyle = l.colors[1]; ctx.fillRect(X, Y, W, H); continue; }
+    if (l.t === 'stripes') {
+      const w = l.w * scale;
+      ctx.save();
+      ctx.translate(X + W / 2, Y + H / 2); ctx.rotate(((l.a - 90) * Math.PI) / 180);
+      const R = Math.hypot(W, H);
+      ctx.fillStyle = l.color;
+      for (let x = -R; x < R; x += w * 2) ctx.fillRect(x, -R, w, R * 2);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function toAlpha0(c) {
+  if (!c) return 'rgba(0,0,0,0)';
+  if (c.startsWith('#')) return `${c.slice(0, 7)}00`;
+  return c.replace(/rgba?\(([^)]+)\)/, (m, v) => `rgba(${v.split(',').slice(0, 3).join(',')},0)`);
 }
 
 export function Banner({ b, className = '', children }) {

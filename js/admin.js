@@ -1,7 +1,7 @@
 // Admin page (only for accounts listed in the server's ADMIN_EMAILS): who's signed up,
 // how email delivery is going, and a password reset for anyone locked out.
 import { useState, useEffect } from '../vendor/preact-htm.js';
-import { html, haptic, openSheet, SheetBar, Group, Row, toast } from './ui.js';
+import { html, haptic, openSheet, SheetBar, Group, Row, toast, Skeleton } from './ui.js';
 import * as A from './api.js';
 
 const ago = (t) => {
@@ -28,13 +28,15 @@ function Admin({ close }) {
     <${SheetBar} title="Admin" left=${html`<button class="link" onClick=${load}>Refresh</button>`} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
       ${err && html`<p class="auth-err center">${err}</p>`}
-      ${!d && !err && html`<p class="muted center sheet-intro">Loading…</p>`}
+      ${!d && !err && html`<${Skeleton} rows=${4} avatar />`}
       ${d && html`
         <div class="tiles admin-tiles">
           <div class="tile"><span class="tile-k">👥 Accounts</span><b>${d.users.length}/${d.maxUsers}</b><span class="tile-u">spaces used</span></div>
           <div class="tile"><span class="tile-k">🟢 Active</span><b>${d.users.filter((u) => u.lastSeen && Date.now() - u.lastSeen < 7 * 864e5).length}</b><span class="tile-u">this week</span></div>
           <div class="tile"><span class="tile-k">✉️ Email codes</span><b>${d.emailCodes ? 'On' : 'Off'}</b><span class="tile-u">Brevo</span></div>
           <div class="tile"><span class="tile-k">🤖 Bot check</span><b>${d.turnstile ? 'On' : 'Off'}</b><span class="tile-u">Turnstile</span></div>
+          <div class="tile ${d.errorsToday ? 'warn' : ''}"><span class="tile-k">⚠️ Errors</span><b>${d.errorsToday ?? 0}</b><span class="tile-u">in the last 24 hours</span></div>
+          <div class="tile"><span class="tile-k">🚩 Reports</span><b>${d.reports?.length ?? 0}</b><span class="tile-u">to look at</span></div>
         </div>
 
         <${Group} header="People" footer="Tap someone to reset their password if they’re locked out.">
@@ -46,6 +48,13 @@ function Admin({ close }) {
           ${d.reports.map((r, i) => html`<div class="row" key=${i}>
             <span class="row-ic" style="background:#FF9F0A">🚩</span>
             <span class="row-main"><span class="row-title">@${r.reported} · ${r.reason}</span><span class="row-sub">From @${r.reporter} · ${when(r.at)}${r.note ? ` · “${r.note}”` : ''}</span></span>
+          </div>`)}
+        <//>`}
+
+        ${d.errors?.length > 0 && html`<${Group} header="Errors (last 14 days)" footer="“App” errors happened on someone’s phone; “server” errors on Novum’s server. Send me the message if one keeps happening.">
+          ${d.errors.map((e, i) => html`<div class="row" key=${i}>
+            <span class="row-ic" style="background:${e.side === 'server' ? '#FF453A' : '#FF9F0A'}">⚠️</span>
+            <span class="row-main"><span class="row-title">${e.message}</span><span class="row-sub">${e.side === 'server' ? 'Server' : 'App'} · ${e.place || '?'} · ${when(e.at)}</span></span>
           </div>`)}
         <//>`}
 

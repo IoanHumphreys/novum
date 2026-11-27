@@ -162,8 +162,53 @@ export function SheetBar({ title, left, right }) {
 }
 
 /* ---------- page with iOS large title ---------- */
-export function Page({ title, eyebrow, sub, right, children }) {
+// Pull down at the top of a page to refresh (Home and Profile)
+function usePullToRefresh(onRefresh) {
+  const [pull, setPull] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const st = useRef({ y0: null, d: 0, busy: false });
+  const fn = useRef(onRefresh);
+  fn.current = onRefresh;
+  const on = !!onRefresh;
+  useEffect(() => {
+    if (!on) return undefined;
+    const start = (e) => {
+      if (window.scrollY > 0 || st.current.busy || document.documentElement.classList.contains('sheet-open')) return;
+      st.current.y0 = e.touches[0].clientY; st.current.d = 0;
+    };
+    const move = (e) => {
+      if (st.current.y0 == null) return;
+      const d = Math.max(0, e.touches[0].clientY - st.current.y0);
+      if (window.scrollY > 0 && d === 0) { st.current.y0 = null; return; }
+      const damped = Math.min(96, d * 0.45);
+      if (damped >= 64 && st.current.d < 64) haptic(8);
+      st.current.d = damped; setPull(damped);
+    };
+    const end = async () => {
+      if (st.current.y0 == null) return;
+      const d = st.current.d; st.current.y0 = null;
+      if (d < 64) { setPull(0); return; }
+      st.current.busy = true; setBusy(true); setPull(56);
+      const t0 = Date.now();
+      try { await fn.current(); } catch { /* offline: nothing to do */ }
+      await new Promise((r) => setTimeout(r, Math.max(0, 600 - (Date.now() - t0))));
+      st.current.busy = false; setBusy(false); setPull(0); haptic(6);
+    };
+    addEventListener('touchstart', start, { passive: true });
+    addEventListener('touchmove', move, { passive: true });
+    addEventListener('touchend', end);
+    addEventListener('touchcancel', end);
+    return () => { removeEventListener('touchstart', start); removeEventListener('touchmove', move); removeEventListener('touchend', end); removeEventListener('touchcancel', end); };
+  }, [on]);
+  return { pull, busy };
+}
+
+export function Page({ title, eyebrow, sub, right, children, onRefresh }) {
+  const { pull, busy } = usePullToRefresh(onRefresh);
   return html`<div class="page">
+    ${onRefresh && html`<div class="ptr ${busy ? 'busy' : ''} ${pull >= 64 ? 'ready' : ''}" style=${`height:${pull}px;opacity:${Math.min(1, pull / 48)}`} aria-hidden=${!busy}>
+      <svg viewBox="0 0 24 24" style=${busy ? '' : `transform:rotate(${pull * 4}deg)`}><path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5"/></svg>
+    </div>`}
     <header class="nav">
       <div class="nav-inner"><div class="nav-title">${title}</div><div class="nav-right">${right}</div></div>
     </header>
@@ -274,4 +319,11 @@ export function toast(msg) {
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 2200);
+}
+
+/* ---------- loading placeholders ---------- */
+export function Skeleton({ rows = 3, avatar = false }) {
+  return html`<div class="card list skel" aria-label="Loading" role="status">${Array.from({ length: rows }, (_, i) => html`<div class="row" key=${i}>
+    ${avatar && html`<i class="sk sk-av"></i>`}<span class="row-main"><i class="sk sk-l" style=${`width:${55 + ((i * 17) % 35)}%`}></i><i class="sk sk-s"></i></span>
+  </div>`)}</div>`;
 }

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import { html, haptic, openSheet, SheetBar, toast } from './ui.js';
 import * as S from './store.js';
 import { MILESTONES } from './content.js';
+import * as A from './api.js';
+import { paintBanner } from './banner.js';
 
 const DAY = 864e5;
 const joinNames = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
@@ -34,7 +36,10 @@ export function checkMilestones(now = Date.now()) {
   // Show the biggest milestone; group quits that hit it together
   const top = Math.max(...fresh.map((f) => f.m.days));
   const quits = fresh.filter((f) => f.m.days === top).map((f) => f.q);
-  return { m: MILESTONES.find((x) => x.days === top), quits };
+  const m = MILESTONES.find((x) => x.days === top);
+  // Tell buddies, if you've switched that on
+  if (s.social?.shareMilestones) A.shareMilestone({ label: m.label, quit: freeOf(quits), emoji: quits[0].emoji }).catch(() => {});
+  return { m, quits };
 }
 
 /* ---------- the full-screen moment ---------- */
@@ -111,7 +116,11 @@ function confetti(cv, colors) {
 // What goes on the card
 export function cardFor(quits, days, saved) {
   const d = Math.floor(days);
-  return { number: d, unit: d === 1 ? 'DAY' : 'DAYS', headline: freeOf(quits), saved, color: quits[0]?.color || '#3B9BFF', colors: quits.map((q) => q.color) };
+  const social = S.getState().social || {};
+  return {
+    number: d, unit: d === 1 ? 'DAY' : 'DAYS', headline: freeOf(quits), saved, color: quits[0]?.color || '#3B9BFF', colors: quits.map((q) => q.color),
+    banner: social.banner, avatar: social.avatar, name: A.getSession()?.user?.firstName || '',
+  };
 }
 
 const FONT = '-apple-system, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
@@ -133,9 +142,9 @@ function fitFont(ctx, text, weight, size, max) {
   do { ctx.font = `${weight} ${s}px ${FONT}`; s -= 4; } while (ctx.measureText(text).width > max && s > 24);
 }
 
-// 1080×1920, the size of a phone story
+// 1080×1920, the size of a phone story: your banner, avatar and name on top, then the streak
 export async function drawCard(card) {
-  const W = 1080, H = 1920;
+  const W = 1080, H = 1920, BAND = 600;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
@@ -143,46 +152,79 @@ export async function drawCard(card) {
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#0c1a33'); bg.addColorStop(0.55, '#060a14'); bg.addColorStop(1, '#04060b');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  const glow = ctx.createRadialGradient(540, 900, 40, 540, 900, 620);
-  glow.addColorStop(0, hexA(card.color, 0.32)); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  // banner across the top, fading into the page
+  paintBanner(ctx, card.banner, 0, 0, W, BAND, W / 360);
+  const fade = ctx.createLinearGradient(0, BAND * 0.45, 0, BAND);
+  fade.addColorStop(0, 'rgba(6,10,20,0)'); fade.addColorStop(1, 'rgba(6,10,20,1)');
+  ctx.fillStyle = fade; ctx.fillRect(0, 0, W, BAND + 2);
+  const glow = ctx.createRadialGradient(540, 1100, 40, 540, 1100, 560);
+  glow.addColorStop(0, hexA(card.color, 0.28)); glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, BAND, W, H - BAND);
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  // logo
-  const icon = await loadIcon();
-  if (icon) { ctx.save(); roundRect(ctx, 465, 150, 150, 150, 36); ctx.clip(); ctx.drawImage(icon, 465, 150, 150, 150); ctx.restore(); }
-  ctx.fillStyle = '#ffffff'; ctx.font = `900 46px ${FONT}`;
-  spaced(ctx, 'NOVUM', 540, 380, 18);
+  // wordmark on the banner
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 18;
+  ctx.fillStyle = '#ffffff'; ctx.font = `900 40px ${FONT}`;
+  spaced(ctx, 'NOVUM', 540, 120, 16);
+  ctx.restore();
+  // avatar with a dark ring, overlapping the banner
+  const AX = 540, AY = 520, AR = 125;
+  ctx.fillStyle = '#060a14'; ctx.beginPath(); ctx.arc(AX, AY, AR + 14, 0, Math.PI * 2); ctx.fill();
+  const av = await loadAvatar(card.avatar);
+  ctx.save(); ctx.beginPath(); ctx.arc(AX, AY, AR, 0, Math.PI * 2); ctx.clip();
+  if (av) ctx.drawImage(av, AX - AR, AY - AR, AR * 2, AR * 2);
+  else {
+    const g = ctx.createLinearGradient(AX - AR, AY - AR, AX + AR, AY + AR);
+    g.addColorStop(0, '#5ac8fa'); g.addColorStop(1, '#1a4fd6');
+    ctx.fillStyle = g; ctx.fillRect(AX - AR, AY - AR, AR * 2, AR * 2);
+    ctx.fillStyle = '#fff'; ctx.font = `900 120px ${FONT}`; ctx.textBaseline = 'middle';
+    ctx.fillText((card.name || 'N')[0].toUpperCase(), AX, AY + 6); ctx.textBaseline = 'alphabetic';
+  }
+  ctx.restore();
+  if (card.name) { ctx.fillStyle = '#ffffff'; fitFont(ctx, card.name, 800, 64, 800); ctx.fillText(card.name, 540, 735); }
   // rings: one per quit, outermost first
+  const RY = 1090;
   const colors = (card.colors && card.colors.length ? card.colors : [card.color]).slice(0, 3);
   colors.forEach((c, i) => {
-    const r = 330 - i * 52;
-    ctx.lineWidth = 40; ctx.lineCap = 'round';
-    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.beginPath(); ctx.arc(540, 900, r, 0, Math.PI * 2); ctx.stroke();
-    const g = ctx.createLinearGradient(540 - r, 900 - r, 540 + r, 900 + r);
+    const r = 250 - i * 44;
+    ctx.lineWidth = 32; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.beginPath(); ctx.arc(540, RY, r, 0, Math.PI * 2); ctx.stroke();
+    const g = ctx.createLinearGradient(540 - r, RY - r, 540 + r, RY + r);
     g.addColorStop(0, c); g.addColorStop(1, lighten(c));
-    ctx.strokeStyle = g; ctx.beginPath(); ctx.arc(540, 900, r, -Math.PI / 2, Math.PI * 1.5 - 0.0001); ctx.stroke();
+    ctx.strokeStyle = g; ctx.beginPath(); ctx.arc(540, RY, r, -Math.PI / 2, Math.PI * 1.5 - 0.0001); ctx.stroke();
   });
   // number
   ctx.fillStyle = '#ffffff';
-  fitFont(ctx, String(card.number), 900, card.number >= 1000 ? 200 : 260, 420 - (colors.length - 1) * 100);
-  ctx.fillText(String(card.number), 540, 960);
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = `800 44px ${FONT}`;
-  spaced(ctx, card.unit, 540, 1040, 12);
+  fitFont(ctx, String(card.number), 900, card.number >= 1000 ? 160 : 210, 330 - (colors.length - 1) * 80);
+  ctx.fillText(String(card.number), 540, RY + 50);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = `800 38px ${FONT}`;
+  spaced(ctx, card.unit, 540, RY + 115, 12);
   // words
   ctx.fillStyle = '#ffffff';
   fitFont(ctx, card.headline, 800, 76, 920);
-  ctx.fillText(card.headline, 540, 1370);
+  ctx.fillText(card.headline, 540, 1470);
   if (card.saved >= 1) {
     ctx.fillStyle = '#5aaeff'; ctx.font = `800 58px ${FONT}`;
-    ctx.fillText(`${S.money(card.saved, 0)} saved 💙`, 540, 1465);
+    ctx.fillText(`${S.money(card.saved, 0)} saved 💙`, 540, 1560);
   } else {
-    ctx.font = `64px ${FONT}`; ctx.fillText('💙', 540, 1465);
+    ctx.font = `64px ${FONT}`; ctx.fillText('💙', 540, 1560);
   }
   ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = `500 36px ${FONT}`;
-  ctx.fillText('A new beginning. A new standard. A new you.', 540, 1730);
+  ctx.fillText('A new beginning. A new standard. A new you.', 540, 1760);
   ctx.fillStyle = '#5aaeff'; ctx.font = `800 36px ${FONT}`;
-  ctx.fillText('novumdaily.com', 540, 1800);
+  ctx.fillText('novumdaily.com', 540, 1830);
   return new Promise((ok) => cv.toBlob((b) => ok(b), 'image/png'));
+}
+// DiceBear can return a PNG with CORS headers, so it can be drawn onto the card
+function loadAvatar(a) {
+  if (!a) return Promise.resolve(null);
+  return new Promise((ok) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const t = setTimeout(() => ok(null), 5000);
+    img.onload = () => { clearTimeout(t); ok(img); };
+    img.onerror = () => { clearTimeout(t); ok(null); };
+    img.src = `https://api.dicebear.com/9.x/${a.style}/png?seed=${encodeURIComponent(a.seed)}${a.bg ? `&backgroundColor=${a.bg}` : ''}&size=256`;
+  });
 }
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);

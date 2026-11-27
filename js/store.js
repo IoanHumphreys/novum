@@ -128,8 +128,9 @@ export function legacyState() {
 }
 export function clearLegacy() { try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ } }
 
-export function exportJSON() {
-  return JSON.stringify({ app: 'novum', exportedAt: new Date().toISOString(), data: state }, null, 2);
+export function exportJSON(account = null) {
+  // account: your name, username, email and birthday, so the file is a full copy of what Novum holds about you
+  return JSON.stringify({ app: 'novum', exportedAt: new Date().toISOString(), ...(account ? { account } : {}), data: state }, null, 2);
 }
 export function importJSON(text) {
   const obj = JSON.parse(text);
