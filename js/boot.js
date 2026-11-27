@@ -56,7 +56,7 @@ if ('serviceWorker' in navigator) {
       if (window.__novumBooted) return;
       try { if (sessionStorage.getItem('novum.repaired')) return; sessionStorage.setItem('novum.repaired', '1'); } catch { return; }
       caches.keys()
-        .then((keys) => Promise.all(keys.filter((k) => k !== 'novum-avatars').map((k) => caches.delete(k))))
+        .then((keys) => Promise.all(keys.filter((k) => !k.startsWith('novum-avatars')).map((k) => caches.delete(k))))
         .catch(() => {})
         .finally(() => location.reload());
     }, 8000);

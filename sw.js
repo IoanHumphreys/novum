@@ -1,8 +1,8 @@
 // Novum service worker: keeps a complete copy of one release of the app for instant, offline starts.
 // Bump VERSION when you deploy changes: phones then download the whole new release and drop the old one.
-const VERSION = 'novum-v26';
+const VERSION = 'novum-v27';
 // Cartoon avatars from DiceBear are kept here (separately, so updates don't wipe them) for instant, offline loading
-const AVATARS = 'novum-avatars';
+const AVATARS = 'novum-avatars-2'; // renamed so any broken copies kept by the old version are dropped
 const ASSETS = [
   './',
   'styles.css',
@@ -71,7 +71,7 @@ self.addEventListener('push', (e) => {
     badge: 'icons/icon-192.png',
     data: { url: data.url || './' },
   });
-  // Check-in reminders put a badge on the Novum icon until you check in
+  // The number on the Novum icon: unseen activity (+1 for a check-in reminder), worked out by the server
   const badge = data.badge && self.navigator.setAppBadge ? self.navigator.setAppBadge(data.badge).catch(() => {}) : null;
   e.waitUntil(Promise.all([show, badge]));
 });
@@ -94,16 +94,18 @@ self.addEventListener('fetch', (e) => {
   if (req.method === 'GET' && new URL(req.url).hostname === 'api.dicebear.com') {
     e.respondWith((async () => {
       const c = await caches.open(AVATARS);
-      const hit = await c.match(req);
+      const hit = await c.match(req.url);
       if (hit) return hit;
       try {
-        const res = await fetch(req);
-        if (res.ok || res.type === 'opaque') {
-          await c.put(req, res.clone());
+        // Fetched with CORS (DiceBear allows it) so we can see whether it worked, and only good ones are kept.
+        // (Needs api.dicebear.com in connect-src: this worker follows the policy sent with sw.js.)
+        const res = await fetch(req.url, { mode: 'cors', credentials: 'omit' });
+        if (res.ok) {
+          await c.put(req.url, res.clone());
           c.keys().then((ks) => ks.length > 300 && Promise.all(ks.slice(0, ks.length - 300).map((k) => c.delete(k))));
         }
         return res;
-      } catch { return hit || Response.error(); }
+      } catch { return Response.error(); }
     })());
     return;
   }

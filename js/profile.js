@@ -15,9 +15,12 @@ const DAY = 864e5;
 export const AVATAR_STYLES = [
   { id: 'adventurer', l: 'Adventurer' }, { id: 'avataaars', l: 'Cartoon' }, { id: 'big-smile', l: 'Big smile' },
   { id: 'lorelei', l: 'Lorelei' }, { id: 'notionists', l: 'Sketch' }, { id: 'micah', l: 'Micah' },
-  { id: 'open-peeps', l: 'Peeps' }, { id: 'fun-emoji', l: 'Emoji' }, { id: 'thumbs', l: 'Thumbs' }, { id: 'bottts', l: 'Robot' },
+  { id: 'open-peeps', l: 'Peeps' }, { id: 'toon-head', l: 'Toon' }, { id: 'personas', l: 'Personas' },
+  { id: 'miniavs', l: 'Mini' }, { id: 'big-ears', l: 'Big ears' }, { id: 'dylan', l: 'Dylan' }, { id: 'croodles', l: 'Doodle' },
+  { id: 'pixel-art', l: 'Pixel' }, { id: 'fun-emoji', l: 'Emoji' }, { id: 'thumbs', l: 'Thumbs' }, { id: 'bottts', l: 'Robot' },
 ];
-const BGS = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'c1f4c5', ''];
+// (The server keeps the same list of styles in novum-push/src/social.js: add new ones there too.)
+const BGS = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'c1f4c5', 'fde68a', 'a7f3d0', 'fbcfe8', 'fecaca', '93c5fd', '3b9bff', '1e293b', ''];
 const randSeed = () => Math.random().toString(36).slice(2, 10);
 export const avatarURL = (a) => a && `https://api.dicebear.com/9.x/${a.style}/svg?seed=${encodeURIComponent(a.seed)}${a.bg ? `&backgroundColor=${a.bg}` : ''}&radius=50`;
 export function Avatar({ a, name = '?', size = 36, className = '' }) {
@@ -47,7 +50,7 @@ function AvatarPicker({ current, onPick, close }) {
       </div>
       <button class="btn btn-tinted block" onClick=${shuffle}>🎲 Shuffle</button>
       <${Group} header="Background">
-        <div class="swatches">${BGS.map((c) => html`<button class="sw ${bg === c ? 'on' : ''} ${c ? '' : 'none'}" style=${c ? `--c:#${c}` : ''} aria-label=${c ? `#${c}` : 'No background'} onClick=${() => { haptic(); setBg(c); }}></button>`)}</div>
+        <div class="swatches wrap">${BGS.map((c) => html`<button class="sw ${bg === c ? 'on' : ''} ${c ? '' : 'none'}" style=${c ? `--c:#${c}` : ''} aria-label=${c ? `#${c}` : 'No background'} onClick=${() => { haptic(); setBg(c); }}></button>`)}</div>
       <//>
       <p class="muted center tiny">Avatars by DiceBear. Only a random code for your picture is stored, never a photo.</p>
     </div>`;

@@ -14,7 +14,7 @@ import { CheckIn } from './tabs/checkin.js';
 import { Goals } from './tabs/goals.js';
 import { Progress } from './tabs/progress.js';
 import { Profile } from './tabs/me.js';
-import { openActivity, resetActivity, reloadActivityCache } from './activity.js';
+import { openActivity, resetActivity, reloadActivityCache, useActivity, ActivityPopup } from './activity.js';
 import { openSos } from './sos.js';
 import { WrappedHost } from './wrapped-card.js';
 
@@ -33,10 +33,11 @@ const TABS = [
 ];
 
 /* ============ APP SHELL ============ */
-function TabBar({ tab, go, dot }) {
+function TabBar({ tab, go, dot, unread }) {
   return html`<nav class="tabbar" aria-label="Main">
-    ${TABS.map((t) => html`<button class="tab ${tab === t.id ? 'on' : ''}" aria-current=${tab === t.id ? 'page' : undefined} onClick=${() => go(t.id)}>
-      <span class="tab-ic">${t.icon()}${t.id === 'checkin' && dot && html`<i class="tab-dot"></i>`}</span><span class="tab-l">${t.label}</span></button>`)}
+    ${TABS.map((t) => html`<button class="tab ${tab === t.id ? 'on' : ''}" aria-current=${tab === t.id ? 'page' : undefined} onClick=${() => go(t.id)}
+      aria-label=${t.id === 'home' && unread ? `Home, ${unread} new in Activity` : undefined}>
+      <span class="tab-ic">${t.icon()}${t.id === 'checkin' && dot && html`<i class="tab-dot"></i>`}${t.id === 'home' && unread > 0 && html`<i class="tab-count">${unread > 9 ? '9+' : unread}</i>`}</span><span class="tab-l">${t.label}</span></button>`)}
   </nav>`;
 }
 
@@ -109,13 +110,17 @@ function App({ s }) {
     const iv = setInterval(run, 60000);
     return () => { clearTimeout(t); clearInterval(iv); };
   }, []);
-  // Badge on the Novum icon until today's check-in is done
+  // Number on the Novum app icon: unseen activity, plus 1 until today's check-in is done.
+  // (Works on iPhone Home Screen apps and computers. Android shows a dot from the notifications instead.)
+  const act = useActivity();
+  const badgeN = (act.unread || 0) + (needCheckin ? 1 : 0);
   useEffect(() => {
-    try { if ('setAppBadge' in navigator) (needCheckin ? navigator.setAppBadge() : navigator.clearAppBadge()).catch(() => {}); } catch { /* not supported */ }
-  }, [needCheckin]);
+    try { if ('setAppBadge' in navigator) (badgeN ? navigator.setAppBadge(badgeN) : navigator.clearAppBadge()).catch(() => {}); } catch { /* not supported */ }
+  }, [badgeN]);
   return html`<div class="app">
     <main class="screen" key=${tab}><${Screen} s=${s} go=${go} /></main>
-    <${TabBar} tab=${tab} go=${go} dot=${needCheckin} />
+    <${TabBar} tab=${tab} go=${go} dot=${needCheckin} unread=${act.unread || 0} />
+    <${ActivityPopup} />
   </div>`;
 }
 

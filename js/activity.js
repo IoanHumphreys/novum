@@ -38,20 +38,58 @@ export function refreshActivity() {
   return pending;
 }
 // Logged out: clear the screen (the saved feed stays, like the rest of the account's data on this phone)
-export function resetActivity() { data = { items: [], unread: 0, loaded: false }; loadedAt = 0; emit(); }
+export function resetActivity() { data = { items: [], unread: 0, loaded: false }; loadedAt = 0; seen = null; emit(); }
 // After logging in as someone (else), show that account's saved feed
-export function reloadActivityCache() { data = fresh(); loadedAt = 0; emit(); }
+export function reloadActivityCache() { data = fresh(); loadedAt = 0; seen = null; emit(); }
+
+// Checking for new activity: one shared timer while anything is showing it (the app shell always is),
+// every 45 seconds while Novum is on screen, and straight away when you come back to it.
+const POLL = 45e3;
+let timer = null;
+const onVis = () => { if (document.visibilityState === 'visible' && Date.now() - loadedAt > 5000) refreshActivity(); };
+function startPolling() {
+  if (timer) return;
+  timer = setInterval(() => { if (document.visibilityState === 'visible') refreshActivity(); }, POLL);
+  document.addEventListener('visibilitychange', onVis);
+}
+function stopPolling() { clearInterval(timer); timer = null; document.removeEventListener('visibilitychange', onVis); }
 export function useActivity() {
   const [d, setD] = useState(data);
   useEffect(() => {
     subs.add(setD);
-    if (Date.now() - loadedAt > 45e3) refreshActivity();
-    const onVis = () => { if (document.visibilityState === 'visible') refreshActivity(); };
-    document.addEventListener('visibilitychange', onVis);
-    const t = setInterval(() => { if (document.visibilityState === 'visible') refreshActivity(); }, 90e3);
-    return () => { subs.delete(setD); document.removeEventListener('visibilitychange', onVis); clearInterval(t); };
+    startPolling();
+    if (Date.now() - loadedAt > POLL) refreshActivity();
+    return () => { subs.delete(setD); if (!subs.size) stopPolling(); };
   }, []);
   return d;
+}
+
+// Pop-up banner when something new arrives while Novum is open, on whichever screen you're on.
+// Tapping it opens Activity. Things already in the feed when the app opened don't pop up.
+let seen = null;
+let sheetOpen = false;
+export function ActivityPopup() {
+  const d = useActivity();
+  const [pop, setPop] = useState(null);
+  useEffect(() => {
+    if (!d.loaded || d.error) return;
+    if (seen === null) { seen = new Set(d.items.map((x) => x.id)); return; }
+    const fresh = d.items.filter((x) => !seen.has(x.id) && !x.read);
+    d.items.forEach((x) => seen.add(x.id));
+    if (fresh.length && !sheetOpen) { haptic(12); setPop({ x: fresh[0], more: fresh.length - 1, at: Date.now() }); }
+  }, [d.items]);
+  useEffect(() => {
+    if (!pop) return undefined;
+    const t = setTimeout(() => setPop(null), 6000);
+    return () => clearTimeout(t);
+  }, [pop]);
+  if (!pop) return null;
+  const { x, more } = pop;
+  return html`<button class="act-pop" key=${pop.at} role="status" onClick=${() => { haptic(); setPop(null); openActivity(); }}>
+    <${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${38} />
+    <span class="act-pop-t">${words(x)}${more > 0 && html` <span class="muted">and ${more} more</span>`}</span>
+    <span class="act-pop-x" aria-label="Dismiss" onClick=${(e) => { e.stopPropagation(); setPop(null); }}>✕</span>
+  </button>`;
 }
 
 // The bell for the top of Home
@@ -92,6 +130,7 @@ function Activity({ close }) {
   const d = useActivity();
   const now = useNow(60000);
   const [done, setDone] = useState({});
+  useEffect(() => { sheetOpen = true; return () => { sheetOpen = false; }; }, []);
   useEffect(() => {
     refreshActivity().then((x) => { if (x.unread) A.activityRead().then(() => { data = { ...data, unread: 0 }; emit(); }).catch(() => {}); });
   }, []);

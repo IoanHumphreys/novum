@@ -1,7 +1,7 @@
 # Security headers for Cloudflare Pages.
 # The Content-Security-Policy matches the one in index.html, plus frame-ancestors, which only works as a real header.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.dicebear.com; connect-src 'self' https://novum-push.ioanrhyshumph.workers.dev; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.dicebear.com; connect-src 'self' https://novum-push.ioanrhyshumph.workers.dev https://api.dicebear.com; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
