@@ -1,0 +1,19 @@
+{
+  "name": "Novum",
+  "short_name": "Novum",
+  "description": "A new beginning. A new standard. A new you.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#04060b",
+  "theme_color": "#04060b",
+  "lang": "en-GB",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
