@@ -437,7 +437,7 @@ function GoalDetail({ id, close }) {
     const entries = [...(g.entries || [])].reverse();
     body = html`
       <div class="card entry-add">
-        <input type="number" inputmode="decimal" step="any" placeholder=${g.mode === 'level' ? `New value${g.unit ? ' (' + g.unit + ')' : ''}` : `Add amount${g.unit ? ' (' + g.unit + ')' : ''}`}
+        <input type="number" inputmode="decimal" step="any" placeholder=${g.mode === 'level' ? `New value${g.unit ? ' (' + g.unit + ')' : ''}` : g.unit === '£' ? 'Amount you saved (£)' : `Add amount${g.unit ? ' (' + g.unit + ')' : ''}`}
           value=${val} onInput=${(e) => setVal(e.target.value)} onKeyDown=${(e) => e.key === 'Enter' && addEntry()} />
         <button class="btn btn-primary sm" disabled=${val === ''} onClick=${addEntry}>${g.mode === 'level' ? 'Log' : 'Add'}</button>
       </div>
@@ -449,7 +449,7 @@ function GoalDetail({ id, close }) {
       <//>`}`;
   } else if (g.type === 'quit') {
     const q = s.quits.find((x) => x.id === g.quitId) || s.quits[0];
-    body = html`<div class="card pad info">${q.emoji} Linked to your ${q.label.toLowerCase()} counter. Every day you stay ${q.label.toLowerCase()}-free ${g.period === '2027' ? `from ${S.fmtDate(S.goalWindow(g).start)} to the end of 2027 ` : ''}fills this ring.</div>`;
+    body = html`<div class="card pad info">${q.emoji} Linked to your ${q.label.toLowerCase()} counter. Every day you stay ${q.label.toLowerCase()}-free ${g.period === '2027' ? `from ${S.fmtDate(S.quitWindowStart(g, q))} to the end of 2027 ` : ''}fills this ring, including the days before you added this goal.</div>`;
   } else {
     body = html`<button class="btn block big ${g.done ? 'btn-done' : 'btn-primary'}" style="--c:${g.color}"
       onClick=${() => { haptic(15); S.update((d) => { const x = d.goals.find((y) => y.id === id); x.done = !x.done; x.doneDate = x.done ? todayKey : null; }); if (!g.done) toast('Milestone complete 🎉'); }}>
@@ -484,10 +484,10 @@ function GoalEditor({ goal = {}, close }) {
   }));
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
   const s = S.getState();
-  const track = f.auto === 'money' ? 'money' : f.auto === 'weight' ? 'weight' : f.mode === 'level' ? 'level' : 'sum';
-  const setTrack = (t) => set(t === 'money' ? { auto: 'money', unit: '£', mode: 'sum', quitId: 'all' }
+  const track = f.auto === 'weight' ? 'weight' : f.mode === 'level' ? 'level' : f.unit === '£' ? 'money' : 'sum';
+  const setTrack = (t) => set(t === 'money' ? { auto: '', unit: '£', mode: 'sum' }
     : t === 'weight' ? { auto: 'weight', unit: 'kg', mode: 'level', startValue: f.startValue === '' ? +(S.latestWeight(s.profile) || 0).toFixed(1) : f.startValue }
-      : { auto: '', mode: t, unit: f.auto ? '' : f.unit });
+      : { auto: '', mode: t, unit: f.auto || f.unit === '£' ? '' : f.unit });
   const numOk = f.type !== 'numeric' || (f.target !== '' && !Number.isNaN(parseFloat(f.target)));
   const valid = f.name.trim() && numOk && (f.period === '2027' || f.end);
 
@@ -526,21 +526,21 @@ function GoalEditor({ goal = {}, close }) {
       <${Group} header="Type" footer=${{ habit: 'Tick it off on the days you do it. Builds a streak.', numeric: 'Work towards a number, like km run, money saved or a weight.', milestone: 'A one-off achievement you mark as done.', quit: 'Fills automatically every day you stay quit.' }[f.type]}>
         <div class="pad"><${Segmented} options=${[{ value: 'habit', label: 'Habit' }, { value: 'numeric', label: 'Target' }, { value: 'milestone', label: 'Milestone' }, ...(S.getState().quits.length ? [{ value: 'quit', label: 'Stay quit' }] : [])]}
           value=${f.type} onChange=${(v) => set({ type: v })} /></div>
-        ${f.type === 'habit' && html`<div class="row">
-          <span class="row-main"><span class="row-title">How often</span></span>
-          <div class="stepper">
-            <button onClick=${() => { haptic(); set({ perWeek: Math.max(1, f.perWeek - 1) }); }} aria-label="Less often">−</button>
-            <span>${f.perWeek >= 7 ? 'Every day' : `${f.perWeek}× a week`}</span>
-            <button onClick=${() => { haptic(); set({ perWeek: Math.min(7, f.perWeek + 1) }); }} aria-label="More often">+</button>
+        ${f.type === 'habit' && html`<div class="row stepper-row">
+          <span class="row-main"><span class="row-title">How often</span><span class="row-sub stepper-v">${f.perWeek >= 7 ? 'Every day' : `${f.perWeek}× a week`}</span></span>
+          <div class="stepper" role="group" aria-label="How often">
+            <button type="button" disabled=${f.perWeek <= 1} onClick=${() => { haptic(); set({ perWeek: Math.max(1, f.perWeek - 1) }); }} aria-label="Less often"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+            <i></i>
+            <button type="button" disabled=${f.perWeek >= 7} onClick=${() => { haptic(); set({ perWeek: Math.min(7, f.perWeek + 1) }); }} aria-label="More often"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
           </div>
         </div>`}
         ${f.type === 'numeric' && html`
           <div class="pad"><${Segmented} small options=${[{ value: 'sum', label: 'Add up' }, { value: 'level', label: 'Reach' }, { value: 'money', label: '£ Saved' }, { value: 'weight', label: 'Weight' }]}
             value=${track} onChange=${setTrack} /></div>
-          ${!f.auto && html`<${Field} label="Unit"><input placeholder="km, books, hours…" value=${f.unit} onInput=${(e) => set({ unit: e.target.value })} /><//>`}
+          ${!f.auto && track !== 'money' && html`<${Field} label="Unit"><input placeholder="km, books, hours…" value=${f.unit} onInput=${(e) => set({ unit: e.target.value })} /><//>`}
           ${(track === 'level' || track === 'weight') && html`<${Field} label="Starting at"><input type="number" inputmode="decimal" step="any" placeholder="0" value=${f.startValue} onInput=${(e) => set({ startValue: e.target.value })} /><//>`}
           <${Field} label="Target"><input type="number" inputmode="decimal" step="any" placeholder=${track === 'money' ? '1000' : '100'} value=${f.target} onInput=${(e) => set({ target: e.target.value })} /><//>
-          ${track === 'money' && html`<div class="pad"><${Segmented} small options=${[{ value: 'all', label: 'Both' }, ...s.quits.map((q) => ({ value: q.id, label: q.label }))]} value=${f.quitId || 'all'} onChange=${(v) => set({ quitId: v })} /></div>`}`}
+`}
         ${f.type === 'quit' && html`<div class="pad"><${Segmented} options=${s.quits.map((q) => ({ value: q.id, label: `${q.emoji} ${q.label}` }))} value=${f.quitId} onChange=${(v) => set({ quitId: v })} /></div>`}
       <//>
 
@@ -572,7 +572,7 @@ function NewYear({ close }) {
     } else drop();
   };
   const desc = (g) => g.type === 'habit' ? `${g.perWeek >= 7 ? 'Daily' : g.perWeek + '× a week'} habit`
-    : g.type === 'numeric' ? (g.auto === 'money' ? 'Fills itself from your quit counters' : g.auto === 'weight' ? `Target ${g.target} kg · edit to suit you` : `Target · ${g.target} ${g.unit}`)
+    : g.type === 'numeric' ? (g.unit === '£' ? `Log what you save · target £${Number(g.target).toLocaleString('en-GB')}` : g.auto === 'weight' ? `Target ${g.target} kg · edit to suit you` : `Target · ${g.target} ${g.unit}`)
       : g.type === 'quit' ? 'Linked to your quit counter' : 'One-off milestone';
   return html`
     <${SheetBar} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
@@ -583,8 +583,7 @@ function NewYear({ close }) {
         <p class="muted">${toNY > 0 ? `${toNY} days until 1 January. ` : ''}Tap <b>+</b> to add a goal as it is (tap the tick to remove it), or tap a goal to change it first.</p>
       </div>
       ${CATEGORIES.map((c) => {
-        const hasSpend = s.quits.some((q) => q.monthly > 0);
-        const items = [...quitPresets(s), ...PRESETS].filter((p) => p.make(s).category === c.id && (p.key !== 'save' || hasSpend));
+        const items = [...quitPresets(s), ...PRESETS].filter((p) => p.make(s).category === c.id);
         if (!items.length) return null;
         return html`<${Group} key=${c.id} header=${c.label}>
           ${items.map((p) => {

@@ -56,11 +56,17 @@ const emit = (info = {}) => subs.forEach((f) => f(state, info));
 export function migrate(s) {
   const d = defaultState();
   const quits = (s.quits || []).map((q) => ({ best: 0, resets: [], monthly: 0, ...q, kind: q.kind || q.id }));
+  // Money goals used to fill from the quit counters; now you log what you save yourself
+  const goals = (s.goals || []).map((g) => {
+    if (g.auto !== 'money') return g;
+    const { auto, quitId, ...rest } = g;
+    return { ...rest, mode: 'sum', unit: '£', entries: g.entries || [], name: String(g.name || '').replace(/ from quitting$/, '') };
+  });
   return {
     ...d, ...s,
     version: 2,
     profile: { ...d.profile, ...(s.profile || {}) },
-    quits, checkins: s.checkins || {}, goals: s.goals || [],
+    quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };
@@ -251,15 +257,25 @@ export function goalProgress(g, s = state, now = Date.now()) {
   if (g.type === 'quit') {
     const q = s.quits.find((x) => x.id === g.quitId) || s.quits[0];
     if (!q) return { pct: 0, current: 0, target: totalDays, label: 'No counter', sub: 'add one in Profile' };
-    const a = Math.max(w.start.getTime(), quitStart(q).getTime());
+    // Days you were already quit before adding the goal count too
+    const from = quitWindowStart(g, q);
+    const total = daysBetween(from, w.end) + 1;
+    const a = Math.max(from.getTime(), quitStart(q).getTime());
     const b = Math.min(winEnd, now);
     const days = b > a ? Math.floor((b - a) / DAY) : 0;
-    return { pct: clamp(days / totalDays), current: days, target: totalDays, label: `${days} / ${totalDays} days`, sub: `${q.label}-free` };
+    return { pct: clamp(days / total), current: days, target: total, label: `${days} / ${total} days`, sub: `${q.label}-free` };
   }
   // milestone
   return { pct: g.done ? 1 : 0, current: g.done ? 1 : 0, target: 1, label: g.done ? 'Done' : 'Not yet', sub: g.done && g.doneDate ? `on ${fmtDate(g.doneDate)}` : 'one-off' };
 }
 
+// A "stay quit" goal starts from your quit date if that was before the goal's own start
+export function quitWindowStart(g, q) {
+  const w = goalWindow(g);
+  if (!q || g.period !== '2027') return w.start;
+  const qd = parseDay(dayKey(quitStart(q)));
+  return qd < w.start ? qd : w.start;
+}
 export const isGoalDone = (g, s) => goalProgress(g, s).pct >= 1;
 // Goals whose window hasn't begun yet (e.g. "all of 2027" before 1 Jan)
 export const goalStartsLater = (g, now = new Date()) => goalWindow(g).start > parseDay(dayKey(now));

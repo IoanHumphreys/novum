@@ -102,9 +102,10 @@ export const quitPresets = (s) => s.quits.map((q) => ({
 export const PRESETS = [
   {
     key: 'save', make: (s) => {
+      // You log what you put away; the target suggests what quitting frees up
       const yearly = s.quits.reduce((a, q) => a + (q.monthly || 0) * 12, 0);
-      const target = Math.max(100, Math.floor(yearly / 100) * 100);
-      return { name: `Save £${target.toLocaleString('en-GB')} from quitting`, emoji: '💷', color: '#FFD60A', category: 'money', type: 'numeric', auto: 'money', quitId: 'all', unit: '£', target, period: '2027' };
+      const target = yearly > 0 ? Math.max(100, Math.floor(yearly / 100) * 100) : 500;
+      return { name: `Save £${target.toLocaleString('en-GB')}`, emoji: '💷', color: '#FFD60A', category: 'money', type: 'numeric', mode: 'sum', unit: '£', target, period: '2027' };
     },
   },
   { key: 'gym', make: () => ({ name: 'Gym 3× a week', emoji: '🏋️', color: '#30D158', category: 'fitness', type: 'habit', perWeek: 3, period: '2027' }) },
