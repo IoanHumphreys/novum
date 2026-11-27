@@ -1,11 +1,10 @@
-// Novum service worker: precache the app shell, serve cache-first, refresh in the background.
-// Bump VERSION when you deploy changes so old caches are cleared.
-const VERSION = 'novum-v25';
+// Novum service worker: keeps a complete copy of one release of the app for instant, offline starts.
+// Bump VERSION when you deploy changes: phones then download the whole new release and drop the old one.
+const VERSION = 'novum-v26';
 // Cartoon avatars from DiceBear are kept here (separately, so updates don't wipe them) for instant, offline loading
 const AVATARS = 'novum-avatars';
 const ASSETS = [
   './',
-  'index.html',
   'styles.css',
   'manifest.json',
   'js/app.js',
@@ -110,23 +109,30 @@ self.addEventListener('fetch', (e) => {
   }
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 
-  // Page loads: serve the cached shell when offline
+  // Page loads: always the latest page from the network, the cached one when offline
   if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req)
-        .then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put('index.html', copy)); return res; })
-        .catch(() => caches.match('index.html'))
+        .then((res) => { if (res.ok && !res.redirected) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put('./', copy)); } return res; })
+        .catch(() => caches.match('./'))
     );
     return;
   }
 
-  // Everything else: stale-while-revalidate
-  e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then((cached) => {
-      const network = fetch(req)
-        .then((res) => { if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); } return res; })
-        .catch(() => cached);
-      return cached || network;
-    })
-  );
+  // App files: always from this version's cache, so every file comes from the same release.
+  // Never refresh them in the background: that once mixed yesterday's and today's files (the phone's own
+  // browser cache handed back old copies) and the app couldn't start. New versions arrive by bumping VERSION.
+  // Files not cached yet are fetched fresh, skipping the browser cache, and kept.
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    const hit = await cache.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    try {
+      const res = await fetch(req, { cache: 'no-cache' });
+      if (res.ok && res.type === 'basic') cache.put(req, res.clone());
+      return res;
+    } catch {
+      return (await caches.match(req, { ignoreSearch: true })) || Response.error();
+    }
+  })());
 });

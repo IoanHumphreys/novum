@@ -170,3 +170,5 @@ function Root() {
 }
 
 render(html`<${Root} />`, document.getElementById('app'));
+// Tells boot.js the app started, so its self-repair doesn't kick in
+window.__novumBooted = true;
