@@ -28,7 +28,7 @@ export const money = (n, dp = 2) => '£' + n.toLocaleString('en-GB', { minimumFr
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 /* ---------- default state ---------- */
-export const DEFAULT_PREFS = { milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00', recap: true, recapAt: '19:00', buddies: true };
+export const DEFAULT_PREFS = { milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00', recap: true, recapAt: '19:00', buddies: true, nudges: true };
 
 export function defaultState() {
   return {
@@ -42,6 +42,8 @@ export function defaultState() {
     reasons: [],
     // { id, t, quitIds, triggers, beaten, secs }
     cravings: [],
+    // lung tests: { t, score, dur (s), strength (0-1), steady (0-1) }
+    lungTests: [],
     // things you're saving for: { id, emoji, name, price }
     wishlist: [],
     // milestones already celebrated: { '<quitId>@<start>': days }
@@ -75,7 +77,7 @@ export function migrate(s) {
     profile: { ...d.profile, ...(s.profile || {}) },
     quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],
-    wishlist: s.wishlist || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
+    wishlist: s.wishlist || [], lungTests: s.lungTests || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
     social: { avatar: null, banner: null, bio: '', visibility: 'buddies', ...(s.social || {}) },
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };

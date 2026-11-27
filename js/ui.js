@@ -203,7 +203,7 @@ function usePullToRefresh(onRefresh) {
   return { pull, busy };
 }
 
-export function Page({ title, eyebrow, sub, right, children, onRefresh }) {
+export function Page({ title, eyebrow, sub, right, titleRight, children, onRefresh }) {
   const { pull, busy } = usePullToRefresh(onRefresh);
   return html`<div class="page">
     ${onRefresh && html`<div class="ptr ${busy ? 'busy' : ''} ${pull >= 64 ? 'ready' : ''}" style=${`height:${pull}px;opacity:${Math.min(1, pull / 48)}`} aria-hidden=${!busy}>
@@ -214,7 +214,7 @@ export function Page({ title, eyebrow, sub, right, children, onRefresh }) {
     </header>
     <div class="lt">
       ${eyebrow && html`<div class="eyebrow">${eyebrow}</div>`}
-      <h1 class="large-title">${title}</h1>
+      ${titleRight ? html`<div class="lt-row"><h1 class="large-title">${title}</h1>${titleRight}</div>` : html`<h1 class="large-title">${title}</h1>`}
       ${sub && html`<div class="lt-sub">${sub}</div>`}
     </div>
     ${children}

@@ -240,12 +240,16 @@ const lighten = (h) => { try { const [r, g, b] = hexRGB(h).map((v) => Math.round
 export function openShareSheet(card) {
   openSheet((close) => html`<${ShareSheet} card=${card} close=${close} />`, { tall: true });
 }
-function ShareSheet({ card, close }) {
+// Share any image: make() returns a Promise of a PNG blob (used by Novum Wrapped)
+export function openImageShare(make, alt, title = 'Share') {
+  openSheet((close) => html`<${ShareSheet} make=${make} alt=${alt} title=${title} close=${close} />`, { tall: true });
+}
+function ShareSheet({ card, make, alt, title = 'Share your streak', close }) {
   const [blob, setBlob] = useState(null);
   const [url, setUrl] = useState('');
   useEffect(() => {
     let u = '';
-    drawCard(card).then((b) => { setBlob(b); u = URL.createObjectURL(b); setUrl(u); });
+    (make ? make() : drawCard(card)).then((b) => { setBlob(b); u = URL.createObjectURL(b); setUrl(u); });
     return () => { if (u) URL.revokeObjectURL(u); };
   }, []);
   const file = blob && new File([blob], 'novum-streak.png', { type: 'image/png' });
@@ -261,9 +265,9 @@ function ShareSheet({ card, close }) {
     toast('Image saved');
   };
   return html`
-    <${SheetBar} title="Share your streak" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <${SheetBar} title=${title} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body share-sheet">
-      <div class="share-preview">${url ? html`<img src=${url} alt=${`${card.number} ${card.unit.toLowerCase()} ${card.headline}`} />` : html`<div class="share-wait">Making your card…</div>`}</div>
+      <div class="share-preview">${url ? html`<img src=${url} alt=${alt || `${card.number} ${card.unit.toLowerCase()} ${card.headline}`} />` : html`<div class="share-wait">Making your card…</div>`}</div>
       <p class="muted center tiny">Sized for a Snapchat or Instagram story.</p>
       ${canShare && html`<button class="btn btn-primary block big" onClick=${share}>Share</button>`}
       <button class="btn ${canShare ? 'btn-plain' : 'btn-primary'} block big" disabled=${!url} onClick=${save}>Save image</button>

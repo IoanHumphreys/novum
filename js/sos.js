@@ -8,6 +8,7 @@ import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
 import { useBuddies } from './social.js';
 import { Avatar } from './profile.js';
+import { FlowGame } from './game.js';
 
 /* ============ CRAVING SOS ============ */
 export const SOS_SECS = 300;
@@ -30,6 +31,7 @@ export function Sos({ close }) {
   const [t0] = useState(Date.now());
   const now = useNow(250);
   const [step, setStep] = useState('ride');
+  const [mode, setMode] = useState('breathe'); // or 'game'
   const [beaten, setBeaten] = useState(true);
   const [quitIds, setQuitIds] = useState(s.quits.map((q) => q.id));
   const [triggers, setTriggers] = useState([]);
@@ -107,6 +109,7 @@ export function Sos({ close }) {
   return html`
     <${SheetBar} title="Craving SOS" left=${html`<button class="link" onClick=${close}>Close</button>`} />
     <div class="sheet-body sos-body">
+      ${mode === 'game' ? html`<${FlowGame} onExit=${() => { haptic(); setMode('breathe'); }} />` : html`
       <div class="breath-stage">
         <div class="breath-ring"></div>
         <div class="breath"></div>
@@ -118,7 +121,8 @@ export function Sos({ close }) {
         <span class="sos-card-e">${card.e}</span>
         <div><div class="sos-card-k">${card.k}</div><div class="sos-card-t">${card.t}</div></div>
       </div>
-      ${s.reasons.length === 0 && html`<button class="link sm center-link" onClick=${openReasons}>Add your reasons for quitting, so they show up here</button>`}
+      <button class="sos-game" onClick=${() => { haptic(); setMode('game'); }}><span>🧩</span><span class="row-main"><b>Play a 2-minute puzzle instead</b><small>Keeping your eyes and mind busy weakens the craving</small></span></button>
+      ${s.reasons.length === 0 && html`<button class="link sm center-link" onClick=${openReasons}>Add your reasons for quitting, so they show up here</button>`}`}
       <${SosSupport} />
       <div class="sos-actions">
         <button class="btn btn-primary block big ${left === 0 ? 'glow' : ''}" onClick=${() => finish(true)}>I beat it 💪</button>

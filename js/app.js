@@ -15,6 +15,8 @@ import { Goals } from './tabs/goals.js';
 import { Progress } from './tabs/progress.js';
 import { Profile } from './tabs/me.js';
 import { openActivity, resetActivity } from './activity.js';
+import { openSos } from './sos.js';
+import { WrappedHost } from './wrapped.js';
 
 const TABS = [
   { id: 'home', label: 'Home', icon: Icon.home },
@@ -57,7 +59,10 @@ window.addEventListener('unhandledrejection', (e) => report('promise', e.reason?
 function App({ s }) {
   const initial = location.hash.slice(1);
   const [tab, setTab] = useState(TABS.some((t) => t.id === initial) ? initial : 'home');
-  useEffect(() => { if (initial === 'activity') { history.replaceState(null, '', '#home'); setTimeout(openActivity, 400); } }, []);
+  useEffect(() => {
+    if (initial === 'activity') { history.replaceState(null, '', '#home'); setTimeout(openActivity, 400); }
+    if (initial === 'sos') { history.replaceState(null, '', '#home'); setTimeout(openSos, 400); }
+  }, []);
   const scrolls = useRef({});
   const go = (t) => {
     if (t === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
@@ -71,6 +76,7 @@ function App({ s }) {
     const on = () => {
       const h = location.hash.slice(1);
       if (h === 'activity') { setTab('home'); history.replaceState(null, '', '#home'); openActivity(); return; }
+      if (h === 'sos') { setTab('home'); history.replaceState(null, '', '#home'); openSos(); return; }
       if (TABS.some((t) => t.id === h)) setTab(h);
     };
     window.addEventListener('hashchange', on);
@@ -142,7 +148,7 @@ function Root() {
   else if (!ready) body = html`<div class="boot">NOVUM</div>`;
   else if (!s.setupDone) body = html`<${DayZero} user=${session.user} />`;
   else body = html`<${App} s=${s} />`;
-  return html`${body}<${CelebrationHost} /><${SheetHost} /><${UpdateBanner} />`;
+  return html`${body}<${CelebrationHost} /><${WrappedHost} /><${SheetHost} /><${UpdateBanner} />`;
 }
 
 render(html`<${Root} />`, document.getElementById('app'));

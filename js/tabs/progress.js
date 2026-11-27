@@ -6,6 +6,8 @@ import { CATEGORIES, MOODS } from '../content.js';
 import { DAY, pad2, NEW_YEAR, SLEEP } from '../shared.js';
 import { Goals, openNewYear } from './goals.js';
 import { openWeightSheet } from './me.js';
+import { LungCard } from '../lungs.js';
+import { WrappedCard } from '../wrapped.js';
 
 /* ============ PROGRESS ============ */
 export function Progress({ s, go }) {
@@ -63,6 +65,7 @@ export function Progress({ s, go }) {
   });
 
   return html`<${Page} title="Progress">
+    <${WrappedCard} />
     <section class="group">
       <h2 class="group-h">2027 at a glance</h2>
       <div class="card glance">
@@ -93,6 +96,8 @@ export function Progress({ s, go }) {
       <div class="tile"><span class="tile-k">🛡️ Cravings beaten</span><b>${s.cravings.filter((c) => c.beaten).length}</b><span class="tile-u">with SOS</span></div>
       <div class="tile"><span class="tile-k">⏱️ SOS time</span><b>${Math.round(s.cravings.reduce((a, c) => a + (c.secs || 0), 0) / 60)}</b><span class="tile-u">minutes ridden out</span></div>
     </div>
+
+    <${LungCard} s=${s} />
 
     <div class="pad-x mt16"><${Segmented} options=${[{ value: 14, label: '2 weeks' }, { value: 30, label: '30 days' }, { value: 90, label: '90 days' }]} value=${range} onChange=${setRange} /></div>
 

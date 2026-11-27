@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, capName, useNow, Icon, openSheet, closeAllSheets, SheetBar, Page, Toggle, Group, Row, Field, toast, Skeleton } from '../ui.js';
 import { healthFor, ADDICTIONS } from '../content.js';
-import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, sendTest, stopPushSync, deviceState } from '../push.js';
+import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, stopPushSync, deviceState } from '../push.js';
 import * as A from '../api.js';
 import { stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from '../sync.js';
 import { CodeInput, Resend, EyeButton } from '../onboarding.js';
@@ -445,10 +445,6 @@ export function NotifySettings({ s }) {
     setDev(deviceState());
     setBusy(false);
   };
-  const test = async () => {
-    setErr('');
-    try { await sendTest(10); toast('Arrives in 10s. Leave Novum now'); } catch (e) { setErr(e.message); }
-  };
   let footer;
   if (!configured) footer = 'Notifications aren’t set up on the server yet.';
   else if (isIOS() && !isStandalone()) footer = 'On iPhone, notifications only work once Novum is on your Home Screen. Open it from there, then switch this on.';
@@ -492,6 +488,10 @@ export function NotifySettings({ s }) {
         <span class="row-main"><span class="row-title">Buddies and followers</span><span class="row-sub">Requests, new followers and cheers</span></span>
         <${Toggle} on=${n.buddies} label="Buddy notifications" onChange=${(v) => setN({ buddies: v })} />
       </div>
-      <${Row} icon="📨" iconBg="#3B9BFF" title="Send a test notification" sub="Arrives after 10 seconds. Close Novum or open another app to see the banner" chevron onClick=${test} />`}
+      <div class="row">
+        <span class="row-ic" style="background:#BF5AF2">🔮</span>
+        <span class="row-main"><span class="row-title">Heads-up before tough times</span><span class="row-sub">Learns when cravings usually hit and nudges you 20 minutes before</span></span>
+        <${Toggle} on=${n.nudges !== false} label="Heads-up before tough times" onChange=${(v) => setN({ nudges: v })} />
+      </div>`}
   <//>`;
 }

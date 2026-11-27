@@ -15,7 +15,9 @@ let loadedAt = 0;
 const subs = new Set();
 const emit = () => subs.forEach((f) => f(data));
 export async function refreshBuddies() {
-  try { data = { ...(await A.buddies()), loaded: true }; loadedAt = Date.now(); emit(); } catch { /* offline: keep what we had */ }
+  try { data = { ...(await A.buddies()), loaded: true, error: '' }; loadedAt = Date.now(); }
+  catch (e) { data = { ...data, loaded: data.loaded, error: e.offline ? 'You’re offline.' : 'Couldn’t load buddies right now.' }; }
+  emit();
   return data;
 }
 export function useBuddies() {
@@ -193,7 +195,8 @@ function Buddies({ close }) {
         </div>`)}
       <//>`}
 
-      ${!d.loaded && html`<${Skeleton} rows=${2} avatar />`}
+      ${!d.loaded && !d.error && html`<${Skeleton} rows=${2} avatar />`}
+      ${!d.loaded && d.error && html`<div class="act-empty"><b>${d.error}</b><button class="btn btn-tinted sm mt12" onClick=${() => refreshBuddies()}>Try again</button></div>`}
       ${d.loaded && !d.buddies.length && !d.incoming.length && !d.outgoing.length && html`<p class="muted center sheet-intro">No buddies yet. Quitting is easier with someone in your corner.</p>`}
     </div>`;
 }

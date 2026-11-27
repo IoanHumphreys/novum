@@ -34,7 +34,7 @@ export function Home({ s, go }) {
   // Pull down to refresh: sync data, buddies and activity
   const refresh = () => Promise.all([Promise.resolve(syncNow()).catch(() => {}), refreshBuddies(), refreshActivity()]);
   return html`<${Page} title="Novum" eyebrow=${new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-      sub="A new beginning. A new standard. A new you." right=${html`<${ActivityBell} />`} onRefresh=${refresh}>
+      sub="A new beginning. A new standard. A new you." titleRight=${html`<${ActivityBell} />`} onRefresh=${refresh}>
     <p class="greet"><button class="greet-av" aria-label="Your profile" onClick=${() => go('profile')}><${Avatar} a=${s.social?.avatar} name=${firstName()} size=${36} /></button><span>${greet}${firstName() ? `, ${firstName()}` : ''}.</span></p>
     <${InstallBanner} />
 
@@ -186,7 +186,7 @@ export function QuitCard({ q }) {
       </div>
       <${Ring} pct=${mi.pct} size=${70} stroke=${8} color=${q.color}>
         ${mi.next
-          ? html`<span class="ring-txt"><b>${ringLeft(mi.next.days - days)}</b><small>to ${RING_LABEL[mi.next.days]}</small></span>`
+          ? html`<span class="ring-txt" aria-label=${`Next milestone ${RING_LABEL[mi.next.days]}, ${ringLeft(mi.next.days - days)} to go`}><small>next</small><b>${RING_LABEL[mi.next.days]}</b><small>in ${ringLeft(mi.next.days - days)}</small></span>`
           : html`<span class="ring-txt">🏆</span>`}
       <//>
     </div>

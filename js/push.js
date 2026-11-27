@@ -37,6 +37,16 @@ const b64uToBytes = (s) => {
 };
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
 
+// Your usual tough times (weekday + hour with 3+ cravings or slips in the last 60 days), for the heads-up nudge
+export function cravingPeaks(s, now = Date.now()) {
+  const since = now - 60 * 864e5;
+  const times = [...s.cravings.map((c) => c.t), ...s.quits.flatMap((q) => (q.resets || []).map((r) => S.parseLocal(r.to).getTime()))].filter((t) => t >= since);
+  const n = {};
+  times.forEach((t) => { const d = new Date(t); const k = `${(d.getDay() + 6) % 7}:${d.getHours()}`; n[k] = (n[k] || 0) + 1; });
+  return Object.entries(n).filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k]) => { const [wd, hour] = k.split(':').map(Number); return { wd, hour }; });
+}
+
 // Only what the server needs to time notifications
 export function settingsPayload(s) {
   const since = S.dayKey(S.addDays(new Date(), -13));
@@ -47,6 +57,7 @@ export function settingsPayload(s) {
     quits: s.quits.map((q) => ({ id: q.id, label: q.label, emoji: q.emoji, startMs: S.quitStart(q).getTime(), monthly: q.monthly })),
     lastCheckin: Object.keys(s.checkins).filter((k) => s.checkins[k].mood).sort().pop() || null,
     habits: s.goals.filter((g) => g.type === 'habit').map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, perWeek: g.perWeek || 7, remindAt: g.remindAt || '', ticks: (g.ticks || []).filter((k) => k >= since) })),
+    peaks: cravingPeaks(s),
     // For the Sunday recap: last 2 weeks of moods (m) and average craving (c), nothing else
     days: Object.fromEntries(Object.keys(s.checkins).filter((k) => k >= since).map((k) => {
       const c = s.checkins[k];

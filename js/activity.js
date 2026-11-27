@@ -12,7 +12,9 @@ let loadedAt = 0;
 const subs = new Set();
 const emit = () => subs.forEach((f) => f(data));
 export async function refreshActivity() {
-  try { data = { ...(await A.activity()), loaded: true }; loadedAt = Date.now(); emit(); } catch { /* offline: keep what we had */ }
+  try { data = { ...(await A.activity()), loaded: true, error: '' }; loadedAt = Date.now(); }
+  catch (e) { data = { ...data, loaded: true, error: e.offline ? 'You’re offline.' : 'Couldn’t load your activity right now.' }; }
+  emit();
   return data;
 }
 export function resetActivity() { data = { items: [], unread: 0, loaded: false }; loadedAt = 0; emit(); }
@@ -79,6 +81,7 @@ function Activity({ close }) {
     <${SheetBar} title="Activity" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
       ${!d.loaded ? html`<${Skeleton} rows=${5} avatar />`
+      : d.error && d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">📡</div><b>${d.error}</b><button class="btn btn-tinted sm mt12" onClick=${() => refreshActivity()}>Try again</button></div>`
       : d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">🔔</div><b>Nothing yet</b><p class="muted">Cheers, requests and buddy milestones will show up here.</p></div>`
       : html`<${Group}>
         ${d.items.map((x) => html`<div class="act ${x.read ? '' : 'new'}" key=${x.id}>
