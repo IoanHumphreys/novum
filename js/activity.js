@@ -136,7 +136,10 @@ function Activity({ close }) {
   }, []);
   const act = async (x, fn, msg) => {
     haptic(10);
-    try { await fn(); setDone({ ...done, [x.id]: msg }); toast(msg); refreshBuddies(); } catch (e) { toast(e.message); }
+    try { await fn(); setDone({ ...done, [x.id]: msg }); toast(msg); refreshBuddies(); } catch (e) {
+      toast(e.message);
+      if (e.queued) setDone({ ...done, [x.id]: 'Will send when you’re back online' });
+    }
   };
   const cheerRow = (x) => html`<div class="act-cheers">${CHEER_KINDS.map((c) => html`<button class="cheer sm" onClick=${() => act(x, () => A.cheer(x.who.username, c.kind), `Sent ${c.e} to ${x.who.firstName}`)}><span>${c.e}</span>${c.l}</button>`)}</div>`;
   return html`

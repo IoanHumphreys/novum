@@ -58,9 +58,10 @@ export async function resetPassword(email, code, password) {
   return r.user;
 }
 // Step 1: password. Returns { codeRequired, ticket, emailHint } when the server wants an email code.
-export async function login(loginId, password) {
-  // Devices you chose to remember skip the email code (the password is still checked)
-  const r = await call('POST', '/auth/login', { login: loginId, password, device: deviceLabel(), trust: trustTokens() });
+export async function login(loginId, password, turnstile = '') {
+  // Devices you chose to remember skip the email code (the password is still checked).
+  // turnstile: the bot check token, which the server asks for after a few attempts
+  const r = await call('POST', '/auth/login', { login: loginId, password, device: deviceLabel(), trust: trustTokens(), ...(turnstile ? { turnstile } : {}) });
   if (r.codeRequired) return r;
   setSession({ token: r.token, user: r.user });
   return r;
@@ -125,7 +126,40 @@ export const buddies = () => call('GET', '/buddies');
 export const buddyRequest = (username) => call('POST', '/buddies/request', { username });
 export const buddyRespond = (username, accept) => call('POST', '/buddies/respond', { username, accept });
 export const buddyRemove = (username) => call('POST', '/buddies/remove', { username });
-export const cheer = (username, kind) => call('POST', '/buddies/cheer', { username, kind });
+// Cheers sent with no signal wait on the phone (per account) and go out by themselves once it's back online,
+// when Novum opens, or when you come back to it. Kept for a day, at most 20.
+const outboxKey = () => `novum.outbox:${getSession()?.user?.id || 'anon'}`;
+function readOutbox() { try { return JSON.parse(localStorage.getItem(outboxKey())) || []; } catch { return []; } }
+function writeOutbox(q) { try { q.length ? localStorage.setItem(outboxKey(), JSON.stringify(q)) : localStorage.removeItem(outboxKey()); } catch { /* storage full */ } }
+export async function cheer(username, kind) {
+  try { return await call('POST', '/buddies/cheer', { username, kind }); } catch (e) {
+    if (!e.offline || !getSession()) throw e;
+    const q = readOutbox();
+    if (q.length < 20) { q.push({ username, kind, at: Date.now() }); writeOutbox(q); }
+    const queued = new Error('No signal right now. Your cheer will send by itself when you’re back online 💙');
+    queued.queued = true;
+    throw queued;
+  }
+}
+let flushing = false;
+export async function flushOutbox() {
+  if (flushing || !getSession() || !navigator.onLine) return;
+  flushing = true;
+  try {
+    let q = readOutbox().filter((x) => Date.now() - x.at < 864e5);
+    while (q.length) {
+      try { await call('POST', '/buddies/cheer', { username: q[0].username, kind: q[0].kind }); } catch (e) {
+        if (e.offline) break; // still no signal: try again later
+        // anything else (no longer buddies, cheer limit reached): drop it
+      }
+      q = q.slice(1); writeOutbox(q);
+    }
+    writeOutbox(q);
+  } finally { flushing = false; }
+}
+addEventListener('online', () => flushOutbox());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flushOutbox(); });
+setTimeout(() => flushOutbox(), 3000);
 export const putShareCard = (card) => call('PUT', '/me/share', { card });
 
 /* ---------- admin ---------- */

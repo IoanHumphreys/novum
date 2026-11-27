@@ -2,7 +2,7 @@
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, useNow, Icon, Ring, openSheet, SheetBar, Page, Segmented, Group, Legend } from '../ui.js';
-import { MILESTONES, healthFor, MOODS, WISH_IDEAS } from '../content.js';
+import { MILESTONES, healthFor, MOODS, WISH_IDEAS, SLOGAN } from '../content.js';
 import { InstallBanner } from '../install.js';
 import { BuddiesSection, refreshBuddies } from '../social.js';
 import { ActivityBell, refreshActivity } from '../activity.js';
@@ -34,7 +34,7 @@ export function Home({ s, go }) {
   // Pull down to refresh: sync data, buddies and activity
   const refresh = () => Promise.all([Promise.resolve(syncNow()).catch(() => {}), refreshBuddies(), refreshActivity()]);
   return html`<${Page} title="Novum" eyebrow=${new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-      sub="A new beginning. A new standard. A new you." titleRight=${html`<${ActivityBell} />`} onRefresh=${refresh}>
+      sub=${SLOGAN} titleRight=${html`<${ActivityBell} />`} onRefresh=${refresh}>
     <p class="greet"><button class="greet-av" aria-label="Your profile" onClick=${() => go('profile')}><${Avatar} a=${s.social?.avatar} name=${firstName()} size=${36} /></button><span>${greet}${firstName() ? `, ${firstName()}` : ''}.</span></p>
     <${InstallBanner} />
 

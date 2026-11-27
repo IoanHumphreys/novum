@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
 import { html, haptic, Icon, Segmented, Toggle, toast, useNow, capName } from './ui.js';
-import { ADDICTIONS, addictionByKind, REASON_IDEAS } from './content.js';
+import { ADDICTIONS, addictionByKind, REASON_IDEAS, SLOGAN_WORDS } from './content.js';
 import { enablePush, pushSupported, isStandalone } from './push.js';
 import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
 import { openPrivacy } from './privacy.js';
@@ -86,7 +86,9 @@ function useTurnstile() {
     return new Promise((ok) => { s.waiters.push(ok); setTimeout(() => ok(''), 15000); });
   };
   const reset = () => { const s = st.current; s.token = ''; try { if (s.id != null) window.turnstile.reset(s.id); } catch { /* ignore */ } };
-  return { box, getToken, reset };
+  // The token if the check has already finished (no waiting)
+  const peek = () => st.current.token;
+  return { box, getToken, reset, peek };
 }
 
 /* ============ welcome ============ */
@@ -106,7 +108,7 @@ export function AuthScreen() {
         <img src="icons/icon-192.png" alt="" width="84" height="84" class="wl-logo" />
       </div>
       <h1 class="wl-name">NOVUM</h1>
-      <p class="wl-tag"><span>A new beginning.</span><span>A new standard.</span><span>A new you.</span></p>
+      <p class="wl-tag">${SLOGAN_WORDS.map((w) => html`<span><b>${w[0]}</b>${w.slice(1)}</span>`)}</p>
     </div>
     <${WelcomeDemo} />
     <div class="wl-actions">
@@ -364,12 +366,22 @@ function LogInForm({ back, toSignup, forgot }) {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const focusRef = useAutoFocus(0);
+  // Bot check: runs invisibly while you type. The server only insists on it after a few tries, and then
+  // we wait for it and try again by ourselves.
+  const ts = useTurnstile();
   const submit = async (e) => {
     e.preventDefault();
     if (!loginId.trim() || !pw || busy) return;
     setErr(''); setBusy(true);
     try {
-      const r = await A.login(loginId.trim(), pw);
+      let r;
+      try { r = await A.login(loginId.trim(), pw, ts.peek()); } catch (x) {
+        if (!x.data?.turnstile) throw x;
+        ts.reset();
+        const token = await ts.getToken();
+        if (!token) throw new Error('Couldn’t confirm you’re a person. Wait a moment and try again.');
+        r = await A.login(loginId.trim(), pw, token);
+      } finally { ts.reset(); }
       if (r.codeRequired) { setPending({ ticket: r.ticket, emailHint: r.emailHint }); setSentAt(Date.now()); setCode(''); setBusy(false); haptic(10); return; }
       haptic(20);
     } catch (x) { setErr(x.message); setBusy(false); }
@@ -417,6 +429,7 @@ function LogInForm({ back, toSignup, forgot }) {
           <${BigInput} type=${show ? 'text' : 'password'} placeholder="Password" autocomplete="current-password" enterkeyhint="go" value=${pw} onInput=${(e) => { setErr(''); setPw(e.target.value); }} />
           <${EyeButton} on=${show} set=${setShow} />
         </div>
+        <div class="ts-box" ref=${ts.box}></div>
         <${Err}>${err}<//>
         <div class="wiz-actions">
           <button class="btn btn-primary block big" type="submit" disabled=${!loginId.trim() || !pw || busy}>${busy ? 'Logging in…' : 'Log in'}</button>

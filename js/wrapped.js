@@ -5,7 +5,7 @@ import { html, haptic, toast } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
 import { wrappedYear, closeWrapped } from './wrapped-card.js';
-import { MOODS } from './content.js';
+import { MOODS, SLOGAN } from './content.js';
 import { Avatar } from './profile.js';
 import { openImageShare } from './celebrate.js';
 
@@ -113,7 +113,7 @@ export function buildSlides(s, year, server, user, now = Date.now()) {
   const total = perQuit.length ? Math.floor(perQuit[0].ms / DAY) : 0;
   slides.push({
     kind: 'end', colors: ['#3b9bff', '#04060b'], emoji: '💙', kicker: `${year} in Novum`, big: soFar ? 'Keep going.' : `Here’s to ${year + 1}.`,
-    label: 'A new beginning. A new standard. A new you.',
+    label: SLOGAN,
     grid: [total && ['Days free', total], saved >= 1 && ['Saved', S.money(saved, 0)], beaten && ['Cravings beaten', beaten], keys.length && ['Check-ins', keys.length]].filter(Boolean),
   });
   return slides;

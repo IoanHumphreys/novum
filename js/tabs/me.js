@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, capName, useNow, Icon, openSheet, closeAllSheets, SheetBar, Page, Toggle, Group, Row, Field, toast, Skeleton } from '../ui.js';
-import { healthFor, ADDICTIONS } from '../content.js';
+import { healthFor, ADDICTIONS, SLOGAN } from '../content.js';
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, stopPushSync, deviceState } from '../push.js';
 import * as A from '../api.js';
 import { stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from '../sync.js';
@@ -108,7 +108,7 @@ export function Profile({ s }) {
     <div class="about">
       <img src="icons/icon-192.png" alt="" width="56" height="56" />
       <b>NOVUM</b>
-      <span>A new beginning. A new standard. A new you.</span>
+      <span>${SLOGAN}</span>
       <span class="tiny">Version 2.0</span>
     </div>
   <//>`;

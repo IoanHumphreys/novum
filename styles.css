@@ -661,9 +661,13 @@ input[type='range'].unset::-webkit-slider-thumb { background: #8a93a6; }
 .pw-meter { height: 6px; border-radius: 3px; background: var(--fill); margin-top: 12px; overflow: hidden; }
 .pw-meter i { display: block; height: 100%; border-radius: 3px; transition: width 0.4s var(--spring), background 0.3s; }
 .row.pop { animation: rise 0.4s var(--spring); }
-.wl-tag span { display: block; animation: rise 0.7s var(--spring) both; }
-.wl-tag span:nth-child(2) { animation-delay: 0.15s; }
-.wl-tag span:nth-child(3) { animation-delay: 0.3s; }
+/* The slogan: one word at a time, first letters (N-O-V-U-M) in blue */
+.wl-tag span { display: inline-block; margin: 0 0.18em; animation: rise 0.7s var(--spring) both; }
+.wl-tag span b { color: var(--accent); font-weight: 700; }
+.wl-tag span:nth-child(2) { animation-delay: 0.12s; }
+.wl-tag span:nth-child(3) { animation-delay: 0.24s; }
+.wl-tag span:nth-child(4) { animation-delay: 0.36s; }
+.wl-tag span:nth-child(5) { animation-delay: 0.48s; }
 .wl-logo { animation: pop 0.8s var(--bounce) both; }
 
 input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import { html, haptic, openSheet, SheetBar, toast } from './ui.js';
 import * as S from './store.js';
-import { MILESTONES } from './content.js';
+import { MILESTONES, SLOGAN } from './content.js';
 import * as A from './api.js';
 import { paintBanner } from './banner.js';
 
@@ -209,7 +209,7 @@ export async function drawCard(card) {
     ctx.font = `64px ${FONT}`; ctx.fillText('💙', 540, 1560);
   }
   ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = `500 36px ${FONT}`;
-  ctx.fillText('A new beginning. A new standard. A new you.', 540, 1760);
+  ctx.fillText(SLOGAN, 540, 1760);
   ctx.fillStyle = '#5aaeff'; ctx.font = `800 36px ${FONT}`;
   ctx.fillText('novumdaily.com', 540, 1830);
   return new Promise((ok) => cv.toBlob((b) => ok(b), 'image/png'));

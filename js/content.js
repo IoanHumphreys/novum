@@ -1,3 +1,7 @@
+// Novum's slogan: each word starts with a letter of NOVUM
+export const SLOGAN_WORDS = ['Notice.', 'Overcome.', 'Vitality.', 'Understand.', 'Master.'];
+export const SLOGAN = SLOGAN_WORDS.join(' ');
+
 // Static content: milestones, health timelines, goal presets, pickers.
 
 export const MILESTONES = [

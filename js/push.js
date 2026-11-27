@@ -67,11 +67,18 @@ export function settingsPayload(s) {
   };
 }
 
+// Give up on a step that never answers, with a message saying what to do, instead of "Working…" forever
+const within = (ms, p, message) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error(message)), ms))]);
+
 async function register(deviceId) {
   const reg = await swReady();
   let sub = await reg.pushManager.getSubscription();
-  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(PUSH.vapidPublicKey) });
-  await call('POST', '/subscribe', { id: deviceId, subscription: sub.toJSON(), settings: settingsPayload(S.getState()) });
+  // The phone asks Google's or Apple's push service for an address. Usually instant, but it can hang
+  // (no signal, or Android without Google Play services)
+  if (!sub) sub = await within(15000, reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(PUSH.vapidPublicKey) }),
+    'Your phone’s notification service didn’t answer. Check your connection, then tap the switch again.');
+  await within(15000, call('POST', '/subscribe', { id: deviceId, subscription: sub.toJSON(), settings: settingsPayload(S.getState()) }),
+    'Novum’s server didn’t answer. Check your connection, then tap the switch again.');
   lastSent = JSON.stringify(settingsPayload(S.getState()));
 }
 
