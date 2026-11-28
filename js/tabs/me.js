@@ -17,6 +17,7 @@ import { openPrivacy } from '../privacy.js';
 import { replayTour } from '../tour.js';
 import { BadgeShelf, earnedBadges } from '../badges.js';
 import { openPlans } from '../plans.js';
+import { openCredits } from '../credits.js';
 import { firstName, confirmSheet } from '../shared.js';
 import { openWishlist, savedNow } from './home.js';
 import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
@@ -179,6 +180,7 @@ function DataSheet({ close }) {
       <${Group} footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
         <${SyncRow} />
         <${Row} icon="🔒" iconBg="#8E8E93" title="Privacy notice" sub="What’s stored, who can see it, your rights" chevron onClick=${openPrivacy} />
+        <${Row} icon="🙏" iconBg="#5E5CE6" title="Credits & licences" sub="The artists and code Novum is built with" chevron onClick=${openCredits} />
       <//>
       <${Group} header="Backups">
         <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export a copy" sub="Everything: account, profile, check-ins, goals" chevron onClick=${doExport} />

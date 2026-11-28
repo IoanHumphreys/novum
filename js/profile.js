@@ -9,6 +9,7 @@ import { CheerBar } from './cheers.js';
 import { refreshBuddies, useBuddies, openBuddies as openBuddiesSheet } from './social.js';
 import { MyStatus, StatusTag, TogetherTag, openShareProfile } from './connect.js';
 import { BadgeShelf } from './badges.js';
+import { openCredits } from './credits.js';
 import { Banner, openBannerPicker } from './banner.js';
 
 const DAY = 864e5;
@@ -54,7 +55,7 @@ function AvatarPicker({ current, onPick, close }) {
       <${Group} header="Background">
         <div class="swatches wrap">${BGS.map((c) => html`<button class="sw ${bg === c ? 'on' : ''} ${c ? '' : 'none'}" style=${c ? `--c:#${c}` : ''} aria-label=${c ? `#${c}` : 'No background'} onClick=${() => { haptic(); setBg(c); }}></button>`)}</div>
       <//>
-      <p class="muted center tiny">Avatars by DiceBear. Only a random code for your picture is stored, never a photo.</p>
+      <p class="muted center tiny">Avatars drawn by DiceBear from artists’ styles (<button class="link tiny" onClick=${openCredits}>credits</button>). Only a random code for your picture is stored, never a photo.</p>
     </div>`;
 }
 

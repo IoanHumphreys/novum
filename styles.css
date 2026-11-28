@@ -1611,3 +1611,7 @@ input:autofill { background: transparent; }
 .qc-add-ring { width: 70px; height: 70px; flex: none; border-radius: 50%; border: 8px solid var(--fill); display: grid; place-items: center; color: var(--accent); }
 .qc-add-ring .ic { width: 26px; height: 26px; stroke-width: 2.6; }
 .qc-add:active { background: rgba(59, 155, 255, 0.06); }
+
+/* credits & licences */
+.credits a.row { color: inherit; text-decoration: none; }
+.credits .group-f a { color: var(--accent); }

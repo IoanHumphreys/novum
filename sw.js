@@ -1,6 +1,6 @@
 // Novum service worker: keeps a complete copy of one release of the app for instant, offline starts.
 // Bump VERSION when you deploy changes: phones then download the whole new release and drop the old one.
-const VERSION = 'novum-v35';
+const VERSION = 'novum-v36';
 // Cartoon avatars from DiceBear are kept here (separately, so updates don't wipe them) for instant, offline loading
 const AVATARS = 'novum-avatars-2'; // renamed so any broken copies kept by the old version are dropped
 const ASSETS = [
@@ -39,6 +39,7 @@ const ASSETS = [
   'js/badges.js',
   'js/connect.js',
   'js/plans.js',
+  'js/credits.js',
   'js/tabs/home.js',
   'js/tabs/checkin.js',
   'js/tabs/goals.js',

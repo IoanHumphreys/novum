@@ -259,7 +259,7 @@ const lighten = (h) => { try { const [r, g, b] = hexRGB(h).map((v) => Math.round
 export function openShareSheet(card) {
   openSheet((close) => html`<${ShareSheet} card=${card} close=${close} />`, { tall: true });
 }
-// Share any image: make() returns a Promise of a PNG blob (used by Novum Wrapped)
+// Share any image: make() returns a Promise of a PNG blob (used by Novum Rewind)
 export function openImageShare(make, alt, title = 'Share') {
   openSheet((close) => html`<${ShareSheet} make=${make} alt=${alt} title=${title} close=${close} />`, { tall: true });
 }

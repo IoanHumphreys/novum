@@ -1,4 +1,4 @@
-// Novum Wrapped: your year as tap-through story slides. Worked out on the phone from your own data
+// Novum Rewind (code name "wrapped"): your year as tap-through story slides. Worked out on the phone from your own data
 // (plus cheer counts from the server). Every slide can be shared to a story as an image.
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import { html, haptic, toast } from './ui.js';
@@ -27,7 +27,7 @@ export function buildSlides(s, year, server, user, now = Date.now()) {
   const keys = Object.keys(s.checkins).filter((k) => inYear(S.parseDay(k).getTime()));
   const slides = [];
 
-  slides.push({ kind: 'intro', colors: ['#1f6bff', '#7d5cff'], emoji: '✨', kicker: `Novum Wrapped ${year}${soFar ? ' · so far' : ''}`, big: user.firstName || 'Your year', label: soFar ? 'Here’s your year so far.' : 'Here’s your year.', sub: 'Tap to go through it →' });
+  slides.push({ kind: 'intro', colors: ['#1f6bff', '#7d5cff'], emoji: '✨', kicker: `Novum Rewind ${year}${soFar ? ' · so far' : ''}`, big: user.firstName || 'Your year', label: soFar ? 'Here’s your year so far.' : 'Here’s your year.', sub: 'Tap to go through it →' });
 
   // days free
   const perQuit = s.quits.map((q) => ({ q, ms: freeMsIn(q, from, to, now) })).filter((x) => x.ms > 0).sort((a, b) => b.ms - a.ms);
@@ -139,7 +139,7 @@ export function Wrapped() {
   }, [i, paused, server === undefined]);
   if (server === undefined) return html`<div class="wr"><div class="wr-load">✨</div></div>`;
   const share = () => openImageShare(() => drawSlide(slide, year), `${slide.kicker}: ${slide.big ?? `${slide.prefix || ''}${slide.num}${slide.suffix || ''}`} ${slide.label}`, 'Share this slide');
-  return html`<div class="wr" style=${`--c1:${slide.colors[0]};--c2:${slide.colors[1]}`} role="dialog" aria-modal="true" aria-label=${`Novum Wrapped ${year}`}>
+  return html`<div class="wr" style=${`--c1:${slide.colors[0]};--c2:${slide.colors[1]}`} role="dialog" aria-modal="true" aria-label=${`Novum Rewind ${year}`}>
     <div class="wr-bars">${slides.map((_, k) => html`<i class=${k < i ? 'done' : k === i ? (paused ? 'now paused' : 'now') : ''} key=${k + '-' + (k === i ? i : '')}></i>`)}</div>
     <button class="wr-x" aria-label="Close" onClick=${closeWrapped}>✕</button>
     <div class="wr-tap left" onClick=${prev}></div>
@@ -184,7 +184,7 @@ async function drawSlide(sl, year) {
   ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
   ctx.font = `800 40px ${FONT}`; ctx.globalAlpha = 0.85;
-  ctx.fillText(`NOVUM WRAPPED ${year}`, W / 2, 170); ctx.globalAlpha = 1;
+  ctx.fillText(`NOVUM REWIND ${year}`, W / 2, 170); ctx.globalAlpha = 1;
   const fit = (text, weight, size, max) => { let s = size; do { ctx.font = `${weight} ${s}px ${FONT}`; s -= 6; } while (ctx.measureText(text).width > max && s > 30); };
   const wrap = (text, y, size, alpha) => {
     ctx.font = `600 ${size}px ${FONT}`; ctx.globalAlpha = alpha;

@@ -1,4 +1,4 @@
-// Novum Wrapped's small parts: which year to show, the card on Progress, and the host that opens the story.
+// Novum Rewind's small parts (code name "wrapped"): which year to show, the card on Progress, and the host that opens the story.
 // The story itself (slides, sharing images) is in wrapped.js and loads the first time it's opened.
 import { useState, useEffect } from '../vendor/preact-htm.js';
 import { html, haptic, lazy } from './ui.js';
@@ -26,9 +26,9 @@ export function WrappedHost() {
 /* ---------- Progress card ---------- */
 export function WrappedCard() {
   const { year, season } = wrappedYear();
-  if (!season) return html`<button class="wr-peek" onClick=${() => { haptic(); openWrapped(); }}>✨ Peek at your ${year} Wrapped so far</button>`;
+  if (!season) return html`<button class="wr-peek" onClick=${() => { haptic(); openWrapped(); }}>✨ Peek at your ${year} Rewind so far</button>`;
   return html`<button class="card wr-card tap" onClick=${() => { haptic(); openWrapped(); }}>
-    <div class="wr-card-k">Novum Wrapped</div><div class="wr-card-y">${year}</div>
+    <div class="wr-card-k">Novum Rewind</div><div class="wr-card-y">${year}</div>
     <div class="wr-card-s">Your year in quitting, cravings beaten, money saved and the people who had your back.</div>
     <span class="btn btn-primary sm">Watch it</span>
   </button>`;

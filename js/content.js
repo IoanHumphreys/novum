@@ -228,7 +228,7 @@ export const TIPS = [
   { kind: 'any', e: '🤝', t: 'People who quit with a friend are more likely to stick with it. Add a buddy and cheer each other on.' },
   { kind: 'any', e: '🔁', t: 'Swap the ritual, not just the substance. Give the times you used to use a new routine: tea, a walk, a game.' },
   { kind: 'any', e: '☀️', t: 'Get outside in daylight early in the day. It helps your sleep, mood and energy while your body adjusts.' },
-  { kind: 'any', e: '💬', t: '“Ever tried. Ever failed. No matter. Try again. Fail better.” – Samuel Beckett' },
+  { kind: 'any', e: '💬', t: 'Every quit that sticks was built on attempts that didn’t. A slip is information, not a verdict. Try again, a little wiser.' },
   { kind: 'any', e: '🔥', t: 'Every craving you ride out weakens the habit a little. Today’s hard moment is building tomorrow’s easier one.' },
 ];
 const NICOTINE = new Set(['vape', 'snus', 'cigarettes']);
