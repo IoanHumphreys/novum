@@ -4,6 +4,7 @@
 import { PUSH } from './config.js';
 import { call, getSession } from './api.js';
 import * as S from './store.js';
+import { unlockAt } from './letters.js';
 
 export const pushConfigured = () => !!(PUSH.server && PUSH.vapidPublicKey);
 export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -59,6 +60,8 @@ export function settingsPayload(s) {
     habits: s.goals.filter((g) => g.type === 'habit').map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, perWeek: g.perWeek || 7, remindAt: g.remindAt || '', ticks: (g.ticks || []).filter((k) => k >= since) })),
     peaks: cravingPeaks(s),
     // Tough days you planned for: only the date (never the name or your plan), for the reminders
+    // Letters to future you: only when each unlocks (never what's in them)
+    letters: (s.letters || []).filter((l) => !l.openedAt && l.unlock?.type !== 'sos').map((l) => ({ id: l.id, at: unlockAt(l, s) })).filter((l) => l.at && l.at > Date.now() - 3 * 864e5).slice(0, 20),
     events: (s.events || []).filter((e) => !e.outcome && e.date >= S.dayKey(S.addDays(new Date(), -1))).slice(0, 20).map((e) => ({ id: e.id, date: e.date })),
     // For the Sunday recap: last 2 weeks of moods (m) and average craving (c), nothing else
     days: Object.fromEntries(Object.keys(s.checkins).filter((k) => k >= since).map((k) => {

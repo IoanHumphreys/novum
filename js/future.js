@@ -2,8 +2,8 @@
 // a look ahead at the money and health you'll have gained in 6 months or a year if you keep going.
 import { useState } from '../vendor/preact-htm.js';
 import * as S from './store.js';
-import { html, haptic, useNow, Segmented } from './ui.js';
-import { MILESTONES, healthFor, tipsFor } from './content.js';
+import { html, haptic, useNow, Segmented, openSheet, SheetBar } from './ui.js';
+import { MILESTONES, healthFor, tipsFor, minutesFor } from './content.js';
 
 const DAY = 864e5;
 
@@ -73,4 +73,49 @@ export function FutureYou({ s }) {
     </div>
     <p class="group-f">Based on what you used to spend. Health changes are typical timings, not medical advice.</p>
   </section>`;
+}
+
+/* ---------- time reclaimed ---------- */
+// Hours you'd have spent on it, from each quit's "time it took a day" (a guess you can change in its settings)
+export function reclaimed(s, now = Date.now()) {
+  const mins = s.quits.reduce((a, q) => a + (S.quitElapsed(q, now) / DAY) * minutesFor(q), 0);
+  const perDay = s.quits.filter((q) => S.quitStart(q).getTime() <= now).reduce((a, q) => a + minutesFor(q), 0);
+  return { hours: mins / 60, perDay };
+}
+const hm = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${Math.round(m % 60)}m` : ''}` : `${Math.round(m)} min`);
+function compare(h) {
+  if (h < 1) return 'Every minute counts. It adds up fast.';
+  if (h < 8) return `That’s about ${Math.max(1, Math.round((h * 60) / 45))} episodes of a show.`;
+  if (h < 60) return `That’s about ${Math.round(h / 2)} films, or ${Math.round(h / 1.5)} football matches.`;
+  if (h < 300) return `That’s ${Math.round(h / 24)} full days, or ${Math.round(h / 8)} working days.`;
+  return `That’s ${Math.round(h / 24)} full days of your life back.`;
+}
+export function TimeReclaimed({ s }) {
+  const now = useNow(60000);
+  const r = reclaimed(s, now);
+  if (!s.quits.length || !r.perDay) return null;
+  return html`<section class="group">
+    <h2 class="group-h">Time reclaimed</h2>
+    <button class="card time-card tap" onClick=${openTimeSheet}>
+      <div class="tc-big"><span class="tc-ic" aria-hidden="true">⏳</span><b>${r.hours >= 10 ? Math.round(r.hours) : r.hours.toFixed(1)}</b><span>hours of your life back</span></div>
+      <div class="tc-sub">About ${hm(r.perDay)} a day you’re not spending on it. ${compare(r.hours)}</div>
+    </button>
+  </section>`;
+}
+function openTimeSheet() { haptic(); openSheet((close) => html`<${TimeSheet} close=${close} />`); }
+function TimeSheet({ close }) {
+  const s = S.getState();
+  const [vals, setVals] = useState(Object.fromEntries(s.quits.map((q) => [q.id, String(minutesFor(q))])));
+  const save = () => {
+    haptic(12);
+    S.update((d) => { d.quits.forEach((q) => { const v = parseFloat(vals[q.id]); if (Number.isFinite(v) && v >= 0) q.minutes = Math.min(1440, v); }); });
+    close();
+  };
+  return html`
+    <${SheetBar} title="Time it took" left=${html`<button class="link" onClick=${close}>Cancel</button>`} right=${html`<button class="link b" onClick=${save}>Save</button>`} />
+    <div class="sheet-body">
+      <p class="muted center sheet-intro">Roughly how many minutes a day did each one take? Buying, using, being away, recovering. A middle guess is fine.</p>
+      <div class="card list">${s.quits.map((q) => html`<label class="field" key=${q.id}><span class="field-l">${q.emoji} ${q.label}</span>
+        <span class="field-c"><input type="number" inputmode="numeric" min="0" max="1440" value=${vals[q.id]} onInput=${(e) => setVals({ ...vals, [q.id]: e.target.value })} /> min</span></label>`)}</div>
+    </div>`;
 }

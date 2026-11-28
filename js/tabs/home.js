@@ -13,7 +13,8 @@ import { DAY, pad2, NEW_YEAR, fmtLeft, RING_LABEL, ringLeft, milestoneInfo, firs
 import { openNewYear } from './goals.js';
 import { openAddQuit, openQuitEditor, openTimeline, openSlip } from '../quits.js';
 import { openSos, openReasons } from '../sos.js';
-import { TipCard, FutureYou } from '../future.js';
+import { TipCard, FutureYou, TimeReclaimed } from '../future.js';
+import { LetterCard } from '../letters.js';
 import { EventsCard, openPlans } from '../plans.js';
 
 /* ============ HOME ============ */
@@ -79,6 +80,8 @@ export function Home({ s, go }) {
       </div>
     </section>`}
 
+    <${LetterCard} s=${s} />
+
     ${hasQuits && html`<${EventsCard} s=${s} />`}
 
     ${hasQuits && html`<${TipCard} s=${s} />`}
@@ -93,6 +96,8 @@ export function Home({ s, go }) {
         <${WishLine} s=${s} />
       </button>
     </section>`}
+
+    ${hasQuits && html`<${TimeReclaimed} s=${s} />`}
 
     ${hasQuits && html`<${FutureYou} s=${s} />`}
 

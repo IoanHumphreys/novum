@@ -262,3 +262,7 @@ export const PLAN_IDEAS = {
   Other: ['Do the 5-minute breathing in SOS', 'Go for a walk', 'Text a buddy', 'Read my reasons'],
 };
 export const EVENT_EMOJIS = ['🎉', '🍻', '🎓', '📚', '✈️', '🎵', '⚽', '💼', '🏠', '😬'];
+
+// Roughly how many minutes a day each habit took (a starting guess for "time reclaimed"; editable per quit)
+export const MINUTES_PER_DAY = { vape: 30, weed: 60, cigarettes: 50, alcohol: 120, gambling: 60, snus: 20, energy: 5, other: 20 };
+export const minutesFor = (q) => (Number.isFinite(q.minutes) ? q.minutes : MINUTES_PER_DAY[q.kind] ?? 20);

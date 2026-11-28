@@ -9,6 +9,7 @@ import { CHEER_KINDS } from './content.js';
 import { useBuddies } from './social.js';
 import { Avatar } from './profile.js';
 import { SosPlan } from './plans.js';
+import { SosLetterButton } from './letters.js';
 
 // The puzzle's code loads the first time someone opens it (it's cached for offline use either way)
 const FlowGame = lazy(() => import('./game.js'), 'FlowGame', () => html`<div class="lazy-wait" role="status">Loading the puzzle…</div>`);
@@ -70,7 +71,10 @@ export function Sos({ close }) {
   });
   const card = cards[Math.floor(el / 9) % cards.length];
 
-  const finish = (b) => { haptic(15); setBeaten(b); setSecs(Math.round(el)); setStep('log'); };
+  // "You're not alone": an anonymous count of people riding out cravings (no names, nothing about you)
+  const [pulse, setPulse] = useState(null);
+  useEffect(() => { A.sosPulse('open').then(setPulse).catch(() => {}); }, []);
+  const finish = (b) => { haptic(15); setBeaten(b); setSecs(Math.round(el)); setStep('log'); if (b) A.sosPulse('beaten').catch(() => {}); };
   const toggleIn = (list, set, v) => { haptic(); set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]); };
   const save = () => {
     const total = s.cravings.filter((c) => c.beaten).length + (beaten ? 1 : 0);
@@ -120,6 +124,8 @@ export function Sos({ close }) {
       </div>
       <div class="sos-timer">${left > 0 ? html`<b>${mm}:${ss}</b><span>Cravings peak and fade within 5–10 minutes. Ride the wave.</span>`
         : html`<b>Done</b><span>Five minutes. How’s the craving now?</span>`}</div>
+      ${pulse && html`<p class="sos-pulse">🌍 ${pulse.now > 0 ? html`<b>${pulse.now === 1 ? 'Someone else is' : `${pulse.now} others are`}</b> riding one out right now. ` : ''}${pulse.beaten > 0 ? html`<b>${pulse.beaten}</b> craving${pulse.beaten === 1 ? '' : 's'} beaten on Novum in the last day. You’re next.` : 'You’re not alone in this. Every craving passes.'}</p>`}
+      <${SosLetterButton} s=${s} />
       <${SosPlan} s=${s} picked=${triggers} onPick=${(t) => setTriggers(triggers.includes(t) ? triggers.filter((x) => x !== t) : [...triggers, t])} />
       <div class="card sos-card" key=${card.t}>
         <span class="sos-card-e">${card.e}</span>

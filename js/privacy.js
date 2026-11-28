@@ -19,7 +19,8 @@ function Privacy({ close }) {
         <li><b>Your account:</b> name, username, email, date of birth and a scrambled (hashed) version of your password. Your actual password is never stored.</li>
         <li><b>What you track:</b> what you’re quitting and when, money it cost, check-ins (mood, cravings, sleep, notes), goals, reasons, slips and weight.</li>
         <li><b>Your profile:</b> cartoon avatar, bio and any stories you choose to share.</li>
-        <li><b>Notifications:</b> if you turn them on, your phone’s notification address and reminder times, plus the dates (not the names or plans) of tough days you plan for, so Novum can remind you.</li>
+        <li><b>Notifications:</b> if you turn them on, your phone’s notification address and reminder times, plus the dates (not the names or plans) of tough days you plan for and when your letters to future you unlock (never what’s in them), so Novum can remind you.</li>
+        <li><b>Craving SOS:</b> when you open it or beat a craving, Novum adds one to an anonymous count (just the time, nothing about you) so it can say how many people rode one out today.</li>
         <li><b>Logins:</b> which devices are logged in and when they were last used.</li>
       </ul>
       <p>What you’re quitting, your check-ins and your weight are <b>health information</b>, which the law treats as extra sensitive. Novum only uses it to run the app for you, and only with your agreement (the tick box when you sign up).</p>

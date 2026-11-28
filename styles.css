@@ -330,6 +330,8 @@ input[type='range'].unset::-webkit-slider-thumb { background: #8a93a6; }
 .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 12px; }
 .chip { font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: var(--fill); color: var(--text-2); }
 .chip[style*='--c'] { background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--c); }
+/* small chips: show which are picked (SOS triggers, plan ideas, letter milestones…) */
+.chip:not(.big).on { background: var(--c, var(--accent)); color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25); }
 .chip.big { min-height: 44px; padding: 0 16px; font-size: 15px; display: inline-flex; align-items: center; transition: all 0.25s var(--spring); }
 .chip.big:not(.on) { background: var(--fill); color: var(--text-2); }
 .chip.big.on { background: var(--c, var(--accent)); color: #000; }
@@ -1660,3 +1662,68 @@ input:autofill { background: transparent; }
 .ms-confetti i:nth-child(6) { left: 36%; top: 16px; background: #ff9f0a; transform: rotate(-50deg); animation-delay: 0.25s; width: 6px; height: 6px; border-radius: 50%; }
 @keyframes msFall { from { opacity: 0; translate: 0 -16px; } }
 @media (prefers-reduced-motion: reduce) { .ms-confetti i { animation: none; } }
+
+/* ---------- letters to future you ---------- */
+.letter-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left; width: 100%;
+  background: linear-gradient(135deg, rgba(255, 55, 95, 0.2), rgba(191, 90, 242, 0.12) 60%), var(--card); }
+.lc-env { font-size: 30px; animation: pulse 2.2s ease-in-out infinite; }
+.letter-card .row-main b { display: block; font-size: 16px; }
+.letter-card .row-main span { font-size: 13.5px; color: var(--text-2); }
+.sos-letter { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; margin: 0 0 12px; border-radius: var(--r-md); text-align: left;
+  background: rgba(255, 55, 95, 0.12); border: 0.5px solid rgba(255, 55, 95, 0.35); }
+.sos-letter > span:first-child { font-size: 24px; }
+.sos-letter b { display: block; font-size: 15px; }
+.sos-letter small { color: var(--text-2); font-size: 13px; }
+.letter-text { min-height: 150px; line-height: 1.5; }
+.group-f.in { margin: 0; padding: 0 16px 14px; }
+.rec-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.rec-row audio { flex: 1; min-width: 0; height: 40px; }
+.rec-btn { width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--text-2); display: grid; place-items: center; flex: none; }
+.rec-btn i { width: 30px; height: 30px; border-radius: 50%; background: var(--red); transition: all 0.25s var(--spring); }
+.rec-btn.on i { width: 18px; height: 18px; border-radius: 5px; }
+.rec-btn:disabled { opacity: 0.4; }
+.rec-l { font-size: 15px; color: var(--text-2); }
+.rec-l b { color: var(--text); font-variant-numeric: tabular-nums; }
+.letter { position: relative; margin: 8px 0 4px; }
+.letter-env { text-align: center; font-size: 64px; transition: transform 0.6s var(--spring), opacity 0.4s; }
+.letter.open .letter-env { transform: translateY(-10px) scale(0.6); opacity: 0; height: 0; overflow: hidden; }
+.letter-paper { padding: 22px 20px 18px; border-radius: 18px; background: #f7f3ea; color: #2a2420; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  transform: translateY(30px) scale(0.96); opacity: 0; transition: transform 0.7s var(--spring), opacity 0.5s; }
+.letter.open .letter-paper { transform: none; opacity: 1; }
+.lp-k { font-size: 12.5px; color: #8a7f72; font-weight: 600; margin-bottom: 10px; }
+.letter-paper audio { width: 100%; margin-bottom: 10px; }
+.lp-text { margin: 0; font-size: 17px; line-height: 1.6; white-space: pre-wrap; font-family: Georgia, 'Times New Roman', serif; }
+.lp-sign { margin-top: 14px; text-align: right; font-family: Georgia, serif; font-style: italic; color: #6b6158; }
+
+/* ---------- recovery garden ---------- */
+.garden { display: block; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.garden-card { padding: 0; width: 100%; text-align: left; display: block; overflow: hidden; }
+.gc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; }
+.gc-foot b { font-size: 15px; }
+.gc-foot span { font-size: 13px; color: var(--text-2); }
+.garden-big { padding: 0; overflow: hidden; }
+.garden-big .garden { border-radius: var(--r-lg); }
+.garden-legend { list-style: none; padding: 0; margin: 14px 4px; display: grid; gap: 8px; font-size: 15px; }
+.g-flower { transform-box: fill-box; transform-origin: bottom center; animation: gGrow 0.6s var(--bounce) both; }
+@keyframes gGrow { from { transform: scale(0); } }
+.g-fly { animation: gFly 9s ease-in-out infinite; }
+.g-fly.two { animation-duration: 12s; animation-delay: -4s; }
+@keyframes gFly { 0% { transform: translate(40px, 70px); } 25% { transform: translate(150px, 40px); } 50% { transform: translate(260px, 80px); } 75% { transform: translate(170px, 55px); } 100% { transform: translate(40px, 70px); } }
+.g-firefly { animation: gGlow 3s ease-in-out infinite; }
+@keyframes gGlow { 50% { opacity: 0.15; } }
+.g-drop { animation: gDrop 1.6s ease-in infinite; }
+@keyframes gDrop { from { transform: translateY(-20px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(60px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .g-flower, .g-fly, .g-firefly, .g-drop { animation: none; } }
+
+/* ---------- time reclaimed ---------- */
+.time-card { padding: 16px; text-align: left; width: 100%; display: block; background: linear-gradient(135deg, rgba(191, 90, 242, 0.16), rgba(94, 92, 230, 0.06) 60%), var(--card); }
+.tc-big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.tc-ic { font-size: 22px; align-self: center; }
+.tc-big b { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tc-big span:last-child { font-size: 15px; color: var(--text-2); }
+.tc-sub { margin-top: 6px; font-size: 14px; color: var(--text-2); line-height: 1.45; }
+
+/* ---------- SOS: you're not alone ---------- */
+.sos-pulse { margin: 0 4px 12px; text-align: center; font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
+.sos-pulse b { color: var(--text); }
+.gc-foot .btn { flex: none; white-space: nowrap; }

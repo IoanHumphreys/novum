@@ -192,6 +192,8 @@ export const setStatus = (kind) => call('PUT', '/me/status', { kind });
 // One notification ({ id }), or all of them up to a moment in time (before = newest one you saw)
 export const activityClear = (id, before) => call('POST', '/activity/clear', id ? { id } : before ? { before } : {});
 export const sos = () => call('POST', '/sos', {});
+// Anonymous "you're not alone" counts: 'open' when SOS opens, 'beaten' when someone rides it out
+export const sosPulse = (kind) => call('POST', '/sos/pulse', { kind });
 export const shareMilestone = (m) => call('POST', '/milestone', m);
 // Fire-and-forget: tells the admin page something broke in the app
 export function reportError(place, message, detail) {

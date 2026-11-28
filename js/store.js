@@ -49,6 +49,8 @@ export function defaultState() {
     plans: {},
     // tough days coming up: { id, date: 'YYYY-MM-DD', title, emoji, trigger, plan, outcome: null | 'quit' | 'slip' }
     events: [],
+    // letters to future you: { id, at (written), text, audio (data URL, optional), unlock: { type: 'days', days, quitId } | { type: 'date', date } | { type: 'sos' }, openedAt }
+    letters: [],
     // things you're saving for: { id, emoji, name, price }
     wishlist: [],
     // milestones already celebrated: { '<quitId>@<start>': days }
@@ -84,7 +86,7 @@ export function migrate(s) {
     profile: { ...d.profile, ...(s.profile || {}) },
     quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],
-    wishlist: s.wishlist || [], plans: s.plans || {}, events: s.events || [], lungTests: s.lungTests || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
+    wishlist: s.wishlist || [], plans: s.plans || {}, events: s.events || [], letters: s.letters || [], lungTests: s.lungTests || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
     social: { avatar: null, banner: null, bio: '', visibility: 'buddies', ...(s.social || {}) },
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };

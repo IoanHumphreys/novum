@@ -10,6 +10,7 @@ import { refreshBuddies, useBuddies, openBuddies as openBuddiesSheet } from './s
 import { MyStatus, StatusTag, TogetherTag, openShareProfile } from './connect.js';
 import { BadgeShelf } from './badges.js';
 import { openCredits } from './credits.js';
+import { BuddyGarden } from './garden.js';
 import { Banner, openBannerPicker } from './banner.js';
 
 const DAY = 864e5;
@@ -290,6 +291,7 @@ function Person({ username, close, onChange }) {
             </div>`;
           })}
         <//>`}
+        ${p.streaks?.garden && html`<${BuddyGarden} g=${p.streaks.garden} person=${p} />`}
         ${p.streaks?.badges?.length > 0 && html`<section class="group"><${BadgeShelf} earned=${p.streaks.badges} name=${p.firstName} /></section>`}
         ${p.stories?.length > 0 && html`<${Group} header="Their story">
           ${p.stories.map((x) => html`<div class="story" key=${x.label}><b>${x.emoji} ${x.label}</b><p>${x.text}</p></div>`)}

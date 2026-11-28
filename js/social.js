@@ -9,6 +9,7 @@ import { Avatar, openPerson } from './profile.js';
 import { CheerBar, StreakChips } from './cheers.js';
 import { StatusTag, TogetherTag, isTough } from './connect.js';
 import { earnedBadges } from './badges.js';
+import { gardenOf } from './garden.js';
 
 const DAY = 864e5;
 
@@ -43,6 +44,7 @@ function myCard(s) {
     quits: s.quits.map((q) => ({ label: q.label, emoji: q.emoji, color: q.color, startMs: S.quitStart(q).getTime(), bestMs: q.best || 0 })),
     checkinStreak: S.checkinStreak(s),
     badges: earnedBadges(s),
+    garden: gardenOf(s),
   };
 }
 let unsubShare = null, shareTimer = null, lastShared = null;

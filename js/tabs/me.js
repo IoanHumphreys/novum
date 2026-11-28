@@ -18,6 +18,9 @@ import { replayTour } from '../tour.js';
 import { BadgeShelf, earnedBadges } from '../badges.js';
 import { openPlans } from '../plans.js';
 import { openCredits } from '../credits.js';
+import { MyGarden } from '../garden.js';
+import { openLetters } from '../letters.js';
+import { useActivity } from '../activity.js';
 import { firstName, confirmSheet } from '../shared.js';
 import { openWishlist, savedNow } from './home.js';
 import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
@@ -71,11 +74,15 @@ export function Profile({ s }) {
   const bd = useBuddies();
   const now = useNow(60000);
   const dev = deviceState();
+  // Buddies who watered your garden this week (from Activity)
+  const act = useActivity();
+  const waterers = [...new Set(act.items.filter((x) => x.kind === 'cheer' && x.data?.kind === 'water' && now - x.at < 7 * 864e5).map((x) => x.who.firstName))];
   const gear = html`<button class="icon-btn gear-btn" aria-label="Account settings" onClick=${openAccount}>${Icon.gear()}</button>`;
 
   return html`<${Page} title="Profile" titleRight=${gear} onRefresh=${refreshProfile}>
     <${ProfileHeader} key=${headerKey} s=${s} />
     ${s.quits.length > 0 && html`<${StatsStrip} s=${s} />`}
+    <section class="group"><${MyGarden} s=${s} waterers=${waterers} /></section>
     <section class="group"><${BadgeShelf} earned=${earnedBadges(s, now)} mine s=${s} /></section>
 
     <${Group} header="Your quits">
@@ -90,6 +97,7 @@ export function Profile({ s }) {
 
     <${Group} header="Staying quit">
       <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" detail=${s.reasons.length || 'Add'} chevron onClick=${openReasons} />
+      <${Row} icon="💌" iconBg="#FF375F" title="Letters to future you" detail=${(s.letters || []).length || 'Write one'} chevron onClick=${openLetters} />
       <${Row} icon="🧭" iconBg="#5E5CE6" title="Plan ahead" detail=${Object.keys(s.plans || {}).length + (s.events || []).filter((e) => !e.outcome && e.date >= S.dayKey()).length || 'Add'} chevron onClick=${openPlans} />
       ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="Saving for" detail=${s.wishlist.length || 'Add'} chevron onClick=${openWishlist} />`}
     <//>

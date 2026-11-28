@@ -17,6 +17,7 @@ import { Profile } from './tabs/me.js';
 import { openActivity, resetActivity, reloadActivityCache, useActivity, ActivityPopup } from './activity.js';
 import { openSos } from './sos.js';
 import { openPlans } from './plans.js';
+import { openLetters } from './letters.js';
 import { WrappedHost } from './wrapped-card.js';
 import { Tour } from './tour.js';
 import { checkNewBadges } from './badges.js';
@@ -79,6 +80,7 @@ function App({ s }) {
     if (initial === 'activity') { history.replaceState(null, '', '#home'); setTimeout(openActivity, 400); }
     if (initial === 'sos') { history.replaceState(null, '', '#home'); setTimeout(openSos, 400); }
     if (initial === 'plan') { history.replaceState(null, '', '#home'); setTimeout(openPlans, 400); }
+    if (initial === 'letters') { history.replaceState(null, '', '#home'); setTimeout(openLetters, 400); }
   }, []);
   const scrolls = useRef({});
   const go = (t, { quiet } = {}) => {
@@ -105,6 +107,7 @@ function App({ s }) {
       if (h === 'activity') { setTab('home'); history.replaceState(null, '', '#home'); openActivity(); return; }
       if (h === 'sos') { setTab('home'); history.replaceState(null, '', '#home'); openSos(); return; }
       if (h === 'plan') { setTab('home'); history.replaceState(null, '', '#home'); openPlans(); return; }
+      if (h === 'letters') { setTab('home'); history.replaceState(null, '', '#home'); openLetters(); return; }
       if (TABS.some((t) => t.id === h)) setTab(h);
     };
     window.addEventListener('hashchange', on);

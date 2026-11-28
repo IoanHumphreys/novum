@@ -2,7 +2,7 @@
 import { useState } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import { html, haptic, Icon, openSheet, SheetBar, Segmented, Group, Field, toast } from './ui.js';
-import { HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, TRIGGERS } from './content.js';
+import { HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, TRIGGERS, minutesFor } from './content.js';
 import { openShareSheet, cardFor } from './celebrate.js';
 import { DAY, fmtLeft, confirmSheet } from './shared.js';
 import { Progress } from './tabs/progress.js';
@@ -54,13 +54,14 @@ export function QuitEditor({ id, close }) {
   const q = s.quits.find((x) => x.id === id);
   const [start, setStart] = useState(q?.start || '');
   const [monthly, setMonthly] = useState(String(q?.monthly ?? 0));
+  const [minutes, setMinutes] = useState(String(q ? minutesFor(q) : 20));
   if (!q) return html`<${SheetBar} title="Removed" right=${html`<button class="link b" onClick=${close}>Done</button>`} />`;
   const maxFuture = S.toLocalInput(S.addDays(new Date(), 60));
   const valid = start && !Number.isNaN(S.parseLocal(start).getTime()) && start <= maxFuture && parseFloat(monthly) >= 0;
   const save = () => {
     if (!valid) return;
     haptic(12);
-    S.update((d) => { const x = d.quits.find((y) => y.id === id); x.start = start; x.monthly = parseFloat(monthly); });
+    S.update((d) => { const x = d.quits.find((y) => y.id === id); x.start = start; x.monthly = parseFloat(monthly); const mn = parseFloat(minutes); if (Number.isFinite(mn) && mn >= 0) x.minutes = Math.min(1440, mn); });
     close();
   };
   const elapsed = S.quitElapsed(q);
@@ -80,6 +81,9 @@ export function QuitEditor({ id, close }) {
       <//>
       <${Group} header="What it cost you" footer=${`About ${S.money((m * 12) / 52)} a week, or ${S.money(m * 12, 0)} a year. If it varied, use a middle figure.`}>
         <${Field} label="Per month (£)"><input type="number" inputmode="decimal" step="1" value=${monthly} onInput=${(e) => setMonthly(e.target.value)} /><//>
+      <//>
+      <${Group} header="Time it took" footer="Minutes a day, roughly: buying, using, recovering. Used for “time reclaimed” on Home.">
+        <${Field} label="Per day (min)"><input type="number" inputmode="numeric" min="0" max="1440" value=${minutes} onInput=${(e) => setMinutes(e.target.value)} /><//>
       <//>
       <div class="stats3">
         <div><b>${Math.floor(elapsed / DAY)}</b><span>days now</span></div>

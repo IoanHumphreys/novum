@@ -118,7 +118,8 @@ const ago = (t, now) => {
   const d = Math.floor(h / 24);
   return d < 7 ? `${d}d ago` : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
-const cheerOf = (x) => CHEER_KINDS.find((c) => c.kind === x.data?.kind) || CHEER_KINDS[0];
+const WATER = { kind: 'water', e: '💧', l: 'Watered your garden' };
+const cheerOf = (x) => (x.data?.kind === 'water' ? WATER : CHEER_KINDS.find((c) => c.kind === x.data?.kind) || CHEER_KINDS[0]);
 // The little badge on each avatar, and which filter each kind belongs to
 const KIND = {
   cheer: { c: '#FF375F', f: 'cheers' },
@@ -134,7 +135,7 @@ const badgeOf = (x) => (x.kind === 'cheer' ? cheerOf(x).e : x.kind === 'mileston
 function words(x) {
   const n = html`<b>${x.who.firstName}</b>`;
   switch (x.kind) {
-    case 'cheer': { const k = cheerOf(x); return html`${n} sent you ${k.e} <i>${k.l.toLowerCase()}</i>`; }
+    case 'cheer': { if (x.data?.kind === 'water') return html`${n} watered your garden 💧`; const k = cheerOf(x); return html`${n} sent you ${k.e} <i>${k.l.toLowerCase()}</i>`; }
     case 'buddy_request': return html`${n} wants to be buddies`;
     case 'buddy_accepted': return html`You and ${n} are now buddies`;
     case 'follow': return html`${n} started following you`;
