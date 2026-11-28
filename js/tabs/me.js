@@ -64,13 +64,11 @@ export function Profile({ s }) {
   const kg = S.latestWeight(p);
   const b = S.bmi(kg, p.heightCm);
   const band = S.bmiBand(b);
-  const age = S.ageOf(p);
   const withHealth = s.quits.filter((q) => healthFor(q));
   const bd = useBuddies();
   const now = useNow(60000);
   const dev = deviceState();
   const gear = html`<button class="icon-btn gear-btn" aria-label="Account settings" onClick=${openAccount}>${Icon.gear()}</button>`;
-  const bodyBits = [age != null && `${age}`, p.heightCm && `${p.heightCm} cm`, kg && `${kg.toFixed(1)} kg`].filter(Boolean);
 
   return html`<${Page} title="Profile" titleRight=${gear} onRefresh=${refreshProfile}>
     <${ProfileHeader} key=${headerKey} s=${s} />
@@ -94,7 +92,7 @@ export function Profile({ s }) {
     <${Group} header="Health">
       ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
       <${Row} icon="⚖️" iconBg="#FF375F" title="Body" chevron onClick=${openBody}
-        detail=${html`<span class="body-detail">${bodyBits.length ? bodyBits.join(' · ') : 'Add'}${b && html` <span class="pill sm ${band.tone}">BMI ${b.toFixed(1)}</span>`}</span>`} />
+        detail=${html`<span class="body-detail">${kg ? `${kg.toFixed(1)} kg` : 'Add weight'}${b && html`<span class="pill sm ${band.tone}">BMI ${b.toFixed(1)}</span>`}</span>`} />
     <//>
 
     <${Group} header="Friends">
