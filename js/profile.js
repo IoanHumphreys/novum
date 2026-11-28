@@ -282,11 +282,11 @@ function Person({ username, close, onChange }) {
         ${(p.status || bud) && html`<div class="pp-tags"><${StatusTag} status=${p.status} now=${now} />${bud && html`<${TogetherTag} s=${me} buddy=${bud} now=${now} long />`}</div>`}
         ${!r.blockedByMe && html`<div class="pp-actions">${p.canFollow !== false && followBtn}${buddyBtn}</div>`}
       </div>
+      ${!r.blockedByMe && !p.private && p.bio && html`<p class="pp-bio">${p.bio}</p>`}
       ${!r.blockedByMe && p.garden && html`<${BuddyGarden} g=${p.garden} person=${p} />`}
       ${r.blockedByMe ? html`<p class="muted center">You’ve blocked ${p.firstName}. Tap ••• to unblock.</p>`
       : p.private ? html`<div class="card pad pp-private">🔒 <b>${p.firstName}’s profile is private.</b><br />Follow to send a request, or become buddies to see their streaks and story.</div>`
       : html`
-        ${p.bio && html`<p class="pp-bio">${p.bio}</p>`}
         ${p.streaks?.quits?.length > 0 && html`<${Group} header="Streaks">
           ${p.streaks.quits.map((x) => {
             const d = x.startMs > now ? null : Math.floor((now - x.startMs) / DAY);
