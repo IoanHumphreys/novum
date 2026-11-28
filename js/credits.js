@@ -27,6 +27,7 @@ const CODE = [
   { n: 'htm', a: 'Google Inc.', l: 'Apache 2.0', u: 'https://github.com/developit/htm' },
   { n: 'qrcode-generator', a: 'Kazuhiko Arase', l: 'MIT', u: 'https://github.com/kazuhikoarase/qrcode-generator' },
   { n: 'Lucide and Feather icons', a: 'Lucide contributors and Cole Bemis', l: 'ISC and MIT', u: 'https://lucide.dev' },
+  { n: 'Fluent Emoji (badge artwork)', a: 'Microsoft Corporation', l: 'MIT', u: 'https://github.com/microsoft/fluentui-emoji' },
 ];
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' };
@@ -41,7 +42,7 @@ function Credits({ close }) {
           <span class="row-main"><span class="row-title">“${x.n}” by ${x.a}</span><span class="row-sub">${x.l}</span></span>
         </a>`)}
       <//>
-      <${Group} header="Code and icons">
+      <${Group} header="Code, icons and badges">
         ${CODE.map((x) => html`<a class="row tap credit" key=${x.n} href=${x.u} ...${ext}>
           <span class="row-main"><span class="row-title">${x.n}</span><span class="row-sub">${x.a} · ${x.l}</span></span>
         </a>`)}

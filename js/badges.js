@@ -89,8 +89,11 @@ export function checkNewBadges(now = Date.now()) {
 
 const when = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// Microsoft Fluent Emoji 3D artwork (MIT licence), in icons/badges/<id>.webp
 export function Medal({ b, size = 52, locked }) {
-  return html`<span class="medal ${locked ? 'locked' : ''}" style=${`--c:${b.c};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.46)}px`} aria-hidden="true">${b.e}</span>`;
+  return html`<span class="medal ${locked ? 'locked' : ''}" style=${`--c:${b.c};width:${size}px;height:${size}px`} aria-hidden="true">
+    <img src=${`icons/badges/${b.id}.webp`} alt="" width=${Math.round(size * 0.74)} height=${Math.round(size * 0.74)} decoding="async" draggable="false" />
+  </span>`;
 }
 
 // A row of earned badges. Your own profile can tap through to all of them; others' is read-only.
