@@ -1727,3 +1727,4 @@ input:autofill { background: transparent; }
 .sos-pulse { margin: 0 4px 12px; text-align: center; font-size: 13.5px; line-height: 1.45; color: var(--text-2); }
 .sos-pulse b { color: var(--text); }
 .gc-foot .btn { flex: none; white-space: nowrap; }
+.gc-vis { display: block; font-size: 12px; font-weight: 500; color: var(--text-3); margin-top: 1px; }

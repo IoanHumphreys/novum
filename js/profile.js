@@ -10,7 +10,7 @@ import { refreshBuddies, useBuddies, openBuddies as openBuddiesSheet } from './s
 import { MyStatus, StatusTag, TogetherTag, openShareProfile } from './connect.js';
 import { BadgeShelf } from './badges.js';
 import { openCredits } from './credits.js';
-import { BuddyGarden } from './garden.js';
+import { BuddyGarden, gardenOf } from './garden.js';
 import { Banner, openBannerPicker } from './banner.js';
 
 const DAY = 864e5;
@@ -78,11 +78,16 @@ export function startProfileSync() {
     const body = JSON.stringify(myProfile(S.getState()));
     if (body === lastProf) return;
     try { await A.putProfile(JSON.parse(body)); lastProf = body; } catch { /* next change retries */ }
+    // The garden on your profile (unless you've hidden it)
+    const s = S.getState();
+    const g = JSON.stringify(s.social?.showGarden === false ? null : gardenOf(s));
+    if (g !== lastGarden) { try { await A.putGarden(JSON.parse(g)); lastGarden = g; } catch { /* next change retries */ } }
   };
   unsubProf = S.subscribe(() => { clearTimeout(profTimer); profTimer = setTimeout(run, 1500); });
   profTimer = setTimeout(run, 2500);
 }
-export function stopProfileSync() { if (unsubProf) unsubProf(); unsubProf = null; clearTimeout(profTimer); lastProf = null; }
+let lastGarden = null;
+export function stopProfileSync() { if (unsubProf) unsubProf(); unsubProf = null; clearTimeout(profTimer); lastProf = null; lastGarden = null; }
 
 /* ---------- my profile header (Profile tab) ---------- */
 export function ProfileHeader({ s }) {
@@ -277,6 +282,7 @@ function Person({ username, close, onChange }) {
         ${(p.status || bud) && html`<div class="pp-tags"><${StatusTag} status=${p.status} now=${now} />${bud && html`<${TogetherTag} s=${me} buddy=${bud} now=${now} long />`}</div>`}
         ${!r.blockedByMe && html`<div class="pp-actions">${p.canFollow !== false && followBtn}${buddyBtn}</div>`}
       </div>
+      ${!r.blockedByMe && p.garden && html`<${BuddyGarden} g=${p.garden} person=${p} />`}
       ${r.blockedByMe ? html`<p class="muted center">You’ve blocked ${p.firstName}. Tap ••• to unblock.</p>`
       : p.private ? html`<div class="card pad pp-private">🔒 <b>${p.firstName}’s profile is private.</b><br />Follow to send a request, or become buddies to see their streaks and story.</div>`
       : html`
@@ -291,7 +297,6 @@ function Person({ username, close, onChange }) {
             </div>`;
           })}
         <//>`}
-        ${p.streaks?.garden && html`<${BuddyGarden} g=${p.streaks.garden} person=${p} />`}
         ${p.streaks?.badges?.length > 0 && html`<section class="group"><${BadgeShelf} earned=${p.streaks.badges} name=${p.firstName} /></section>`}
         ${p.stories?.length > 0 && html`<${Group} header="Their story">
           ${p.stories.map((x) => html`<div class="story" key=${x.label}><b>${x.emoji} ${x.label}</b><p>${x.text}</p></div>`)}

@@ -5,7 +5,7 @@
 import { useState } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { html, haptic, openSheet, SheetBar, toast } from './ui.js';
+import { html, haptic, openSheet, SheetBar, toast, Toggle } from './ui.js';
 import { MILESTONES } from './content.js';
 
 const DAY = 864e5;
@@ -97,9 +97,10 @@ const legend = (g) => [
 export function MyGarden({ s, waterers = [] }) {
   const g = gardenOf(s);
   const user = A.getSession()?.user || {};
+  const shown = s.social?.showGarden !== false;
   return html`<button class="card garden-card tap" onClick=${() => openGarden(g, user.username, waterers)}>
     <${Garden} g=${g} seed=${user.username} watered=${waterers.length > 0} height=${150} />
-    <div class="gc-foot"><b>Your garden</b><span>${waterers.length ? `💧 Watered by ${waterers.slice(0, 2).join(' and ')}${waterers.length > 2 ? ` and ${waterers.length - 2} more` : ''}` : `${g.flowers} flower${g.flowers === 1 ? '' : 's'} · ${g.trees.length} tree${g.trees.length === 1 ? '' : 's'}`}</span></div>
+    <div class="gc-foot"><b>Your garden <small class="gc-vis">${shown ? '🌍 On your profile' : '🔒 Hidden'}</small></b><span>${waterers.length ? `💧 Watered by ${waterers.slice(0, 2).join(' and ')}${waterers.length > 2 ? ` and ${waterers.length - 2} more` : ''}` : `${g.flowers} flower${g.flowers === 1 ? '' : 's'} · ${g.trees.length} tree${g.trees.length === 1 ? '' : 's'}`}</span></div>
   </button>`;
 }
 function openGarden(g, seed, waterers) {
@@ -109,11 +110,23 @@ function openGarden(g, seed, waterers) {
     <div class="sheet-body">
       <div class="card garden-big"><${Garden} g=${g} seed=${seed} watered=${waterers.length > 0} height=${240} /></div>
       <ul class="garden-legend">${legend(g).map((x) => html`<li key=${x}>${x}</li>`)}</ul>
-      <p class="muted center tiny">It grows every day you stay quit. A slip doesn’t take anything away. Buddies can visit it on your profile and water it 💧</p>
+      <${ShowToggle} />
+      <p class="muted center tiny">It grows every day you stay quit. A slip doesn’t take anything away. Buddies can water it from your profile 💧</p>
     </div>`, { tall: true });
 }
 
-/* ---------- a buddy's garden (their profile) ---------- */
+// Show or hide the garden on your profile (it's on by default, for anyone who opens your profile)
+function ShowToggle() {
+  const [on, setOn] = useState(S.getState().social?.showGarden !== false);
+  const set = (v) => { setOn(v); S.update((d) => { d.social = { ...d.social, showGarden: v }; }); toast(v ? 'Your garden is on your profile 🌍' : 'Garden hidden from your profile'); };
+  return html`<div class="card list"><div class="row">
+    <span class="row-ic" style="background:#30D158">🌍</span>
+    <span class="row-main"><span class="row-title">Show on my profile</span><span class="row-sub">Anyone who opens your profile can see it, even if it’s private: flowers for cravings beaten, trees for milestones.</span></span>
+    <${Toggle} on=${on} label="Show my garden on my profile" onChange=${set} />
+  </div></div>`;
+}
+
+/* ---------- someone's garden (their profile) ---------- */
 export function BuddyGarden({ g, person }) {
   const [sent, setSent] = useState(false);
   if (!g) return null;

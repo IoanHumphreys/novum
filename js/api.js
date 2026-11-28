@@ -188,6 +188,8 @@ export const activityRead = () => call('POST', '/activity/read', {});
 export const activityMark = (id, unread = false) => call('POST', '/activity/read', unread ? { id, unread: true } : { id });
 // Clear one notification ({ id }) or all of them (no id)
 // Today's status for buddies: 'strong' | 'okay' | 'tough' | 'distract', or null to clear
+// The garden on my profile (null hides it)
+export const putGarden = (garden) => call('PUT', '/me/garden', { garden });
 export const setStatus = (kind) => call('PUT', '/me/status', { kind });
 // One notification ({ id }), or all of them up to a moment in time (before = newest one you saw)
 export const activityClear = (id, before) => call('POST', '/activity/clear', id ? { id } : before ? { before } : {});
