@@ -103,7 +103,7 @@ export function Sos({ close }) {
         <//>
         ${!beaten && html`<${Group} header="Counter" footer="Only restart if you actually used. Thinking about it, or a close call, doesn’t count.">
           ${s.quits.filter((q) => quitIds.includes(q.id)).map((q) => html`<div class="row" key=${q.id}>
-            <span class="row-ic" style="background:${q.color}">${q.emoji}</span>
+            <span class="row-ic tint-ic" style="--c:${q.color}">${q.emoji}</span>
             <span class="row-main"><span class="row-title">Restart ${q.label.toLowerCase()} counter</span><span class="row-sub">Best run is kept on record</span></span>
             <${Toggle} on=${restart.includes(q.id)} label=${`Restart ${q.label}`} onChange=${() => toggleIn(restart, setRestart, q.id)} />
           </div>`)}

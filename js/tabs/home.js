@@ -9,7 +9,7 @@ import { BuddiesSection, refreshBuddies } from '../social.js';
 import { ActivityBell, refreshActivity } from '../activity.js';
 import { Avatar } from '../profile.js';
 import { syncNow } from '../sync.js';
-import { DAY, pad2, NEW_YEAR, fmtLeft, RING_LABEL, ringLeft, milestoneInfo, firstName, stageInfo, typeText, toggleTick } from '../shared.js';
+import { DAY, pad2, NEW_YEAR, fmtLeft, RING_LABEL, ringLeft, milestoneInfo, firstName, stageInfo, areaIcon, typeText, toggleTick } from '../shared.js';
 import { openNewYear } from './goals.js';
 import { openAddQuit, openQuitEditor, openTimeline, openSlip } from '../quits.js';
 import { openSos, openReasons } from '../sos.js';
@@ -143,7 +143,7 @@ export function Home({ s, go }) {
           const h = S.quitElapsed(q, now) / 36e5;
           const st = stageInfo(q, h);
           return html`<button class="row tap body-row" onClick=${() => openTimeline(q.id)}>
-            <span class="row-ic" style="background:${q.color}">${q.emoji}</span>
+            <span class="row-ic tint-ic" style="--c:${q.color}" title=${st.current ? st.current.area : "Getting started"}>${st.current ? areaIcon(st.current.area) : "🌱"}</span>
             <span class="row-main">
               <span class="row-title">${st.current ? st.current.title : 'Just getting started'}</span>
               <span class="row-sub">${st.current ? st.current.text : 'Your first changes start within hours.'}</span>

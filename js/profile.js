@@ -104,6 +104,7 @@ export function ProfileHeader({ s }) {
       <button class="ph-av" aria-label="Change avatar" onClick=${() => openAvatarPicker(s.social.avatar, (a) => S.update((d) => { d.social.avatar = a; }))}>
         <${Avatar} a=${s.social.avatar} name=${user.firstName} size=${76} />
         <span class="ph-av-edit">${Icon.plus()}</span>
+        ${user.isAdmin && html`<span class="owner-badge sm">👑 Owner</span>`}
       </button>
       <div class="ph-main">
         <div class="pc-name">${user.firstName} ${user.lastName}</div>
@@ -172,7 +173,7 @@ function EditProfile({ close }) {
       <//>
       ${s.quits.length > 0 && html`<${Group} header="My story" footer="Your story is private until you switch on “Show on profile”. Share only what you’re comfortable with.">
         ${s.quits.map((q) => html`<div class="story-ed" key=${q.id}>
-          <div class="story-h"><span class="row-ic" style="background:${q.color}">${q.emoji}</span><b>${q.label}</b>
+          <div class="story-h"><span class="row-ic tint-ic" style="--c:${q.color}">${q.emoji}</span><b>${q.label}</b>
             <span class="story-sw"><span>Show on profile</span><${Toggle} on=${stories[q.id]?.shared} label=${`Show ${q.label} story on profile`} onChange=${(v) => setStory(q.id, { shared: v })} /></span></div>
           <textarea class="note" rows="3" maxlength="1000" placeholder=${`How did ${q.label.toLowerCase()} start for you, and why are you stopping?`}
             value=${stories[q.id]?.text || ''} onInput=${(e) => setStory(q.id, { text: e.target.value })}></textarea>
@@ -275,7 +276,10 @@ function Person({ username, close, onChange }) {
     <div class="sheet-body person">
       <${Banner} b=${p.banner} className="pp-banner" />
       <div class="pp-top">
-        <${Avatar} a=${p.avatar} name=${p.firstName} size=${96} className="pp-av" />
+        <div class="pp-av-wrap">
+          <${Avatar} a=${p.avatar} name=${p.firstName} size=${96} className="pp-av" />
+          ${p.owner && html`<span class="owner-badge" title="Novum’s owner">👑 Owner</span>`}
+        </div>
         <h2 class="auth-title center">${p.firstName}</h2>
         <div class="row-sub center">@${p.username} · ${p.public ? '🌍 Public' : '🔒 Private'}${r.followsMe === 'accepted' ? ' · Follows you' : ''}</div>
         <div class="ph-counts center"><span><b>${p.counts.followers}</b> followers</span><span><b>${p.counts.following}</b> following</span></div>
@@ -291,7 +295,7 @@ function Person({ username, close, onChange }) {
           ${p.streaks.quits.map((x) => {
             const d = x.startMs > now ? null : Math.floor((now - x.startMs) / DAY);
             return html`<div class="row" key=${x.label}>
-              <span class="row-ic" style="background:${x.color}">${x.emoji}</span>
+              <span class="row-ic tint-ic" style="--c:${x.color}">${x.emoji}</span>
               <span class="row-main"><span class="row-title">${d == null ? 'Quit day coming up' : `${d} day${d === 1 ? '' : 's'} ${x.label.toLowerCase()}-free`}</span>
                 ${x.bestMs > 0 && html`<span class="row-sub">Best run ${Math.floor(Math.max(x.bestMs, now - x.startMs) / DAY)} days</span>`}</span>
             </div>`;

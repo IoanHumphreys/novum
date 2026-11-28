@@ -64,7 +64,7 @@ export function FutureYou({ s }) {
       ${show.length > 0 && html`<div class="fy-list">
         <div class="fy-lh">What your body will have done</div>
         ${show.map(({ q, x }) => html`<div class="fy-row" key=${q.id + x.h}>
-          <span class="fy-ic" style="background:${q.color}">${q.emoji}</span>
+          <span class="fy-ic tint-ic" style="--c:${q.color}">${q.emoji}</span>
           <span class="fy-main"><b>${x.title}</b><span>${x.text}</span></span>
         </div>`)}
         ${p.unlocks.length > show.length && html`<div class="fy-more">and ${p.unlocks.length - show.length} more changes before that</div>`}

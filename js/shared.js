@@ -31,6 +31,14 @@ export function milestoneInfo(days) {
 
 export const firstName = () => A.getSession()?.user?.firstName || '';
 
+// The body part each health stage is about, for the "Right now in your body" rows
+export const AREA_ICON = {
+  Appetite: '🍽️', Blood: '🩸', Body: '💪', Brain: '🧠', Breathing: '🌬️', Circulation: '🩸', Dreams: '💭', Energy: '⚡',
+  Fitness: '🏃', Head: '🧠', Heart: '❤️', Liver: '🩺', 'Long term': '🌱', Lungs: '🫁', Mind: '🧘', Mood: '😊',
+  Safety: '🛡️', Senses: '👃', 'Sleep & mood': '😴', Sleep: '😴', Stomach: '🍽️',
+};
+export const areaIcon = (area) => AREA_ICON[area] || '✨';
+
 export function stageInfo(q, hours) {
   const list = healthFor(q) || [];
   const reached = list.filter((x) => x.h <= hours);
