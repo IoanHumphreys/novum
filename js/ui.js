@@ -262,6 +262,16 @@ export function Field({ label, children, hint }) {
 }
 
 /* ---------- line chart (plain SVG) ---------- */
+// Names at the end of each line, nudged apart so two lines ending at the same value (both at 0, say)
+// don't print on top of each other. Kept between top and bottom, 13px apart.
+function endLabels(series, lastIdx, x, y, top, bottom, gap = 13) {
+  const ls = series.map((s) => { const i = lastIdx(s.values); return i < 0 ? null : { name: s.name, color: s.color, x: x(i), y: y(s.values[i]) + 4 }; })
+    .filter(Boolean).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ls.length; i++) ls[i].y = Math.max(ls[i].y, ls[i - 1].y + gap);
+  for (let i = ls.length - 1; i >= 0; i--) ls[i].y = Math.min(ls[i].y, i === ls.length - 1 ? bottom : ls[i + 1].y - gap);
+  ls.forEach((l) => { l.y = Math.max(top, l.y); });
+  return ls;
+}
 // series: [{ name, color, values: (number|null)[] }], keys: dayKey[] aligned with values
 export function LineChart({ series, keys, yMin = 0, yMax = 10, yTicks = [0, 5, 10], yFmt = (v) => v, height = 180, unit = '' }) {
   const ref = useRef();
@@ -298,7 +308,7 @@ export function LineChart({ series, keys, yMin = 0, yMax = 10, yTicks = [0, 5, 1
         const isolated = v != null && s.values[i - 1] == null && s.values[i + 1] == null;
         return isolated ? html`<circle cx=${x(i)} cy=${y(v)} r="4" fill=${s.color} stroke="var(--card)" stroke-width="2" />` : null;
       }))}
-      ${multi && series.map((s) => { const i = lastIdx(s.values); return i < 0 ? null : html`<text x=${x(i) + 6} y=${y(s.values[i]) + 4} class="dlabel">${s.name}</text>`; })}
+      ${multi && endLabels(series, lastIdx, x, y, P.t + 4, P.t + ih + 4).map((l) => html`<text x=${l.x + 6} y=${l.y} class="dlabel">${l.name}</text>`)}
       ${hover != null && html`<g>
         <line x1=${x(hover)} x2=${x(hover)} y1=${P.t} y2=${P.t + ih} class="cross" />
         ${series.map((s) => s.values[hover] != null && html`<circle cx=${x(hover)} cy=${y(s.values[hover])} r="5" fill=${s.color} stroke="var(--card)" stroke-width="2" />`)}
