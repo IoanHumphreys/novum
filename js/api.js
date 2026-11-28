@@ -184,10 +184,13 @@ export const report = (username, reason, note) => call('POST', '/report', { user
 /* ---------- activity, SOS, milestones, error reports ---------- */
 export const activity = () => call('GET', '/activity');
 export const activityRead = () => call('POST', '/activity/read', {});
+// One notification: read, or unread again as a reminder
+export const activityMark = (id, unread = false) => call('POST', '/activity/read', unread ? { id, unread: true } : { id });
 // Clear one notification ({ id }) or all of them (no id)
 // Today's status for buddies: 'strong' | 'okay' | 'tough' | 'distract', or null to clear
 export const setStatus = (kind) => call('PUT', '/me/status', { kind });
-export const activityClear = (id) => call('POST', '/activity/clear', id ? { id } : {});
+// One notification ({ id }), or all of them up to a moment in time (before = newest one you saw)
+export const activityClear = (id, before) => call('POST', '/activity/clear', id ? { id } : before ? { before } : {});
 export const sos = () => call('POST', '/sos', {});
 export const shareMilestone = (m) => call('POST', '/milestone', m);
 // Fire-and-forget: tells the admin page something broke in the app

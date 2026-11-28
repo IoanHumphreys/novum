@@ -1617,3 +1617,46 @@ input:autofill { background: transparent; }
 /* credits & licences */
 .credits a.row { color: inherit; text-decoration: none; }
 .credits .group-f a { color: var(--accent); }
+.toast.has-action { display: flex; align-items: center; gap: 14px; padding: 8px 8px 8px 20px; }
+.toast-btn { padding: 6px 14px; border-radius: 999px; background: rgba(59, 155, 255, 0.25); color: #8cc4ff; font-weight: 700; font-size: 14.5px; }
+.toast-btn:active { transform: scale(0.94); }
+
+/* ---------- Activity v2: swipe right for read/unread, grouped rows, milestone celebrations ---------- */
+.act-mark { position: absolute; inset: 0 auto 0 0; width: 140px; padding-left: 18px; display: flex; align-items: center; visibility: hidden;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 14.5px; transition: background 0.2s; }
+.act-swipe.right .act-mark { visibility: visible; }
+.act-mark.go { background: #2f7de0; }
+.act-swipe.right .act-clear { visibility: hidden; }
+/* several cheers / followers as one row */
+.act-stack { width: 100%; text-align: left; align-items: center; }
+.stack-avs { display: flex; flex: none; width: 66px; }
+.stack-av { border-radius: 50%; box-shadow: 0 0 0 2.5px var(--card); display: block; }
+.stack-av + .stack-av { margin-left: -18px; }
+.act-stack .act-main { display: flex; flex-direction: column; }
+.stack-list { background: rgba(255, 255, 255, 0.02); border-top: 0.5px solid var(--sep); }
+.stack-list .act-item { padding-left: 28px; }
+.stack-list .act-swipe + .act-swipe { border-top: 0.5px solid var(--sep); }
+/* a buddy's milestone: big and celebratory */
+.act-ms-card { position: relative; overflow: hidden; padding: 14px 16px 16px; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(255, 214, 10, 0.22), rgba(255, 159, 10, 0.06) 55%, transparent 80%), var(--card); }
+.act-ms-card.money { background: radial-gradient(120% 90% at 50% 0%, rgba(48, 209, 88, 0.22), rgba(48, 209, 88, 0.05) 55%, transparent 80%), var(--card); }
+.ms-top { display: flex; align-items: center; gap: 10px; text-align: left; position: relative; z-index: 1; }
+.ms-who { flex: 1; min-width: 0; font-size: 13.5px; color: var(--text-2); }
+.ms-who b { color: var(--text); }
+.act-dot.static { position: static; flex: none; }
+.ms-big { margin-top: 12px; font-size: 32px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; position: relative; z-index: 1;
+  background: linear-gradient(180deg, #fff, #ffe9a6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.act-ms-card.money .ms-big { background-image: linear-gradient(180deg, #fff, #b8f5c8); }
+.ms-sub { margin-top: 2px; font-size: 15px; color: var(--text-2); position: relative; z-index: 1; }
+.ms-cheers { margin-top: 14px; position: relative; z-index: 1; text-align: left; }
+.act-ms-card .act-done { position: relative; z-index: 1; }
+.ms-confetti { position: absolute; inset: 0; pointer-events: none; }
+.ms-confetti i { position: absolute; width: 7px; height: 12px; border-radius: 2px; opacity: 0.8; animation: msFall 2.4s ease-out both; }
+.ms-confetti i:nth-child(1) { left: 12%; top: 18px; background: #ffd60a; transform: rotate(20deg); }
+.ms-confetti i:nth-child(2) { left: 26%; top: 54px; background: #ff375f; transform: rotate(-30deg); animation-delay: 0.1s; }
+.ms-confetti i:nth-child(3) { left: 74%; top: 22px; background: #5ac8fa; transform: rotate(40deg); animation-delay: 0.2s; }
+.ms-confetti i:nth-child(4) { left: 86%; top: 60px; background: #30d158; transform: rotate(-15deg); animation-delay: 0.05s; }
+.ms-confetti i:nth-child(5) { left: 64%; top: 70px; background: #bf5af2; transform: rotate(60deg); animation-delay: 0.15s; width: 6px; height: 6px; border-radius: 50%; }
+.ms-confetti i:nth-child(6) { left: 36%; top: 16px; background: #ff9f0a; transform: rotate(-50deg); animation-delay: 0.25s; width: 6px; height: 6px; border-radius: 50%; }
+@keyframes msFall { from { opacity: 0; translate: 0 -16px; } }
+@media (prefers-reduced-motion: reduce) { .ms-confetti i { animation: none; } }

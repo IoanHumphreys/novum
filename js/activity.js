@@ -21,6 +21,8 @@ function writeCache(d) {
 const fresh = () => { const c = readCache(); return c ? { items: c.items, unread: c.unread, loaded: true, cachedAt: c.at } : { items: [], unread: 0, loaded: false }; };
 
 let data = fresh();
+// Notifications cleared in the last few seconds (Undo still possible): hidden even if the feed refreshes
+const pendingClear = new Set();
 let loadedAt = 0;
 let pending = null;
 const subs = new Set();
@@ -30,7 +32,11 @@ export function refreshActivity() {
   if (pending) return pending;
   data = { ...data, refreshing: true }; emit();
   pending = (async () => {
-    try { data = { ...(await A.activity()), loaded: true, error: '' }; loadedAt = Date.now(); writeCache(data); }
+    try {
+      const got = await A.activity();
+      const items = got.items.filter((x) => !pendingClear.has(x.id));
+      data = { ...got, items, unread: items.filter((x) => !x.read).length, loaded: true, error: '' }; loadedAt = Date.now(); writeCache(data);
+    }
     catch (e) { data = { ...data, loaded: true, error: e.offline ? 'You’re offline.' : 'Couldn’t load your activity right now.' }; }
     data = { ...data, refreshing: false };
     pending = null;
@@ -139,6 +145,13 @@ function words(x) {
     default: return html`${n}`;
   }
 }
+// "Amy", "Amy and Bob", "Amy, Bob and 2 others"
+function names(items) {
+  const seen = [...new Map(items.map((x) => [x.who.username, x.who.firstName])).values()];
+  if (seen.length === 1) return html`<b>${seen[0]}</b>`;
+  if (seen.length === 2) return html`<b>${seen[0]}</b> and <b>${seen[1]}</b>`;
+  return html`<b>${seen[0]}</b>, <b>${seen[1]}</b> and ${seen.length - 2} other${seen.length === 3 ? '' : 's'}`;
+}
 
 // Today / Yesterday / This week / Earlier
 function bucketOf(t, now) {
@@ -149,37 +162,83 @@ function bucketOf(t, now) {
   if (t >= start - 6 * 864e5) return 'This week';
   return 'Earlier';
 }
+// Within each day group, several cheers (or new followers) become one row, placed where the newest one was
+const GROUPABLE = { cheer: 1, follow: 1 };
+function buildGroups(items, now) {
+  const out = [];
+  for (const x of items) {
+    const b = bucketOf(x.at, now);
+    if (!out.length || out[out.length - 1].b !== b) out.push({ b, rows: [] });
+    out[out.length - 1].rows.push(x);
+  }
+  for (const g of out) {
+    const rows = [];
+    const byKind = {};
+    for (const x of g.rows) {
+      if (GROUPABLE[x.kind] && g.rows.filter((y) => y.kind === x.kind).length >= 2) {
+        if (!byKind[x.kind]) { byKind[x.kind] = { group: true, kind: x.kind, id: `g:${g.b}:${x.kind}`, items: [], at: x.at }; rows.push(byKind[x.kind]); }
+        byKind[x.kind].items.push(x);
+      } else rows.push(x);
+    }
+    g.rows = rows;
+  }
+  return out;
+}
 
-/* ---------- clearing ---------- */
+/* ---------- clearing (with Undo) and read / unread ---------- */
 const recount = (items) => items.filter((x) => !x.read).length;
 function setItems(items) { data = { ...data, items, unread: recount(items) }; writeCache(data); emit(); }
-async function clearOne(x) {
-  const before = data.items;
-  setItems(before.filter((i) => i.id !== x.id));
-  try { await A.activityClear(x.id); } catch (e) {
-    setItems(before);
-    toast(e.offline ? 'You’re offline. Try again when you’re back.' : 'Couldn’t clear that. Try again.');
-  }
+// Cleared items wait a few seconds before the server forgets them, so Undo can bring them back.
+// While waiting they're hidden even if the feed refreshes.
+const UNDO_MS = 4500;
+function clearItems(ids, msg) {
+  const gone = data.items.filter((i) => ids.includes(i.id));
+  if (!gone.length) return;
+  ids.forEach((id) => pendingClear.add(id));
+  setItems(data.items.filter((i) => !ids.includes(i.id)));
+  let undone = false;
+  // Clearing everything: one request, and only for what was there when you tapped (not anything newer)
+  const all = !data.items.length && ids.length > 1;
+  const before = Math.max(...gone.map((i) => i.at));
+  toast(msg, {
+    ms: UNDO_MS,
+    action: { label: 'Undo', onClick: () => { undone = true; ids.forEach((id) => pendingClear.delete(id)); setItems([...data.items, ...gone].sort((a, b) => b.at - a.at)); } },
+  });
+  setTimeout(async () => {
+    if (undone) return;
+    try { await (all ? A.activityClear(null, before) : Promise.all(ids.map((id) => A.activityClear(id)))); } catch (e) {
+      ids.forEach((id) => pendingClear.delete(id));
+      setItems([...data.items, ...gone].sort((a, b) => b.at - a.at));
+      toast(e.offline ? 'You’re offline, so nothing was cleared.' : 'Couldn’t clear that. Try again.');
+      return;
+    }
+    ids.forEach((id) => pendingClear.delete(id));
+  }, UNDO_MS + 200);
 }
 function clearAll() {
   confirmSheet({
     title: 'Clear all notifications?',
     text: 'This empties Activity on all your devices. Buddy and follow requests still wait for you in Buddies and Profile.',
     confirm: 'Clear all',
-    onConfirm: async () => {
-      const before = data.items;
-      setItems([]);
-      try { await A.activityClear(); haptic(15); toast('All cleared'); } catch (e) {
-        setItems(before);
-        toast(e.offline ? 'You’re offline. Try again when you’re back.' : 'Couldn’t clear right now. Try again.');
-      }
-    },
+    onConfirm: () => { haptic(15); clearItems(data.items.map((i) => i.id), 'All cleared'); },
   });
 }
+// Swipe right: read ↔ unread. Unread again puts it back on the app icon's count as a reminder.
+async function toggleRead(ids) {
+  const items = data.items.filter((i) => ids.includes(i.id));
+  if (!items.length) return;
+  const unread = items.every((i) => i.read);
+  haptic(10);
+  setItems(data.items.map((i) => (ids.includes(i.id) ? { ...i, read: !unread } : i)));
+  try { await Promise.all(ids.map((id) => A.activityMark(id, unread))); } catch (e) {
+    setItems(data.items.map((i) => (ids.includes(i.id) ? { ...i, read: unread } : i)));
+    toast(e.offline ? 'You’re offline. Try again when you’re back.' : 'Couldn’t update that. Try again.');
+  }
+}
 
-// Swipe a notification left to show Clear (a long swipe clears it straight away); tap it to close again.
+// Swipe left to clear (a long swipe clears straight away), swipe right to mark read or unread.
 const OPEN = 88;
-function Swipe({ onClear, children }) {
+function Swipe({ onClear, onToggle, unread, children }) {
   const [x, setX] = useState(0);
   const [drag, setDrag] = useState(false);
   const [gone, setGone] = useState(false);
@@ -187,21 +246,24 @@ function Swipe({ onClear, children }) {
   const pos = useRef(0);
   const set = (v) => { pos.current = v; setX(v); };
   const clear = () => { haptic(12); setGone(true); setTimeout(onClear, 260); };
+  const toggle = () => { set(0); onToggle(); };
   const start = (e) => { const t = e.touches[0]; st.current = { x: t.clientX, y: t.clientY, base: pos.current, dir: null }; };
   const move = (e) => {
     const s = st.current; if (!s) return;
     const t = e.touches[0]; const dx = t.clientX - s.x, dy = t.clientY - s.y;
     if (!s.dir) { if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { s.dir = 'h'; setDrag(true); } else if (Math.abs(dy) > 8) s.dir = 'v'; }
-    if (s.dir === 'h') set(Math.max(-220, Math.min(0, s.base + dx)));
+    if (s.dir === 'h') set(Math.max(-220, Math.min(140, s.base + dx)));
   };
   const end = () => {
     const s = st.current; st.current = null; setDrag(false);
     if (!s || s.dir !== 'h') return;
-    if (pos.current < -160) clear();
+    if (pos.current > 70) toggle();
+    else if (pos.current < -160) clear();
     else set(pos.current < -OPEN / 2 ? -OPEN : 0);
   };
-  return html`<div class="act-swipe ${gone ? 'gone' : ''} ${x || drag ? 'open' : ''}">
-    <button class="act-clear" tabindex=${x ? 0 : -1} aria-hidden=${x ? 'false' : 'true'} onClick=${clear}>Clear</button>
+  return html`<div class="act-swipe ${gone ? 'gone' : ''} ${x < 0 || drag ? 'open' : ''} ${x > 0 ? 'right' : ''}">
+    <span class="act-mark ${x > 70 ? 'go' : ''}" aria-hidden="true">${unread ? '✓ Read' : '● Unread'}</span>
+    <button class="act-clear" tabindex=${x < 0 ? 0 : -1} aria-hidden=${x < 0 ? 'false' : 'true'} onClick=${clear}>Clear</button>
     <div class="act-slide ${drag ? 'drag' : ''}" style=${`transform:translateX(${gone ? -420 : x}px)`}
       onTouchStart=${start} onTouchMove=${move} onTouchEnd=${end} onTouchCancel=${end}
       onClickCapture=${(e) => { if (pos.current) { e.stopPropagation(); e.preventDefault(); set(0); } }}>
@@ -218,7 +280,9 @@ function Activity({ close }) {
   const now = useNow(60000);
   const [done, setDone] = useState({});
   const [filter, setFilter] = useState('all');
+  const [open, setOpen] = useState({});
   useEffect(() => { sheetOpen = true; return () => { sheetOpen = false; }; }, []);
+  // Opening Activity clears the count on the app icon; the blue "new" dots stay until you swipe or leave
   useEffect(() => {
     refreshActivity().then((x) => { if (x.unread) A.activityRead().then(() => { data = { ...data, unread: 0 }; emit(); }).catch(() => {}); });
   }, []);
@@ -230,15 +294,11 @@ function Activity({ close }) {
     }
   };
   const shown = d.items.filter((x) => filter === 'all' || KIND[x.kind]?.f === filter);
-  const groups = [];
-  for (const x of shown) {
-    const b = bucketOf(x.at, now);
-    if (!groups.length || groups[groups.length - 1].b !== b) groups.push({ b, items: [] });
-    groups[groups.length - 1].items.push(x);
-  }
+  const groups = buildGroups(shown, now);
+
   const actions = (x) => {
     if (done[x.id]) return html`<div class="act-done">✓ ${done[x.id]}</div>`;
-    if ((x.kind === 'sos' || x.kind === 'milestone') && x.who.buddy) {
+    if (x.kind === 'sos' && x.who.buddy) {
       return html`<${CheerBar} who=${x.who} small class="act-cheers"
         onSent=${(c, queued) => setDone((o) => ({ ...o, [x.id]: queued ? 'Will send when you’re back online' : `Sent ${c.e} ${c.l.toLowerCase()}` }))} />`;
     }
@@ -251,6 +311,57 @@ function Activity({ close }) {
       <button class="btn btn-plain sm" onClick=${() => act(x, () => A.followRespond(x.who.username, false), 'Declined')}>Decline</button></div>`;
     return null;
   };
+
+  // A normal notification
+  const item = (x) => html`<div class="act-item ${x.read ? '' : 'new'} ${x.kind === 'sos' ? 'act-sos' : ''}">
+    <button class="act-av" aria-label=${`Open ${x.who.firstName}’s profile`} onClick=${() => openPerson(x.who.username)}>
+      <${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${44} />
+      <i class="act-kind" style=${`background:${KIND[x.kind]?.c || '#3B9BFF'}`} aria-hidden="true">${badgeOf(x)}</i>
+    </button>
+    <div class="act-main">
+      <div class="act-t">${words(x)}</div>
+      <div class="act-when">${ago(x.at, now)}</div>
+      ${actions(x)}
+    </div>
+    ${!x.read && html`<i class="act-dot" aria-label="New"></i>`}
+  </div>`;
+
+  // A buddy's milestone: a celebration card
+  const milestone = (x) => {
+    const money = x.data?.emoji === '💷';
+    return html`<div class="act-ms-card ${money ? 'money' : ''} ${x.read ? '' : 'new'}">
+      <span class="ms-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      <div class="ms-top">
+        <button class="act-av" aria-label=${`Open ${x.who.firstName}’s profile`} onClick=${() => openPerson(x.who.username)}><${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${36} /></button>
+        <span class="ms-who"><b>${x.who.firstName}</b> hit a milestone · ${ago(x.at, now)}</span>
+        ${!x.read && html`<i class="act-dot static" aria-label="New"></i>`}
+      </div>
+      <div class="ms-big">${money ? '💷' : '🎉'} ${x.data.label}</div>
+      <div class="ms-sub">${x.data.quit}</div>
+      ${done[x.id] ? html`<div class="act-done">✓ ${done[x.id]}</div>`
+      : x.who.buddy && html`<${CheerBar} who=${x.who} small class="ms-cheers"
+          onSent=${(c, queued) => setDone((o) => ({ ...o, [x.id]: queued ? 'Will send when you’re back online' : `Sent ${c.e} ${c.l.toLowerCase()}` }))} />`}
+    </div>`;
+  };
+
+  // Several cheers or new followers: one row with stacked avatars; tap to see each one
+  const group = (g) => {
+    const isOpen = open[g.id];
+    const unread = g.items.some((x) => !x.read);
+    const kinds = [...new Set(g.items.map((x) => (g.kind === 'cheer' ? cheerOf(x).e : '👤')))].slice(0, 3).join('');
+    return html`<div class="act-group-row">
+      <button class="act-item act-stack ${unread ? 'new' : ''}" aria-expanded=${!!isOpen} onClick=${() => { haptic(); setOpen((o) => ({ ...o, [g.id]: !o[g.id] })); }}>
+        <span class="stack-avs" aria-hidden="true">${[...new Map(g.items.map((x) => [x.who.username, x])).values()].slice(0, 3).map((x, i) => html`<span class="stack-av" key=${x.id} style=${`z-index:${3 - i}`}><${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${34} /></span>`)}</span>
+        <span class="act-main">
+          <span class="act-t">${names(g.items)} ${g.kind === 'cheer' ? html`sent you ${g.items.length} cheers ${kinds}` : html`started following you`}</span>
+          <span class="act-when">${ago(g.items[0].at, now)} · ${isOpen ? 'Hide' : 'Show all'}</span>
+        </span>
+        ${unread && html`<i class="act-dot" aria-label="New"></i>`}
+      </button>
+      ${isOpen && html`<div class="stack-list">${g.items.map((x) => html`<${Swipe} key=${x.id} unread=${!x.read} onClear=${() => clearItems([x.id], 'Cleared')} onToggle=${() => toggleRead([x.id])}>${item(x)}<//>`)}</div>`}
+    </div>`;
+  };
+
   return html`
     <${SheetBar} title="Activity"
       left=${d.items.length > 0 ? html`<button class="link act-clear-all" onClick=${clearAll}>Clear all</button>` : null}
@@ -268,22 +379,11 @@ function Activity({ close }) {
       : groups.map((g) => html`<section class="act-group" key=${g.b}>
           <h3 class="act-gh">${g.b}</h3>
           <div class="act-card">
-            ${g.items.map((x) => html`<${Swipe} key=${x.id} onClear=${() => clearOne(x)}>
-              <div class="act-item ${x.read ? '' : 'new'} ${x.kind === 'milestone' ? 'act-ms' : ''} ${x.kind === 'sos' ? 'act-sos' : ''}">
-                <button class="act-av" aria-label=${`Open ${x.who.firstName}’s profile`} onClick=${() => openPerson(x.who.username)}>
-                  <${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${44} />
-                  <i class="act-kind" style=${`background:${KIND[x.kind]?.c || '#3B9BFF'}`} aria-hidden="true">${badgeOf(x)}</i>
-                </button>
-                <div class="act-main">
-                  <div class="act-t">${words(x)}</div>
-                  <div class="act-when">${ago(x.at, now)}</div>
-                  ${actions(x)}
-                </div>
-                ${!x.read && html`<i class="act-dot" aria-label="New"></i>`}
-              </div>
-            <//>`)}
+            ${g.rows.map((r) => r.group
+              ? html`<${Swipe} key=${r.id} unread=${r.items.some((x) => !x.read)} onClear=${() => clearItems(r.items.map((x) => x.id), `Cleared ${r.items.length}`)} onToggle=${() => toggleRead(r.items.map((x) => x.id))}>${group(r)}<//>`
+              : html`<${Swipe} key=${r.id} unread=${!r.read} onClear=${() => clearItems([r.id], 'Cleared')} onToggle=${() => toggleRead([r.id])}>${r.kind === 'milestone' ? milestone(r) : item(r)}<//>`)}
           </div>
         </section>`)}
-      ${d.items.length > 0 && html`<p class="muted center tiny act-foot">Swipe left on a notification to clear it. Kept for 60 days.</p>`}
+      ${d.items.length > 0 && html`<p class="muted center tiny act-foot">Swipe left to clear, right to mark as read or unread. Kept for 60 days.</p>`}
     </div>`;
 }

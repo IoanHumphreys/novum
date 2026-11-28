@@ -314,12 +314,22 @@ export function Legend({ series }) {
 export function Empty({ emoji, title, text, action }) {
   return html`<div class="empty"><div class="empty-e">${emoji}</div><div class="empty-t">${title}</div><div class="empty-x">${text}</div>${action}</div>`;
 }
-export function toast(msg) {
+// toast('Saved'), or with a button: toast('Cleared', { action: { label: 'Undo', onClick }, ms: 4500 })
+export function toast(msg, { action, ms } = {}) {
   const el = document.createElement('div');
-  el.className = 'toast'; el.textContent = msg;
+  el.className = 'toast' + (action ? ' has-action' : '');
+  el.setAttribute('role', 'status');
+  const t = document.createElement('span'); t.textContent = msg; el.appendChild(t);
+  const hide = () => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); };
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'toast-btn'; b.textContent = action.label;
+    b.onclick = () => { haptic(10); action.onClick(); clearTimeout(timer); hide(); };
+    el.appendChild(b);
+  }
   document.body.appendChild(el);
   requestAnimationFrame(() => el.classList.add('show'));
-  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 400); }, 2200);
+  const timer = setTimeout(hide, ms || (action ? 4500 : 2200));
 }
 
 /* ---------- loading placeholders ---------- */
