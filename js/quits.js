@@ -2,7 +2,7 @@
 import { useState } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import { html, haptic, Icon, openSheet, SheetBar, Segmented, Group, Field, toast } from './ui.js';
-import { HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, TRIGGERS, minutesFor } from './content.js';
+import { HEALTH_NOTE, healthFor, ADDICTIONS, addictionByKind, TRIGGERS, minutesFor, MINUTES_RANGE } from './content.js';
 import { openShareSheet, cardFor } from './celebrate.js';
 import { DAY, fmtLeft, confirmSheet } from './shared.js';
 import { Progress } from './tabs/progress.js';
@@ -82,7 +82,7 @@ export function QuitEditor({ id, close }) {
       <${Group} header="What it cost you" footer=${`About ${S.money((m * 12) / 52)} a week, or ${S.money(m * 12, 0)} a year. If it varied, use a middle figure.`}>
         <${Field} label="Per month (£)"><input type="number" inputmode="decimal" step="1" value=${monthly} onInput=${(e) => setMonthly(e.target.value)} /><//>
       <//>
-      <${Group} header="Time it took" footer="Minutes a day, roughly: buying, using, recovering. Used for “time reclaimed” on Home.">
+      <${Group} header="Time it took" footer=${`Minutes a day, roughly: buying, using, recovering.${MINUTES_RANGE[q.kind] ? ` Usually ${MINUTES_RANGE[q.kind]} minutes for ${q.kind === 'weed' ? 'cannabis' : 'nicotine'}.` : ''} Used for “time reclaimed” on Home.`}>
         <${Field} label="Per day (min)"><input type="number" inputmode="numeric" min="0" max="1440" value=${minutes} onInput=${(e) => setMinutes(e.target.value)} /><//>
       <//>
       <div class="stats3">

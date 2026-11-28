@@ -263,6 +263,10 @@ export const PLAN_IDEAS = {
 };
 export const EVENT_EMOJIS = ['🎉', '🍻', '🎓', '📚', '✈️', '🎵', '⚽', '💼', '🏠', '😬'];
 
-// Roughly how many minutes a day each habit took (a starting guess for "time reclaimed"; editable per quit)
-export const MINUTES_PER_DAY = { vape: 30, weed: 60, cigarettes: 50, alcohol: 120, gambling: 60, snus: 20, energy: 5, other: 20 };
+// Roughly how many minutes a day each habit took (a starting guess for "time reclaimed"; editable per quit).
+// Nicotine usually takes 10–30 minutes a day and cannabis 10–45, so the defaults sit in the middle of those.
+export const MINUTES_PER_DAY = { vape: 20, weed: 30, cigarettes: 20, alcohol: 120, gambling: 60, snus: 20, energy: 5, other: 20 };
+export const MINUTES_RANGE = { vape: '10–30', cigarettes: '10–30', snus: '10–30', weed: '10–45' };
+// The first defaults (v39), so people who only ever saw those get the new ones
+export const OLD_MINUTES = { vape: 30, weed: 60, cigarettes: 50 };
 export const minutesFor = (q) => (Number.isFinite(q.minutes) ? q.minutes : MINUTES_PER_DAY[q.kind] ?? 20);

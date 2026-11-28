@@ -1,6 +1,7 @@
 // Novum: per-user data store, date helpers and derived calculations.
 // The server holds each account's data (encrypted); this keeps a cached copy per user
 // on the device so the app opens instantly and works offline. See sync.js.
+import { OLD_MINUTES } from './content.js';
 
 const LEGACY_KEY = 'novum.v1'; // pre-accounts data on this device
 let KEY = null;                // 'novum.v1:<userId>' while someone is logged in
@@ -71,7 +72,12 @@ const emit = (info = {}) => subs.forEach((f) => f(state, info));
 
 export function migrate(s) {
   const d = defaultState();
-  const quits = (s.quits || []).map((q) => ({ best: 0, resets: [], monthly: 0, ...q, kind: q.kind || q.id }));
+  // Time-per-day defaults changed (nicotine 20, cannabis 30): drop a saved value that's just the old default
+  const quits = (s.quits || []).map((q) => {
+    const x = { best: 0, resets: [], monthly: 0, ...q, kind: q.kind || q.id };
+    if (!s.minutesV2 && x.minutes === OLD_MINUTES[x.kind]) delete x.minutes;
+    return x;
+  });
   // Money goals used to fill from the quit counters; now you log what you save yourself
   const goals = (s.goals || []).map((g) => {
     if (g.auto !== 'money') return g;
@@ -81,6 +87,7 @@ export function migrate(s) {
   return {
     ...d, ...s,
     version: 2,
+    minutesV2: true,
     // Accounts from before the tour existed have already found their way around
     tourDone: s.tourDone ?? !!s.setupDone,
     profile: { ...d.profile, ...(s.profile || {}) },

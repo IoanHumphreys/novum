@@ -117,5 +117,6 @@ function TimeSheet({ close }) {
       <p class="muted center sheet-intro">Roughly how many minutes a day did each one take? Buying, using, being away, recovering. A middle guess is fine.</p>
       <div class="card list">${s.quits.map((q) => html`<label class="field" key=${q.id}><span class="field-l">${q.emoji} ${q.label}</span>
         <span class="field-c"><input type="number" inputmode="numeric" min="0" max="1440" value=${vals[q.id]} onInput=${(e) => setVals({ ...vals, [q.id]: e.target.value })} /> min</span></label>`)}</div>
+      <p class="muted center tiny mt12">As a guide: nicotine usually takes 10–30 minutes a day, cannabis 10–45.</p>
     </div>`;
 }
