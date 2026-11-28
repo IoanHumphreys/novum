@@ -55,6 +55,19 @@ function Admin({ close }) {
           </div>`)}
         <//>`}
 
+        ${d.versions?.length > 0 && html`<${Group} header="App errors by version (7 days)" footer="Newest release first. If a new version suddenly has lots of errors from several people, something in that update broke.">
+          ${d.versions.map((v, i) => {
+            const bad = i === 0 && (v.people >= 3 || v.startup >= 2);
+            return html`<div class="row" key=${v.version}>
+              <span class="row-ic" style=${`background:${bad ? '#FF453A' : v.n ? '#FF9F0A' : '#30D158'}`}>${bad ? '🔥' : '🏷️'}</span>
+              <span class="row-main"><span class="row-title">${v.version.replace('novum-', '')} · ${v.n} error${v.n === 1 ? '' : 's'} from ${v.people || 'no'} ${v.people === 1 ? 'person' : 'people'}${v.startup ? ` · ${v.startup} startup` : ''}</span>
+                <span class="row-sub">${v.top ? `Most common: ${v.top}` : ''}${v.top ? ' · ' : ''}last ${ago(v.last)}</span></span>
+            </div>`;
+          })}
+        <//>`}
+
+        <${Backups} list=${d.backups || []} />
+
         ${d.errors?.length > 0 && html`<${Group} header="Errors (last 14 days)" footer="“App” errors happened on someone’s phone; “server” errors on Novum’s server. Send me the message if one keeps happening.">
           ${d.errors.map((e, i) => html`<div class="row" key=${i}>
             <span class="row-ic" style="background:${e.side === 'server' ? '#FF453A' : '#FF9F0A'}">⚠️</span>
@@ -109,6 +122,46 @@ function Health({ h }) {
       </div>`)}
     <//>`}
   </section>`;
+}
+
+/* ---------- backups: made every Monday at 3am, kept for 5 weeks ---------- */
+const size = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+function Backups({ list: initial }) {
+  const [list, setList] = useState(initial);
+  const [busy, setBusy] = useState('');
+  const now = async () => {
+    setBusy('new');
+    try { const r = await A.adminBackupNow(); setList([r.backup, ...list]); haptic(15); toast('Backup made'); } catch (e) { toast(e.message); }
+    setBusy('');
+  };
+  const download = async (b) => {
+    setBusy(b.id);
+    try {
+      const r = await A.adminBackup(b.id);
+      const bytes = Uint8Array.from(atob(r.data), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/gzip' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = `novum-backup-${b.id}.json.gz`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('Backup saved');
+    } catch (e) { toast(e.message); }
+    setBusy('');
+  };
+  const last = list[0];
+  const stale = !last || Date.now() - last.at > 8 * 864e5;
+  return html`<${Group} header="Backups" footer="Every table in the database, made each Monday at 3am and kept for 5 weeks. App data inside is still encrypted. To restore one, save it and follow “Restoring a backup” in the server’s README.">
+    ${list.length ? list.map((b) => html`<div class="row" key=${b.id}>
+      <span class="row-ic" style="background:#30D158">💾</span>
+      <span class="row-main"><span class="row-title">${when(b.at)}</span><span class="row-sub">${size(b.bytes)} · ${b.rows} rows · ${ago(b.at)}</span></span>
+      <button class="link sm" disabled=${!!busy} onClick=${() => download(b)}>${busy === b.id ? 'Saving…' : 'Save'}</button>
+    </div>`) : html`<div class="row"><span class="row-main"><span class="row-sub">No backups yet. The first one is made next Monday, or tap below.</span></span></div>`}
+    <div class="row">
+      <span class="row-ic" style=${`background:${stale ? '#FF9F0A' : '#8E8E93'}`}>${stale ? '⚠️' : '➕'}</span>
+      <span class="row-main"><span class="row-title">${stale && list.length ? 'Last backup is over a week old' : 'Back up now'}</span></span>
+      <button class="link sm b" disabled=${!!busy} onClick=${now}>${busy === 'new' ? 'Backing up…' : 'Back up'}</button>
+    </div>
+  <//>`;
 }
 
 // Admin needs a code from your email first, so a stolen password alone can't open it

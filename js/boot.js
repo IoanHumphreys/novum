@@ -13,16 +13,23 @@ if (window.top !== window.self) {
 // Same server as js/config.js; at most 3 reports per page load.
 (() => {
   let sent = 0;
+  // The release this phone has (newest "novum-vNN" offline copy), so the admin page can group errors by version
+  const version = () => (window.caches ? caches.keys().then((ks) => ks.filter((k) => /^novum-v\d+$/.test(k)).sort((a, b) => b.slice(7) - a.slice(7))[0] || 'none') : Promise.resolve('none')).catch(() => 'none');
+  const send = (place, message, detail) => version().then((v) => fetch('https://novum-push.ioanrhyshumph.workers.dev/errors', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+    body: JSON.stringify({ place, version: v, message: String(message || 'Unknown').slice(0, 300), detail: `${String(detail || '').slice(0, 900)}\n${location.href}` }),
+  })).catch(() => {});
   const report = (message, detail) => {
     if (window.__novumBooted || sent >= 3) return;
     sent++;
-    try {
-      fetch('https://novum-push.ioanrhyshumph.workers.dev/errors', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
-        body: JSON.stringify({ place: 'startup', message: String(message || 'Unknown').slice(0, 300), detail: `${String(detail || '').slice(0, 900)}\n${location.href}` }),
-      }).catch(() => {});
-    } catch { /* never let reporting break anything */ }
+    try { send('startup', message, detail); } catch { /* never let reporting break anything */ }
   };
+  // Anything the security policy blocks (at most 3 per page load), so a too-strict rule is noticed quickly
+  let csp = 0;
+  addEventListener('securitypolicyviolation', (e) => {
+    if (csp++ >= 3) return;
+    try { send('csp', `Blocked ${e.effectiveDirective || e.violatedDirective}: ${String(e.blockedURI || 'inline').slice(0, 120)}`, `${e.sourceFile || ''}:${e.lineNumber || 0} ${String(e.sample || '').slice(0, 80)}`); } catch { /* ignore */ }
+  });
   addEventListener('error', (e) => {
     // e.message for script errors; for a file that failed to load, e.target is the <script> or <link>
     if (e.target && e.target !== window && (e.target.src || e.target.href)) report('Failed to load ' + (e.target.src || e.target.href), '');

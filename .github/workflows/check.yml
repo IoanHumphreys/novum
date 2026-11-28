@@ -1,0 +1,21 @@
+# Checks every push: the app builds without errors (a typo in any file fails the build), and the built files
+# in dist/ match the code (i.e. `npm run build` was run before committing). A red ✗ on GitHub means
+# don't trust that version: Cloudflare Pages still publishes main, so fix it straight away.
+name: Check
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check

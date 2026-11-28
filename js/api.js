@@ -168,6 +168,8 @@ export const adminResetPassword = (userId) => call('POST', '/admin/reset-passwor
 // Admin is unlocked with a code emailed to the admin (stays open on this device for 30 minutes)
 export const adminUnlockCode = () => call('POST', '/admin/unlock-code', {});
 export const adminUnlock = (code) => call('POST', '/admin/unlock', { code });
+export const adminBackupNow = () => call('POST', '/admin/backup', {});
+export const adminBackup = (id) => call('GET', `/admin/backup/${encodeURIComponent(id)}`);
 
 export const authConfig = () => call('GET', '/auth/config');
 
@@ -201,13 +203,24 @@ export const sos = () => call('POST', '/sos', {});
 export const sosPulse = (kind) => call('POST', '/sos/pulse', { kind });
 export const shareMilestone = (m) => call('POST', '/milestone', m);
 // Fire-and-forget: tells the admin page something broke in the app
+// with the app release it came from, so the admin page can show errors per version
 export function reportError(place, message, detail) {
-  try {
+  appVersion().then((version) => {
     fetch(serverURL() + '/errors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(getSession()?.token ? { Authorization: `Bearer ${getSession().token}` } : {}) },
-      body: JSON.stringify({ place, message, detail }),
+      body: JSON.stringify({ place, message, detail, version }),
       keepalive: true,
     }).catch(() => {});
-  } catch { /* never throw from the error reporter */ }
+  }).catch(() => {});
+}
+// The release this phone is running: the newest "novum-vNN" offline copy (sw.js VERSION)
+let verP = null;
+export function appVersion() {
+  return (verP ||= (async () => {
+    try {
+      const v = (await caches.keys()).map((k) => /^novum-v(\d+)$/.exec(k)).filter(Boolean).sort((a, b) => b[1] - a[1])[0];
+      return v ? v[0] : 'unknown';
+    } catch { return 'unknown'; }
+  })());
 }

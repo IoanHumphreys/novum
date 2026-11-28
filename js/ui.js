@@ -358,3 +358,9 @@ export function lazy(importer, name, fallback = null) {
   Lazy.load = load;
   return Lazy;
 }
+
+// The same for screens opened by a function: lazyOpen(() => import('./admin.js'), 'openAdmin') gives a function
+// that loads admin.js the first time it's called, then opens it. Rarely used screens stay out of the start-up.
+export function lazyOpen(importer, name) {
+  return (...args) => importer().then((m) => m[name](...args)).catch(() => toast('Couldn’t open this. Check your connection and try again.'));
+}

@@ -1,6 +1,6 @@
 import { render, useState, useEffect, useLayoutEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
-import { html, haptic, Icon, SheetHost, lazy, toast } from './ui.js';
+import { html, haptic, Icon, SheetHost, lazy, lazyOpen, toast } from './ui.js';
 import { startPushSync, stopPushSync, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync } from './sync.js';
@@ -18,6 +18,8 @@ import { openActivity, resetActivity, reloadActivityCache, useActivity, Activity
 import { openSos } from './sos.js';
 import { openPlans } from './plans.js';
 import { openLetters } from './letters.js';
+// The Sunday recap notification opens "Your week" (#recap); its code loads only then
+const openRecap = lazyOpen(() => import('./recap.js'), 'openRecap');
 import { WrappedHost } from './wrapped-card.js';
 import { Tour } from './tour.js';
 import { checkNewBadges } from './badges.js';
@@ -81,6 +83,7 @@ function App({ s }) {
     if (initial === 'sos') { history.replaceState(null, '', '#home'); setTimeout(openSos, 400); }
     if (initial === 'plan') { history.replaceState(null, '', '#home'); setTimeout(openPlans, 400); }
     if (initial === 'letters') { history.replaceState(null, '', '#home'); setTimeout(openLetters, 400); }
+    if (initial === 'recap') { history.replaceState(null, '', '#home'); setTimeout(openRecap, 400); }
   }, []);
   const scrolls = useRef({});
   const go = (t, { quiet } = {}) => {
@@ -108,6 +111,7 @@ function App({ s }) {
       if (h === 'sos') { setTab('home'); history.replaceState(null, '', '#home'); openSos(); return; }
       if (h === 'plan') { setTab('home'); history.replaceState(null, '', '#home'); openPlans(); return; }
       if (h === 'letters') { setTab('home'); history.replaceState(null, '', '#home'); openLetters(); return; }
+      if (h === 'recap') { setTab('home'); history.replaceState(null, '', '#home'); openRecap(); return; }
       if (TABS.some((t) => t.id === h)) setTab(h);
     };
     window.addEventListener('hashchange', on);

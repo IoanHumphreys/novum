@@ -4,7 +4,9 @@
 import { PUSH } from './config.js';
 import { call, getSession } from './api.js';
 import * as S from './store.js';
+import { toast } from './ui.js';
 import { unlockAt } from './letters.js';
+import { healthFor } from './content.js';
 
 export const pushConfigured = () => !!(PUSH.server && PUSH.vapidPublicKey);
 export const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -36,6 +38,12 @@ const b64uToBytes = (s) => {
   const bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 };
+// Does a subscription's key (an ArrayBuffer, or null if the browser doesn't say) match ours? Unknown counts as yes.
+const sameKey = (buf, b64) => {
+  if (!buf) return true;
+  const a = new Uint8Array(buf), b = b64uToBytes(b64);
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+};
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
 
 // Your usual tough times (weekday + hour with 3+ cravings or slips in the last 60 days), for the heads-up nudge
@@ -55,7 +63,11 @@ export function settingsPayload(s) {
     tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     name: getSession()?.user?.firstName || '',
     prefs: s.notifyPrefs,
-    quits: s.quits.map((q) => ({ id: q.id, label: q.label, emoji: q.emoji, startMs: S.quitStart(q).getTime(), monthly: q.monthly })),
+    // stages: the health timeline as [hours, title], so the Sunday recap can say what your body did that week
+    quits: s.quits.map((q) => ({ id: q.id, label: q.label, emoji: q.emoji, startMs: S.quitStart(q).getTime(), monthly: q.monthly,
+      stages: (healthFor(q) || []).filter((x) => x.h > 0).slice(0, 12).map((x) => [x.h, x.title]) })),
+    // When you beat a craving in SOS in the last 2 weeks (times only), for the recap's "cravings beaten"
+    beat: s.cravings.filter((c) => c.beaten && c.t > Date.now() - 14 * 864e5).map((c) => c.t).slice(-60),
     lastCheckin: Object.keys(s.checkins).filter((k) => s.checkins[k].mood).sort().pop() || null,
     habits: s.goals.filter((g) => g.type === 'habit').map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, perWeek: g.perWeek || 7, remindAt: g.remindAt || '', ticks: (g.ticks || []).filter((k) => k >= since) })),
     peaks: cravingPeaks(s),
@@ -78,10 +90,20 @@ const within = (ms, p, message) => Promise.race([p, new Promise((_, no) => setTi
 async function register(deviceId) {
   const reg = await swReady();
   let sub = await reg.pushManager.getSubscription();
+  // A subscription made with an old server key (after the keys were changed) can't receive anything: swap it
+  let swapped = false;
+  if (sub && !sameKey(sub.options?.applicationServerKey, PUSH.vapidPublicKey)) {
+    try { await sub.unsubscribe(); } catch { /* replaced below either way */ }
+    sub = null; swapped = true;
+  }
   // The phone asks Google's or Apple's push service for an address. Usually instant, but it can hang
   // (no signal, or Android without Google Play services)
-  if (!sub) sub = await within(15000, reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(PUSH.vapidPublicKey) }),
-    'Your phone’s notification service didn’t answer. Check your connection, then tap the switch again.');
+  if (!sub) {
+    try {
+      sub = await within(15000, reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(PUSH.vapidPublicKey) }),
+        'Your phone’s notification service didn’t answer. Check your connection, then tap the switch again.');
+    } catch (e) { if (swapped) e.keySwap = true; throw e; }
+  }
   await within(15000, call('POST', '/subscribe', { id: deviceId, subscription: sub.toJSON(), settings: settingsPayload(S.getState()) }),
     'Novum’s server didn’t answer. Check your connection, then tap the switch again.');
   lastSent = JSON.stringify(settingsPayload(S.getState()));
@@ -119,7 +141,15 @@ export const sendTest = (delaySec = 0) => call('POST', '/test', { id: deviceStat
 export async function ensurePush() {
   const d = deviceState();
   if (!d.enabled || !pushConfigured() || !pushSupported() || permission() !== 'granted' || !navigator.onLine) return;
-  try { await register(d.deviceId || newId()); } catch (e) { console.warn('Novum: push re-register failed', e); }
+  try { await register(d.deviceId || newId()); } catch (e) {
+    console.warn('Novum: push re-register failed', e);
+    // The old subscription is gone (the server's keys changed) and the phone wouldn't make a new one without
+    // a tap: show notifications as off, and say so, so they can be switched back on with one tap
+    if (e?.keySwap) {
+      setDevice({ enabled: false, deviceId: d.deviceId });
+      toast('Notifications were updated. Turn them back on in Profile → Notifications.', { ms: 8000 });
+    }
+  }
 }
 
 // Keep the server's copy of reminder settings current

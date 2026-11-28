@@ -1,7 +1,8 @@
 // Progress tab: 2027 at a glance, tiles, charts and craving patterns.
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
-import { html, RingStack, Page, Segmented, LineChart, Legend } from '../ui.js';
+import { html, RingStack, Page, Segmented, LineChart, Legend, Icon, lazyOpen } from '../ui.js';
+const openRecap = lazyOpen(() => import('../recap.js'), 'openRecap');
 import { CATEGORIES, MOODS } from '../content.js';
 import { DAY, pad2, NEW_YEAR, SLEEP } from '../shared.js';
 import { Goals, openNewYear } from './goals.js';
@@ -67,6 +68,11 @@ export function Progress({ s, go }) {
 
   return html`<${Page} title="Progress">
     <${WrappedCard} />
+    ${s.quits.length > 0 && html`<button class="card rc-card tap" onClick=${openRecap}>
+      <span class="rc-card-ic">📅</span>
+      <span class="row-main"><span class="row-title">Your week</span><span class="row-sub">Check-ins, cravings beaten, money saved and what your body did</span></span>
+      <span class="row-chev">${Icon.chevron()}</span>
+    </button>`}
     <section class="group">
       <h2 class="group-h">2027 at a glance</h2>
       <div class="card glance">

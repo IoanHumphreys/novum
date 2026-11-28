@@ -2,11 +2,11 @@
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { html, haptic, Icon, Segmented, Toggle, toast, useNow, capName } from './ui.js';
+import { html, haptic, Icon, Segmented, Toggle, toast, useNow, capName, lazyOpen } from './ui.js';
 import { ADDICTIONS, addictionByKind, REASON_IDEAS, SLOGAN_WORDS } from './content.js';
 import { enablePush, pushSupported, isStandalone } from './push.js';
 import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, installEnv } from './install.js';
-import { openPrivacy } from './privacy.js';
+const openPrivacy = lazyOpen(() => import('./privacy.js'), 'openPrivacy');
 import { Avatar, openAvatarPicker } from './profile.js';
 import { Banner, openBannerPicker, PALETTES } from './banner.js';
 import { EyeButton, CodeInput, Resend, setNewSignup, JunkHint, suggestEmail } from './authkit.js';

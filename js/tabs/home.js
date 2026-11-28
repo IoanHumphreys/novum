@@ -16,6 +16,7 @@ import { openSos, openReasons } from '../sos.js';
 import { TipCard, FutureYou, TimeReclaimed } from '../future.js';
 import { LetterCard } from '../letters.js';
 import { EventsCard, openPlans } from '../plans.js';
+import { openShareSheet, cardFor } from '../celebrate.js';
 
 /* ============ HOME ============ */
 export function Home({ s, go }) {
@@ -34,6 +35,13 @@ export function Home({ s, go }) {
   const bDays = bq ? S.quitElapsed(bq, now) / DAY : 0;
   const toNY = Math.ceil((NEW_YEAR - now) / DAY);
   const withHealth = s.quits.filter((q) => healthFor(q));
+  // Share your streak: with several quits, the card counts the days you've been free of all of them
+  const started = s.quits.filter((q) => S.quitElapsed(q, now) > 0);
+  const shareStreak = () => {
+    haptic();
+    const days = Math.min(...started.map((q) => S.quitElapsed(q, Date.now()) / DAY));
+    openShareSheet(cardFor(started, days, started.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q, Date.now())), 0)));
+  };
 
   // Pull down to refresh: sync data, buddies and activity
   const refresh = () => Promise.all([Promise.resolve(syncNow()).catch(() => {}), refreshBuddies(), refreshActivity()]);
@@ -43,7 +51,9 @@ export function Home({ s, go }) {
     <${InstallBanner} />
 
     <section class="group first">
-      <h2 class="group-h">${hasQuits ? 'Your streaks' : 'Get started'}</h2>
+      ${started.length ? html`<div class="group-h-row"><h2 class="group-h">Your streaks</h2>
+        <button class="link sm b share-link" onClick=${shareStreak}>${Icon.share()} Share</button></div>`
+      : html`<h2 class="group-h">${hasQuits ? 'Your streaks' : 'Get started'}</h2>`}
       ${hasQuits ? html`<div class="stack">
         ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} />`)}
         ${s.quits.length < ADDICTIONS.length && html`<${AddQuitCard} />`}

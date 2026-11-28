@@ -2,14 +2,14 @@
 // addiction, and people: search, Discover, following, followers, blocking and reporting.
 // Profiles are private by default: only buddies and approved followers see them.
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
-import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast, Skeleton } from './ui.js';
+import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast, Skeleton, lazyOpen } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
 import { CheerBar } from './cheers.js';
 import { refreshBuddies, useBuddies, openBuddies as openBuddiesSheet } from './social.js';
 import { MyStatus, StatusTag, TogetherTag, openShareProfile } from './connect.js';
 import { BadgeShelf } from './badges.js';
-import { openCredits } from './credits.js';
+const openCredits = lazyOpen(() => import('./credits.js'), 'openCredits');
 import { BuddyGarden, gardenOf } from './garden.js';
 import { Banner, openBannerPicker, PALETTES, DEFAULT_BANNER } from './banner.js';
 

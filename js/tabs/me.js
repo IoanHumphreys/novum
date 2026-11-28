@@ -2,7 +2,7 @@
 // Body, notifications and your data each open in their own sheet so the page stays short.
 import { useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
-import { html, haptic, capName, useNow, Icon, openSheet, closeAllSheets, SheetBar, Page, Toggle, Group, Row, Field, toast, Skeleton } from '../ui.js';
+import { html, haptic, capName, useNow, Icon, openSheet, closeAllSheets, SheetBar, Page, Toggle, Group, Row, Field, toast, Skeleton, lazyOpen } from '../ui.js';
 import { healthFor, ADDICTIONS, SLOGAN } from '../content.js';
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, stopPushSync, deviceState } from '../push.js';
 import * as A from '../api.js';
@@ -11,13 +11,13 @@ import { CodeInput, Resend, EyeButton, JunkHint } from '../authkit.js';
 import { openInstallGuide, canInstall, installEnv } from '../install.js';
 import { openBuddies, refreshBuddies, useBuddies } from '../social.js';
 import { refreshActivity } from '../activity.js';
-import { openAdmin } from '../admin.js';
+const openAdmin = lazyOpen(() => import('../admin.js'), 'openAdmin');
 import { ProfileHeader, openPeople } from '../profile.js';
-import { openPrivacy } from '../privacy.js';
+const openPrivacy = lazyOpen(() => import('../privacy.js'), 'openPrivacy');
 import { replayTour } from '../tour.js';
 import { BadgeShelf, earnedBadges } from '../badges.js';
 import { openPlans } from '../plans.js';
-import { openCredits } from '../credits.js';
+const openCredits = lazyOpen(() => import('../credits.js'), 'openCredits');
 import { MyGarden } from '../garden.js';
 import { openLetters } from '../letters.js';
 import { useActivity } from '../activity.js';

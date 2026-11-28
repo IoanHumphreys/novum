@@ -1,7 +1,7 @@
 // Milestone celebrations: a full-screen moment with confetti when you pass 1 day, 1 week, 1 month…
 // plus a branded image card you can share to a Snapchat or Instagram story.
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
-import { html, haptic, openSheet, SheetBar, toast } from './ui.js';
+import { html, haptic, openSheet, SheetBar, toast, Segmented } from './ui.js';
 import * as S from './store.js';
 import { MILESTONES, MONEY_MILESTONES, SLOGAN } from './content.js';
 import * as A from './api.js';
@@ -142,13 +142,13 @@ export function cardFor(quits, days, saved) {
   };
 }
 
-const FONT = '-apple-system, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+export const FONT = '-apple-system, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 let iconImg = null;
 function loadIcon() {
   if (!iconImg) iconImg = new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = 'icons/icon-512.png'; });
   return iconImg;
 }
-function spaced(ctx, text, x, y, gap) {
+export function spaced(ctx, text, x, y, gap) {
   const chars = [...text];
   const w = chars.reduce((a, ch) => a + ctx.measureText(ch).width, 0) + gap * (chars.length - 1);
   let cx = x - w / 2;
@@ -156,13 +156,14 @@ function spaced(ctx, text, x, y, gap) {
   for (const ch of chars) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + gap; }
   ctx.textAlign = 'center';
 }
-function fitFont(ctx, text, weight, size, max) {
+export function fitFont(ctx, text, weight, size, max) {
   let s = size;
   do { ctx.font = `${weight} ${s}px ${FONT}`; s -= 4; } while (ctx.measureText(text).width > max && s > 24);
 }
 
 // 1080×1920, the size of a phone story: your banner, avatar and name on top, then the streak
-export async function drawCard(card) {
+export async function drawCard(card, format = 'story') {
+  if (format === 'square') return drawSquare(card);
   const W = 1080, H = 1920, BAND = 600;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
@@ -234,7 +235,7 @@ export async function drawCard(card) {
   return new Promise((ok) => cv.toBlob((b) => ok(b), 'image/png'));
 }
 // DiceBear can return a PNG with CORS headers, so it can be drawn onto the card
-function loadAvatar(a) {
+export function loadAvatar(a) {
   if (!a) return Promise.resolve(null);
   return new Promise((ok) => {
     const img = new Image();
@@ -245,13 +246,80 @@ function loadAvatar(a) {
     img.src = `https://api.dicebear.com/9.x/${a.style}/png?seed=${encodeURIComponent(a.seed)}${a.bg ? `&backgroundColor=${a.bg}` : ''}&size=256`;
   });
 }
-function roundRect(ctx, x, y, w, h, r) {
+export function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
 const hexRGB = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-const hexA = (h, a) => { try { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${a})`; } catch { return `rgba(59,155,255,${a})`; } };
-const lighten = (h) => { try { const [r, g, b] = hexRGB(h).map((v) => Math.round(v + (255 - v) * 0.45)); return `rgb(${r},${g},${b})`; } catch { return '#9fd0ff'; } };
+export const hexA = (h, a) => { try { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${a})`; } catch { return `rgba(59,155,255,${a})`; } };
+export const lighten = (h) => { try { const [r, g, b] = hexRGB(h).map((v) => Math.round(v + (255 - v) * 0.45)); return `rgb(${r},${g},${b})`; } catch { return '#9fd0ff'; } };
+
+// 1080×1080, like a home-screen widget: your banner fills the card, with a frosted panel holding the streak
+async function drawSquare(card) {
+  const W = 1080;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = W;
+  const ctx = cv.getContext('2d');
+  paintBanner(ctx, card.banner, 0, 0, W, W, W / 360);
+  const dim = ctx.createLinearGradient(0, 0, 0, W);
+  dim.addColorStop(0, 'rgba(4,6,11,0.15)'); dim.addColorStop(1, 'rgba(4,6,11,0.55)');
+  ctx.fillStyle = dim; ctx.fillRect(0, 0, W, W);
+  // the widget panel
+  const P = 70, R = 90;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 20;
+  roundRect(ctx, P, P, W - P * 2, W - P * 2, R);
+  ctx.fillStyle = 'rgba(10,14,24,0.72)'; ctx.fill();
+  ctx.restore();
+  roundRect(ctx, P, P, W - P * 2, W - P * 2, R);
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 3; ctx.stroke();
+  const glow = ctx.createRadialGradient(W - 300, 420, 20, W - 300, 420, 420);
+  glow.addColorStop(0, hexA(card.color, 0.32)); glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save(); roundRect(ctx, P, P, W - P * 2, W - P * 2, R); ctx.clip(); ctx.fillStyle = glow; ctx.fillRect(0, 0, W, W); ctx.restore();
+  // top row: avatar + name, wordmark
+  const L = P + 70, AY = P + 110, AR = 46;
+  const av = await loadAvatar(card.avatar);
+  ctx.save(); ctx.beginPath(); ctx.arc(L + AR, AY, AR, 0, Math.PI * 2); ctx.clip();
+  if (av) ctx.drawImage(av, L, AY - AR, AR * 2, AR * 2);
+  else { ctx.fillStyle = '#3b9bff'; ctx.fillRect(L, AY - AR, AR * 2, AR * 2); ctx.fillStyle = '#fff'; ctx.font = `900 48px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText((card.name || 'N')[0].toUpperCase(), L + AR, AY + 3); }
+  ctx.restore();
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#fff'; fitFont(ctx, card.name || 'Me', 800, 44, 420); ctx.fillText(card.name || 'Me', L + AR * 2 + 24, AY);
+  ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = `900 30px ${FONT}`;
+  spaced(ctx, 'NOVUM', W - P - 150, AY, 10);
+  ctx.textBaseline = 'alphabetic';
+  // big number on the left
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff';
+  fitFont(ctx, String(card.number), 900, 300, 470);
+  ctx.fillText(String(card.number), L - 8, 620);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = `800 40px ${FONT}`;
+  ctx.fillText(card.unit.split('').join(' '), L, 690);
+  // ring on the right, one per quit
+  const RX = W - P - 220, RY = 520;
+  (card.colors?.length ? card.colors : [card.color]).slice(0, 3).forEach((c, i) => {
+    const r = 140 - i * 34;
+    ctx.lineWidth = 24; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.beginPath(); ctx.arc(RX, RY, r, 0, Math.PI * 2); ctx.stroke();
+    const g = ctx.createLinearGradient(RX - r, RY - r, RX + r, RY + r);
+    g.addColorStop(0, c); g.addColorStop(1, lighten(c));
+    ctx.strokeStyle = g; ctx.beginPath(); ctx.arc(RX, RY, r, -Math.PI / 2, Math.PI * 1.5 - 0.0001); ctx.stroke();
+  });
+  ctx.textAlign = 'center'; ctx.font = `90px ${FONT}`; ctx.fillText('💙', RX, RY + 32);
+  // headline and saved
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff';
+  fitFont(ctx, card.headline, 800, 60, W - L * 2);
+  ctx.fillText(card.headline, L, 800);
+  if (card.saved >= 1) {
+    const t = `${S.money(card.saved, 0)} saved`;
+    ctx.font = `800 40px ${FONT}`;
+    const tw = ctx.measureText(t).width;
+    roundRect(ctx, L, 836, tw + 56, 72, 36); ctx.fillStyle = hexA(card.color, 0.28); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(t, L + 28, 886);
+  }
+  ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = `700 30px ${FONT}`;
+  ctx.fillText('novumdaily.com', W - L, 886);
+  return new Promise((ok) => cv.toBlob((b) => ok(b), 'image/png'));
+}
 
 /* ---------- share sheet: preview, then Share (or save) ---------- */
 // The image is made when the sheet opens, so tapping Share can open the share menu straight away
@@ -263,14 +331,18 @@ export function openShareSheet(card) {
 export function openImageShare(make, alt, title = 'Share') {
   openSheet((close) => html`<${ShareSheet} make=${make} alt=${alt} title=${title} close=${close} />`, { tall: true });
 }
+// A streak card can be a story (9:16) or a square widget-style post (1:1)
+const FORMATS = [{ value: 'story', label: 'Story' }, { value: 'square', label: 'Square' }];
 function ShareSheet({ card, make, alt, title = 'Share your streak', close }) {
   const [blob, setBlob] = useState(null);
   const [url, setUrl] = useState('');
+  const [format, setFormat] = useState('story');
   useEffect(() => {
-    let u = '';
-    (make ? make() : drawCard(card)).then((b) => { setBlob(b); u = URL.createObjectURL(b); setUrl(u); });
-    return () => { if (u) URL.revokeObjectURL(u); };
-  }, []);
+    let u = '', alive = true;
+    setUrl(''); setBlob(null);
+    (make ? make() : drawCard(card, format)).then((b) => { if (!alive) return; setBlob(b); u = URL.createObjectURL(b); setUrl(u); });
+    return () => { alive = false; if (u) URL.revokeObjectURL(u); };
+  }, [format]);
   const file = blob && new File([blob], 'novum-streak.png', { type: 'image/png' });
   const canShare = !!(file && navigator.canShare && navigator.canShare({ files: [file] }));
   const share = async () => {
@@ -286,8 +358,9 @@ function ShareSheet({ card, make, alt, title = 'Share your streak', close }) {
   return html`
     <${SheetBar} title=${title} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body share-sheet">
-      <div class="share-preview">${url ? html`<img src=${url} alt=${alt || `${card.number} ${card.unit.toLowerCase()} ${card.headline}`} />` : html`<div class="share-wait">Making your card…</div>`}</div>
-      <p class="muted center tiny">Sized for a Snapchat or Instagram story.</p>
+      ${card && !make && html`<div class="share-fmt"><${Segmented} small options=${FORMATS} value=${format} onChange=${(v) => { haptic(6); setFormat(v); }} /></div>`}
+      <div class="share-preview ${format === 'square' && !make ? 'sq' : ''}">${url ? html`<img src=${url} alt=${alt || `${card.number} ${card.unit.toLowerCase()} ${card.headline}`} />` : html`<div class="share-wait">Making your card…</div>`}</div>
+      <p class="muted center tiny">${format === 'square' && !make ? 'Square, for a post or a chat.' : 'Sized for a Snapchat or Instagram story.'}</p>
       ${canShare && html`<button class="btn btn-primary block big" onClick=${share}>Share</button>`}
       <button class="btn ${canShare ? 'btn-plain' : 'btn-primary'} block big" disabled=${!url} onClick=${save}>Save image</button>
     </div>`;
