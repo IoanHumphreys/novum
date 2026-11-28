@@ -27,7 +27,7 @@ function Privacy({ close }) {
       <h3>Who can see it</h3>
       <ul>
         <li><b>You.</b> Everything.</li>
-        <li><b>Your buddies and approved followers:</b> only your name, avatar, bio, streaks (if “Show my streaks” is on) and any stories you switched on. Never your check-ins, notes, money, weight or slips.</li>
+        <li><b>Your buddies and approved followers:</b> only your name, avatar, bio, streaks (if “Show my streaks” is on) and any stories you switched on. Buddies also hear about your milestones, and round money-saved amounts like £100 or £500, but only if you turn those on in Buddies. Never your check-ins, notes, exact spending, weight or slips.</li>
         <li><b>Everyone on Novum:</b> only if you set your profile to Public (over-18s only). Otherwise, just your first name and avatar.</li>
         <li><b>The person who runs Novum:</b> your tracking data is encrypted in the database, but the server holds the key so it can send reminders and recaps. So technically the admin could read it. They won’t, and the Admin page only shows names, usernames, emails, last-seen times and reports.</li>
       </ul>

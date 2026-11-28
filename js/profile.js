@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast, Skeleton } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { CHEER_KINDS } from './content.js';
+import { CheerBar } from './cheers.js';
 import { refreshBuddies } from './social.js';
 import { Banner, openBannerPicker } from './banner.js';
 
@@ -283,7 +283,7 @@ function Person({ username, close, onChange }) {
           ${p.stories.map((x) => html`<div class="story" key=${x.label}><b>${x.emoji} ${x.label}</b><p>${x.text}</p></div>`)}
         <//>`}
         ${r.buddy && html`<${Group} header="Send a cheer">
-          <div class="cheers pad-y">${CHEER_KINDS.map((c) => html`<button class="cheer" onClick=${() => act(() => A.cheer(p.username, c.kind), `Sent ${c.e} to ${p.firstName}`)}><span>${c.e}</span>${c.l}</button>`)}</div>
+          <div class="pad-y"><${CheerBar} who=${p} class="pp-cheers" /></div>
         <//>`}
         ${!p.bio && !p.streaks && !p.stories?.length && html`<p class="muted center">${p.firstName} hasn’t shared anything yet.</p>`}`}
     </div>`;

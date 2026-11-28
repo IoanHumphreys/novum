@@ -6,6 +6,7 @@ import * as S from './store.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
 import { Avatar, openPerson } from './profile.js';
+import { CheerBar, StreakChips } from './cheers.js';
 
 const DAY = 864e5;
 
@@ -58,16 +59,6 @@ export function stopShareSync() { if (unsubShare) unsubShare(); unsubShare = nul
 
 /* ---------- small pieces ---------- */
 const initial = (b) => (b.firstName || b.username || '?')[0].toUpperCase();
-function streakLine(b, now) {
-  if (!b.card) return 'Not sharing streaks';
-  const q = b.card.quits || [];
-  if (!q.length) return b.card.checkinStreak ? `✍️ ${b.card.checkinStreak}-day check-in streak` : 'Nothing tracked yet';
-  return q.map((x) => {
-    if (x.startMs > now) return `${x.emoji} quit day soon`;
-    const d = Math.floor((now - x.startMs) / DAY);
-    return `${x.emoji} ${d} day${d === 1 ? '' : 's'}`;
-  }).join(' · ');
-}
 async function sendCheer(b, kind) {
   haptic(12);
   const c = CHEER_KINDS.find((x) => x.kind === kind) || CHEER_KINDS[0];
@@ -102,7 +93,7 @@ export function BuddiesSection() {
         ${d.buddies.slice(0, 4).map((b) => html`<div class="row buddy-row" key=${b.username}>
           <button class="buddy-who" onClick=${() => openPerson(b.username)}>
             <${Avatar} a=${b.avatar} name=${b.firstName} size=${40} />
-            <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">${streakLine(b, now)}</span></span>
+            <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub"><${StreakChips} card=${b.card} now=${now} /></span></span>
           </button>
           <button class="cheer-btn" aria-label=${`Send ${b.firstName} a cheer`} onClick=${() => sendCheer(b, 'keepgoing')}>💪</button>
         </div>`)}
@@ -121,6 +112,8 @@ function Buddies({ close }) {
   const [err, setErr] = useState('');
   const [sharing, setSharing] = useState(s.shareStreaks);
   const [shareMs, setShareMs] = useState(!!s.social?.shareMilestones);
+  const [shareMoney, setShareMoneyS] = useState(!!s.social?.shareMoney);
+  const setMoney = (v) => { setShareMoneyS(v); S.update((x) => { x.social = { ...x.social, shareMoney: v }; }); toast(v ? 'Buddies will hear when you hit £50, £100, £250…' : 'Money milestones stay private'); };
   const setMs = (v) => { setShareMs(v); S.update((x) => { x.social = { ...x.social, shareMilestones: v }; }); toast(v ? 'Buddies will hear about your milestones' : 'Milestones stay private'); };
   const add = async () => {
     const u = name.trim().replace(/^@/, '');
@@ -143,7 +136,7 @@ function Buddies({ close }) {
   return html`
     <${SheetBar} title="Buddies" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
-      <${Group} footer="Buddies (and anyone who can see your profile) see each quit’s name, emoji and how long it’s been. Never your check-ins, notes, money or weight.">
+      <${Group} footer="Buddies (and anyone who can see your profile) see each quit’s name, emoji and how long it’s been. Never your check-ins, notes or weight, and money only if you switch that on.">
         <div class="row">
           <span class="row-ic" style="background:#3B9BFF">👀</span>
           <span class="row-main"><span class="row-title">Share my streaks with buddies</span></span>
@@ -151,8 +144,13 @@ function Buddies({ close }) {
         </div>
         <div class="row">
           <span class="row-ic" style="background:#FFD60A">🎉</span>
-          <span class="row-main"><span class="row-title">Tell buddies about my milestones</span><span class="row-sub">“Ioan hit 1 month vaping-free” with a button to cheer</span></span>
+          <span class="row-main"><span class="row-title">Tell buddies about my milestones</span><span class="row-sub">1 week, 1 month, 100 days… with a button to cheer</span></span>
           <${Toggle} on=${shareMs} label="Tell buddies about milestones" onChange=${setMs} />
+        </div>
+        <div class="row">
+          <span class="row-ic" style="background:#30D158">💷</span>
+          <span class="row-main"><span class="row-title">Tell buddies about money saved</span><span class="row-sub">Only the round numbers: £50, £100, £250, £500…</span></span>
+          <${Toggle} on=${shareMoney} label="Tell buddies about money saved" onChange=${setMoney} />
         </div>
       <//>
 
@@ -175,15 +173,18 @@ function Buddies({ close }) {
 
       ${d.buddies.length > 0 && html`<${Group} header="Your buddies" footer="Cheers arrive as a notification. You can send each buddy up to five a day.">
         ${d.buddies.map((b) => html`<div class="buddy-card" key=${b.username}>
-          <div class="row">
+          <div class="bc-top">
             <button class="buddy-who" onClick=${() => openPerson(b.username)}>
-              <${Avatar} a=${b.avatar} name=${b.firstName} size=${40} />
-              <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub">@${b.username} · ${streakLine(b, now)}</span></span>
+              <${Avatar} a=${b.avatar} name=${b.firstName} size=${44} />
+              <span class="bc-main">
+                <span class="bc-name">${b.firstName} <span class="bc-user">@${b.username}</span></span>
+                <${StreakChips} card=${b.card} now=${now} />
+                ${b.card && b.card.quits.some((q) => q.bestMs > 0) && html`<span class="bc-best">Best run ${b.card.quits.filter((q) => q.bestMs > 0).map((q) => `${q.emoji} ${Math.floor(Math.max(q.bestMs, now - q.startMs) / DAY)} days`).join(' · ')}</span>`}
+              </span>
             </button>
             <button class="icon-btn muted" aria-label=${`Remove ${b.firstName}`} onClick=${() => remove(b)}>${Icon.trash()}</button>
           </div>
-          ${b.card && b.card.quits.some((q) => q.bestMs > 0) && html`<p class="buddy-best">Best run: ${b.card.quits.filter((q) => q.bestMs > 0).map((q) => `${q.emoji} ${Math.floor(Math.max(q.bestMs, now - q.startMs) / DAY)} days`).join(' · ')}</p>`}
-          <div class="cheers">${CHEER_KINDS.map((c) => html`<button class="cheer" onClick=${() => sendCheer(b, c.kind)}><span>${c.e}</span>${c.l}</button>`)}</div>
+          <${CheerBar} who=${b} class="bc-cheers" />
         </div>`)}
       <//>`}
 

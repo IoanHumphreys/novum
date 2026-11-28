@@ -34,6 +34,7 @@ export function defaultState() {
   return {
     version: 2,
     setupDone: false, // Day Zero finished
+    tourDone: false, // seen the quick tour of the tabs (shown once after Day Zero)
     profile: { dob: '', heightCm: null, weights: [] },
     // { id, kind, label, emoji, color, start: 'YYYY-MM-DDTHH:mm', monthly, best, resets }
     quits: [],
@@ -74,6 +75,8 @@ export function migrate(s) {
   return {
     ...d, ...s,
     version: 2,
+    // Accounts from before the tour existed have already found their way around
+    tourDone: s.tourDone ?? !!s.setupDone,
     profile: { ...d.profile, ...(s.profile || {}) },
     quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],

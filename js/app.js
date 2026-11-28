@@ -17,6 +17,7 @@ import { Profile } from './tabs/me.js';
 import { openActivity, resetActivity, reloadActivityCache, useActivity, ActivityPopup } from './activity.js';
 import { openSos } from './sos.js';
 import { WrappedHost } from './wrapped-card.js';
+import { Tour } from './tour.js';
 
 // The sign-up, log-in and setup screens are only needed when logged out or setting up, so their code
 // (the biggest file in the app) loads then, not on every start. The splash shows while it loads.
@@ -72,10 +73,10 @@ function App({ s }) {
     if (initial === 'sos') { history.replaceState(null, '', '#home'); setTimeout(openSos, 400); }
   }, []);
   const scrolls = useRef({});
-  const go = (t) => {
-    if (t === tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const go = (t, { quiet } = {}) => {
+    if (t === tab) { if (!quiet) window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     scrolls.current[tab] = window.scrollY;
-    haptic();
+    if (!quiet) haptic();
     history.replaceState(null, '', '#' + t);
     // Smooth switch: the old tab fades out and the new one slides in from the side you tapped (iOS 18+ and
     // recent Chrome; others switch instantly, as before). Skipped when Reduce Motion is on.
@@ -121,6 +122,7 @@ function App({ s }) {
     <main class="screen" key=${tab}><${Screen} s=${s} go=${go} /></main>
     <${TabBar} tab=${tab} go=${go} dot=${needCheckin} unread=${act.unread || 0} />
     <${ActivityPopup} />
+    <${Tour} s=${s} go=${go} />
   </div>`;
 }
 

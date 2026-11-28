@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
 import { html, haptic, openSheet, SheetBar, toast } from './ui.js';
 import * as S from './store.js';
-import { MILESTONES, SLOGAN } from './content.js';
+import { MILESTONES, MONEY_MILESTONES, SLOGAN } from './content.js';
 import * as A from './api.js';
 import { paintBanner } from './banner.js';
 
@@ -28,9 +28,13 @@ export function checkMilestones(now = Date.now()) {
     const done = s.celebrated[key];
     if (done !== undefined && done >= reached.days) continue;
     record[key] = reached.days;
-    const isNew = done !== undefined || now - (startMs + reached.days * DAY) < 2 * DAY;
+    // Already tracking this quit: celebrate even if the app wasn't opened for a while (up to 2 weeks late,
+    // so a milestone added in an update, like 100 days, doesn't pop up for people long past it)
+    const late = now - (startMs + reached.days * DAY);
+    const isNew = late < (done !== undefined ? 14 * DAY : 2 * DAY);
     if (isNew) fresh.push({ q, m: reached });
   }
+  checkMoney(s, now, record);
   if (Object.keys(record).length) S.update((d) => { d.celebrated = { ...d.celebrated, ...record }; });
   if (!fresh.length) return null;
   // Show the biggest milestone; group quits that hit it together
@@ -40,6 +44,21 @@ export function checkMilestones(now = Date.now()) {
   // Tell buddies, if you've switched that on
   if (s.social?.shareMilestones) A.shareMilestone({ label: m.label, quit: freeOf(quits), emoji: quits[0].emoji }).catch(() => {});
   return { m, quits };
+}
+
+// Money milestones (£50, £100, £250, £500…) across all quits. Each one is only ever marked once
+// ('money' in celebrated holds the highest reached), so a reset and re-climb doesn't repeat them.
+// The first check (after this update, or on a new account) marks what's already reached without a fuss.
+function checkMoney(s, now, record) {
+  const saved = s.quits.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q, now)), 0);
+  const top = MONEY_MILESTONES.filter((m) => m <= saved).pop() || 0;
+  const done = s.celebrated.money;
+  if (done === undefined) { record.money = top; return; }
+  if (top <= done) return;
+  record.money = top;
+  haptic(20);
+  toast(`💷 ${S.money(top, 0)} saved by quitting. Treat yourself.`);
+  if (s.social?.shareMoney) A.shareMilestone({ label: `${S.money(top, 0)} saved`, quit: 'by quitting', emoji: '💷' }).catch(() => {});
 }
 
 /* ---------- the full-screen moment ---------- */

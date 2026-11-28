@@ -1,4 +1,5 @@
-// Admin page (only for accounts listed in the server's ADMIN_EMAILS): who's signed up,
+// Admin page (only for accounts listed in the server’s ADMIN_EMAILS): a health check (active people, startup
+// problems, notification delivery), who’s signed up,
 // how email delivery is going, and a password reset for anyone locked out.
 import { useState, useEffect } from '../vendor/preact-htm.js';
 import { html, haptic, openSheet, SheetBar, Group, Row, toast, Skeleton } from './ui.js';
@@ -30,9 +31,9 @@ function Admin({ close }) {
       ${err && html`<p class="auth-err center">${err}</p>`}
       ${!d && !err && html`<${Skeleton} rows=${4} avatar />`}
       ${d && html`
+        ${d.health && html`<${Health} h=${d.health} />`}
         <div class="tiles admin-tiles">
           <div class="tile"><span class="tile-k">👥 Accounts</span><b>${d.users.length}/${d.maxUsers}</b><span class="tile-u">spaces used</span></div>
-          <div class="tile"><span class="tile-k">🟢 Active</span><b>${d.users.filter((u) => u.lastSeen && Date.now() - u.lastSeen < 7 * 864e5).length}</b><span class="tile-u">this week</span></div>
           <div class="tile"><span class="tile-k">✉️ Email codes</span><b>${d.emailCodes ? 'On' : 'Off'}</b><span class="tile-u">Brevo</span></div>
           <div class="tile"><span class="tile-k">🤖 Bot check</span><b>${d.turnstile ? 'On' : 'Off'}</b><span class="tile-u">Turnstile</span></div>
           <div class="tile ${d.errorsToday ? 'warn' : ''}"><span class="tile-k">⚠️ Errors</span><b>${d.errorsToday ?? 0}</b><span class="tile-u">in the last 24 hours</span></div>
@@ -64,6 +65,47 @@ function Admin({ close }) {
           </div>`) : html`<div class="row"><span class="row-main"><span class="row-sub">No emails in the last week.</span></span></div>`}
         <//>`}
     </div>`;
+}
+
+/* ---------- health check: is Novum working for people? ---------- */
+const pct = (r) => (r == null ? '–' : `${Math.round(r * 100)}%`);
+const dayName = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short' });
+function Health({ h }) {
+  const ok = !h.issues.length;
+  const max = Math.max(1, ...h.push.days.map((x) => x.ok + x.failed + x.gone));
+  return html`<section class="group first">
+    <div class="ah-status ${ok ? 'ok' : 'warn'}">
+      <span class="ah-ic">${ok ? '✅' : '⚠️'}</span>
+      <span class="row-main"><b>${ok ? 'All good' : 'Needs a look'}</b>
+        <span>${ok ? 'No startup problems today and notifications are getting through.' : h.issues.join(' · ')}</span></span>
+    </div>
+    <div class="tiles admin-tiles">
+      <div class="tile"><span class="tile-k">🟢 Active</span><b>${h.active.day}</b><span class="tile-u">today · ${h.active.week} this week · ${h.active.month} this month</span></div>
+      <div class="tile ${h.push.rate != null && h.push.rate < 0.9 ? 'warn' : ''}"><span class="tile-k">🔔 Delivered</span><b>${pct(h.push.rate)}</b><span class="tile-u">${h.push.tracked ? `${h.push.ok} of ${h.push.ok + h.push.failed} notifications, 7 days` : 'starts after the server update'}</span></div>
+      <div class="tile ${h.startup.day ? 'warn' : ''}"><span class="tile-k">🚀 Startup problems</span><b>${h.startup.day}</b><span class="tile-u">today · ${h.startup.total} in 14 days</span></div>
+      <div class="tile"><span class="tile-k">📱 Phones</span><b>${h.devices.total}</b><span class="tile-u">with notifications, ${h.devices.people} people</span></div>
+    </div>
+    ${h.push.tracked && html`<div class="card pad ah-push">
+      <div class="ah-h">Notifications, last 7 days</div>
+      <div class="ah-bars">${h.push.days.map((x) => {
+        const n = x.ok + x.failed + x.gone;
+        return html`<div class="ah-bar" key=${x.day} title=${`${x.ok} delivered, ${x.failed} failed, ${x.gone} expired`}>
+          <span class="ah-n">${n || ''}</span>
+          <span class="ah-col" style=${`height:${(n / max) * 100}%`}>
+            ${x.gone > 0 && html`<i class="g" style=${`flex:${x.gone}`}></i>`}${x.failed > 0 && html`<i class="f" style=${`flex:${x.failed}`}></i>`}${x.ok > 0 && html`<i class="o" style=${`flex:${x.ok}`}></i>`}
+          </span>
+          <span class="ah-d">${dayName(x.day)}</span>
+        </div>`;
+      })}</div>
+      <div class="ah-key"><span><i class="o"></i>Delivered</span><span><i class="f"></i>Failed</span><span><i class="g"></i>Expired phone</span></div>
+    </div>`}
+    ${h.startup.list.length > 0 && html`<${Group} header="Startup problems (14 days)" footer="Sent when the app couldn’t start on someone’s phone. Lots from the same device after a release usually means a bad offline copy: ask them to close and reopen Novum twice.">
+      ${h.startup.list.map((e, i) => html`<div class="row" key=${i}>
+        <span class="row-ic" style="background:#FF9F0A">🚀</span>
+        <span class="row-main"><span class="row-title">${e.message}</span><span class="row-sub">${e.device} · ${when(e.at)}</span></span>
+      </div>`)}
+    <//>`}
+  </section>`;
 }
 
 function openUser(u) { openSheet((close) => html`<${UserSheet} u=${u} close=${close} />`); }

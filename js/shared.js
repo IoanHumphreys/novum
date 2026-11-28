@@ -17,7 +17,7 @@ export function fmtLeft(days) {
   const d = Math.ceil(days); return `${d} day${d === 1 ? '' : 's'}`;
 }
 
-export const RING_LABEL = { 1: '1 day', 3: '3 days', 7: '1 wk', 14: '2 wks', 30: '1 mo', 90: '3 mo', 182: '6 mo', 365: '1 yr' };
+export const RING_LABEL = { 1: '1 day', 3: '3 days', 7: '1 wk', 14: '2 wks', 30: '1 mo', 90: '3 mo', 100: '100 d', 182: '6 mo', 365: '1 yr' };
 
 // Compact time-left label for the ring centre: "14d" or "5h"
 export const ringLeft = (days) => (days < 1 ? `${Math.max(1, Math.ceil(days * 24))}h` : `${Math.ceil(days)}d`);

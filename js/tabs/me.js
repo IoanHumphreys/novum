@@ -13,6 +13,7 @@ import { refreshActivity } from '../activity.js';
 import { openAdmin } from '../admin.js';
 import { ProfileHeader, openPeople } from '../profile.js';
 import { openPrivacy } from '../privacy.js';
+import { replayTour } from '../tour.js';
 import { firstName, confirmSheet } from '../shared.js';
 import { Home, openWishlist } from './home.js';
 import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
@@ -88,10 +89,14 @@ export function Profile({ s }) {
     <//>
 
     ${user.isAdmin && html`<${Group} header="Admin">
-      <${Row} icon="🛠️" iconBg="#8E8E93" title="Admin" sub="People, email delivery and password resets" chevron onClick=${openAdmin} />
+      <${Row} icon="🛠️" iconBg="#8E8E93" title="Admin" sub="Health check, people, email delivery and password resets" chevron onClick=${openAdmin} />
     <//>`}
 
     <${NotifySettings} s=${s} />
+
+    <${Group} header="Help">
+      <${Row} icon="🧭" iconBg="#5AC8FA" title="Show the tour again" sub="A quick look at what each tab does" chevron onClick=${replayTour} />
+    <//>
 
     <${Group} header="Your data" footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
       <${SyncRow} />

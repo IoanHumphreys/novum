@@ -1,9 +1,11 @@
 // Activity feed: cheers, buddy and follow requests, new followers, SOS calls and buddy milestones,
 // kept in the app so nothing is lost if you miss the notification. The 🔔 on Home opens it.
-import { useState, useEffect } from '../vendor/preact-htm.js';
-import { html, haptic, openSheet, SheetBar, Group, toast, useNow, Skeleton } from './ui.js';
+import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
+import { html, haptic, openSheet, SheetBar, toast, useNow, Skeleton, Segmented } from './ui.js';
 import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
+import { CheerBar } from './cheers.js';
+import { confirmSheet } from './shared.js';
 import { Avatar, openPerson } from './profile.js';
 import { refreshBuddies } from './social.js';
 
@@ -103,73 +105,185 @@ export function ActivityBell() {
 
 const ago = (t, now) => {
   const m = Math.floor((now - t) / 60000);
-  if (m < 1) return 'now';
-  if (m < 60) return `${m}m`;
+  if (m < 1) return 'Just now';
+  if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
+  if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
-  return d < 7 ? `${d}d` : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return d < 7 ? `${d}d ago` : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
+const cheerOf = (x) => CHEER_KINDS.find((c) => c.kind === x.data?.kind) || CHEER_KINDS[0];
+// The little badge on each avatar, and which filter each kind belongs to
+const KIND = {
+  cheer: { c: '#FF375F', f: 'cheers' },
+  buddy_request: { e: '🤝', c: '#3B9BFF', f: 'requests' },
+  buddy_accepted: { e: '🤝', c: '#30D158', f: 'requests' },
+  follow: { e: '👤', c: '#BF5AF2', f: 'requests' },
+  follow_request: { e: '👤', c: '#BF5AF2', f: 'requests' },
+  follow_accepted: { e: '✓', c: '#30D158', f: 'requests' },
+  sos: { e: '🫁', c: '#64D2FF', f: 'buddies' },
+  milestone: { e: '🎉', c: '#FFD60A', f: 'buddies' },
+};
+const badgeOf = (x) => (x.kind === 'cheer' ? cheerOf(x).e : x.kind === 'milestone' && x.data?.emoji === '💷' ? '💷' : KIND[x.kind]?.e || '🔔');
 function words(x) {
   const n = html`<b>${x.who.firstName}</b>`;
   switch (x.kind) {
-    case 'cheer': { const k = CHEER_KINDS.find((c) => c.kind === x.data.kind) || CHEER_KINDS[0]; return html`${n} sent you ${k.e} <i>${k.l.toLowerCase()}</i>`; }
+    case 'cheer': { const k = cheerOf(x); return html`${n} sent you ${k.e} <i>${k.l.toLowerCase()}</i>`; }
     case 'buddy_request': return html`${n} wants to be buddies`;
-    case 'buddy_accepted': return html`You and ${n} are now buddies 🤝`;
+    case 'buddy_accepted': return html`You and ${n} are now buddies`;
     case 'follow': return html`${n} started following you`;
     case 'follow_request': return html`${n} wants to follow you`;
     case 'follow_accepted': return html`${n} accepted your follow request`;
-    case 'sos': return html`💙 ${n} was having a craving and asked for support`;
-    case 'milestone': return html`🎉 ${n} hit <b>${x.data.label}</b> ${x.data.quit}`;
+    case 'sos': return html`${n} was having a craving and asked for support`;
+    case 'milestone': return html`${n} hit <b class="act-hl">${x.data.label}</b> ${x.data.quit}`;
     default: return html`${n}`;
   }
 }
+
+// Today / Yesterday / This week / Earlier
+function bucketOf(t, now) {
+  const d0 = new Date(now); d0.setHours(0, 0, 0, 0);
+  const start = d0.getTime();
+  if (t >= start) return 'Today';
+  if (t >= start - 864e5) return 'Yesterday';
+  if (t >= start - 6 * 864e5) return 'This week';
+  return 'Earlier';
+}
+
+/* ---------- clearing ---------- */
+const recount = (items) => items.filter((x) => !x.read).length;
+function setItems(items) { data = { ...data, items, unread: recount(items) }; writeCache(data); emit(); }
+async function clearOne(x) {
+  const before = data.items;
+  setItems(before.filter((i) => i.id !== x.id));
+  try { await A.activityClear(x.id); } catch (e) {
+    setItems(before);
+    toast(e.offline ? 'You’re offline. Try again when you’re back.' : 'Couldn’t clear that. Try again.');
+  }
+}
+function clearAll() {
+  confirmSheet({
+    title: 'Clear all notifications?',
+    text: 'This empties Activity on all your devices. Buddy and follow requests still wait for you in Buddies and Profile.',
+    confirm: 'Clear all',
+    onConfirm: async () => {
+      const before = data.items;
+      setItems([]);
+      try { await A.activityClear(); haptic(15); toast('All cleared'); } catch (e) {
+        setItems(before);
+        toast(e.offline ? 'You’re offline. Try again when you’re back.' : 'Couldn’t clear right now. Try again.');
+      }
+    },
+  });
+}
+
+// Swipe a notification left to show Clear (a long swipe clears it straight away); tap it to close again.
+const OPEN = 88;
+function Swipe({ onClear, children }) {
+  const [x, setX] = useState(0);
+  const [drag, setDrag] = useState(false);
+  const [gone, setGone] = useState(false);
+  const st = useRef(null);
+  const pos = useRef(0);
+  const set = (v) => { pos.current = v; setX(v); };
+  const clear = () => { haptic(12); setGone(true); setTimeout(onClear, 260); };
+  const start = (e) => { const t = e.touches[0]; st.current = { x: t.clientX, y: t.clientY, base: pos.current, dir: null }; };
+  const move = (e) => {
+    const s = st.current; if (!s) return;
+    const t = e.touches[0]; const dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (!s.dir) { if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { s.dir = 'h'; setDrag(true); } else if (Math.abs(dy) > 8) s.dir = 'v'; }
+    if (s.dir === 'h') set(Math.max(-220, Math.min(0, s.base + dx)));
+  };
+  const end = () => {
+    const s = st.current; st.current = null; setDrag(false);
+    if (!s || s.dir !== 'h') return;
+    if (pos.current < -160) clear();
+    else set(pos.current < -OPEN / 2 ? -OPEN : 0);
+  };
+  return html`<div class="act-swipe ${gone ? 'gone' : ''} ${x || drag ? 'open' : ''}">
+    <button class="act-clear" tabindex=${x ? 0 : -1} aria-hidden=${x ? 'false' : 'true'} onClick=${clear}>Clear</button>
+    <div class="act-slide ${drag ? 'drag' : ''}" style=${`transform:translateX(${gone ? -420 : x}px)`}
+      onTouchStart=${start} onTouchMove=${move} onTouchEnd=${end} onTouchCancel=${end}
+      onClickCapture=${(e) => { if (pos.current) { e.stopPropagation(); e.preventDefault(); set(0); } }}>
+      ${children}
+    </div>
+  </div>`;
+}
+
+const FILTERS = [{ value: 'all', label: 'All' }, { value: 'cheers', label: 'Cheers' }, { value: 'requests', label: 'Requests' }, { value: 'buddies', label: 'Buddies' }];
 
 export function openActivity() { openSheet((close) => html`<${Activity} close=${close} />`, { tall: true }); }
 function Activity({ close }) {
   const d = useActivity();
   const now = useNow(60000);
   const [done, setDone] = useState({});
+  const [filter, setFilter] = useState('all');
   useEffect(() => { sheetOpen = true; return () => { sheetOpen = false; }; }, []);
   useEffect(() => {
     refreshActivity().then((x) => { if (x.unread) A.activityRead().then(() => { data = { ...data, unread: 0 }; emit(); }).catch(() => {}); });
   }, []);
   const act = async (x, fn, msg) => {
     haptic(10);
-    try { await fn(); setDone({ ...done, [x.id]: msg }); toast(msg); refreshBuddies(); } catch (e) {
+    try { await fn(); setDone((o) => ({ ...o, [x.id]: msg })); toast(msg); refreshBuddies(); } catch (e) {
       toast(e.message);
-      if (e.queued) setDone({ ...done, [x.id]: 'Will send when you’re back online' });
+      if (e.queued) setDone((o) => ({ ...o, [x.id]: 'Will send when you’re back online' }));
     }
   };
-  const cheerRow = (x) => html`<div class="act-cheers">${CHEER_KINDS.map((c) => html`<button class="cheer sm" onClick=${() => act(x, () => A.cheer(x.who.username, c.kind), `Sent ${c.e} to ${x.who.firstName}`)}><span>${c.e}</span>${c.l}</button>`)}</div>`;
+  const shown = d.items.filter((x) => filter === 'all' || KIND[x.kind]?.f === filter);
+  const groups = [];
+  for (const x of shown) {
+    const b = bucketOf(x.at, now);
+    if (!groups.length || groups[groups.length - 1].b !== b) groups.push({ b, items: [] });
+    groups[groups.length - 1].items.push(x);
+  }
+  const actions = (x) => {
+    if (done[x.id]) return html`<div class="act-done">✓ ${done[x.id]}</div>`;
+    if ((x.kind === 'sos' || x.kind === 'milestone') && x.who.buddy) {
+      return html`<${CheerBar} who=${x.who} small class="act-cheers"
+        onSent=${(c, queued) => setDone((o) => ({ ...o, [x.id]: queued ? 'Will send when you’re back online' : `Sent ${c.e} ${c.l.toLowerCase()}` }))} />`;
+    }
+    if (x.kind === 'cheer' && x.who.buddy) return html`<button class="act-chip" onClick=${() => act(x, () => A.cheer(x.who.username, 'heart'), `Sent 💙 back to ${x.who.firstName}`)}>💙 Send one back</button>`;
+    if (x.kind === 'buddy_request') return html`<div class="act-btns">
+      <button class="btn btn-primary sm" onClick=${() => act(x, () => A.buddyRespond(x.who.username, true), `You and ${x.who.firstName} are buddies`)}>Accept</button>
+      <button class="btn btn-plain sm" onClick=${() => act(x, () => A.buddyRespond(x.who.username, false), 'Declined')}>Decline</button></div>`;
+    if (x.kind === 'follow_request') return html`<div class="act-btns">
+      <button class="btn btn-primary sm" onClick=${() => act(x, () => A.followRespond(x.who.username, true), `${x.who.firstName} can now see your profile`)}>Accept</button>
+      <button class="btn btn-plain sm" onClick=${() => act(x, () => A.followRespond(x.who.username, false), 'Declined')}>Decline</button></div>`;
+    return null;
+  };
   return html`
-    <${SheetBar} title="Activity" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
-    <div class="sheet-body">
+    <${SheetBar} title="Activity"
+      left=${d.items.length > 0 ? html`<button class="link act-clear-all" onClick=${clearAll}>Clear all</button>` : null}
+      right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body act-sheet">
+      ${d.items.length > 0 && html`<div class="act-filter"><${Segmented} small options=${FILTERS} value=${filter} onChange=${setFilter} /></div>`}
       ${d.error && d.items.length > 0 && html`<div class="act-stale" role="status">
         <span>📡 ${d.error === 'You’re offline.' ? 'You’re offline.' : 'Couldn’t refresh.'} Showing your last update.</span>
         <button class="link sm" disabled=${d.refreshing} onClick=${() => { haptic(); refreshActivity(); }}>${d.refreshing ? 'Trying…' : 'Try again'}</button>
       </div>`}
       ${!d.loaded ? html`<${Skeleton} rows=${5} avatar />`
-      : d.error && d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">📡</div><b>${d.error}</b><p class="muted">Your cheers and requests are safe. They’ll show up once Novum can reach the server.</p><button class="btn btn-tinted sm mt12" disabled=${d.refreshing} onClick=${() => { haptic(); refreshActivity(); }}>${d.refreshing ? 'Trying…' : 'Try again'}</button></div>`
-      : d.items.length === 0 ? html`<div class="act-empty"><div class="wiz-emoji">🔔</div><b>Nothing yet</b><p class="muted">Cheers, requests and buddy milestones will show up here.</p></div>`
-      : html`<${Group}>
-        ${d.items.map((x) => html`<div class="act ${x.read ? '' : 'new'}" key=${x.id}>
-          <button class="act-av" aria-label=${`Open ${x.who.firstName}’s profile`} onClick=${() => openPerson(x.who.username)}><${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${40} /></button>
-          <div class="act-main">
-            <div class="act-t">${words(x)} <span class="act-when">${ago(x.at, now)}</span></div>
-            ${done[x.id] ? html`<div class="act-done">✓ ${done[x.id]}</div>`
-            : (x.kind === 'sos' || x.kind === 'milestone') && x.who.buddy ? cheerRow(x)
-            : x.kind === 'cheer' && x.who.buddy ? html`<button class="link sm" onClick=${() => act(x, () => A.cheer(x.who.username, 'heart'), `Sent 💙 back to ${x.who.firstName}`)}>Send 💙 back</button>`
-            : x.kind === 'buddy_request' ? html`<div class="act-btns">
-                <button class="btn btn-tinted sm" onClick=${() => act(x, () => A.buddyRespond(x.who.username, true), `You and ${x.who.firstName} are buddies`)}>Accept</button>
-                <button class="btn btn-plain sm" onClick=${() => act(x, () => A.buddyRespond(x.who.username, false), 'Declined')}>Decline</button></div>`
-            : x.kind === 'follow_request' ? html`<div class="act-btns">
-                <button class="btn btn-tinted sm" onClick=${() => act(x, () => A.followRespond(x.who.username, true), `${x.who.firstName} can now see your profile`)}>Accept</button>
-                <button class="btn btn-plain sm" onClick=${() => act(x, () => A.followRespond(x.who.username, false), 'Declined')}>Decline</button></div>`
-            : null}
+      : d.error && d.items.length === 0 ? html`<div class="act-empty"><div class="act-empty-ic">📡</div><b>${d.error}</b><p class="muted">Your cheers and requests are safe. They’ll show up once Novum can reach the server.</p><button class="btn btn-tinted sm mt12" disabled=${d.refreshing} onClick=${() => { haptic(); refreshActivity(); }}>${d.refreshing ? 'Trying…' : 'Try again'}</button></div>`
+      : d.items.length === 0 ? html`<div class="act-empty"><div class="act-empty-ic">🔔</div><b>You’re all caught up</b><p class="muted">Cheers, requests and your buddies’ milestones will show up here.</p></div>`
+      : shown.length === 0 ? html`<div class="act-empty sm"><b>Nothing here</b><p class="muted">No ${FILTERS.find((f) => f.value === filter).label.toLowerCase()} in the last 60 days.</p></div>`
+      : groups.map((g) => html`<section class="act-group" key=${g.b}>
+          <h3 class="act-gh">${g.b}</h3>
+          <div class="act-card">
+            ${g.items.map((x) => html`<${Swipe} key=${x.id} onClear=${() => clearOne(x)}>
+              <div class="act-item ${x.read ? '' : 'new'} ${x.kind === 'milestone' ? 'act-ms' : ''} ${x.kind === 'sos' ? 'act-sos' : ''}">
+                <button class="act-av" aria-label=${`Open ${x.who.firstName}’s profile`} onClick=${() => openPerson(x.who.username)}>
+                  <${Avatar} a=${x.who.avatar} name=${x.who.firstName} size=${44} />
+                  <i class="act-kind" style=${`background:${KIND[x.kind]?.c || '#3B9BFF'}`} aria-hidden="true">${badgeOf(x)}</i>
+                </button>
+                <div class="act-main">
+                  <div class="act-t">${words(x)}</div>
+                  <div class="act-when">${ago(x.at, now)}</div>
+                  ${actions(x)}
+                </div>
+                ${!x.read && html`<i class="act-dot" aria-label="New"></i>`}
+              </div>
+            <//>`)}
           </div>
-        </div>`)}
-      <//>`}
-      <p class="muted center tiny">Kept for 60 days.</p>
+        </section>`)}
+      ${d.items.length > 0 && html`<p class="muted center tiny act-foot">Swipe left on a notification to clear it. Kept for 60 days.</p>`}
     </div>`;
 }

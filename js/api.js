@@ -184,6 +184,8 @@ export const report = (username, reason, note) => call('POST', '/report', { user
 /* ---------- activity, SOS, milestones, error reports ---------- */
 export const activity = () => call('GET', '/activity');
 export const activityRead = () => call('POST', '/activity/read', {});
+// Clear one notification ({ id }) or all of them (no id)
+export const activityClear = (id) => call('POST', '/activity/clear', id ? { id } : {});
 export const sos = () => call('POST', '/sos', {});
 export const shareMilestone = (m) => call('POST', '/milestone', m);
 // Fire-and-forget: tells the admin page something broke in the app

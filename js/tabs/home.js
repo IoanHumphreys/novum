@@ -1,4 +1,5 @@
-// Home tab: streaks, support card, buddies, money saved (and what it could buy), milestones, today, body.
+// Home tab: streaks, support card, tip of the day, buddies, money saved (and what it could buy), future you,
+// milestones, today, body.
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, useNow, Icon, Ring, openSheet, SheetBar, Page, Segmented, Group, Legend } from '../ui.js';
@@ -12,6 +13,7 @@ import { DAY, pad2, NEW_YEAR, fmtLeft, RING_LABEL, ringLeft, milestoneInfo, firs
 import { openNewYear } from './goals.js';
 import { openAddQuit, openQuitEditor, openTimeline, openSlip } from '../quits.js';
 import { openSos, openReasons } from '../sos.js';
+import { TipCard, FutureYou } from '../future.js';
 
 /* ============ HOME ============ */
 export function Home({ s, go }) {
@@ -72,6 +74,8 @@ export function Home({ s, go }) {
       </div>
     </section>`}
 
+    ${hasQuits && html`<${TipCard} s=${s} />`}
+
     <${BuddiesSection} />
 
     ${monthly > 0 && html`<section class="group">
@@ -82,6 +86,8 @@ export function Home({ s, go }) {
         <${WishLine} s=${s} />
       </button>
     </section>`}
+
+    ${hasQuits && html`<${FutureYou} s=${s} />`}
 
     ${hasQuits && html`<section class="group">
       <div class="group-h-row">

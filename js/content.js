@@ -11,6 +11,7 @@ export const MILESTONES = [
   { days: 14, label: '2 weeks', short: '2w' },
   { days: 30, label: '1 month', short: '1m' },
   { days: 90, label: '3 months', short: '3m' },
+  { days: 100, label: '100 days', short: '100' },
   { days: 182, label: '6 months', short: '6m' },
   { days: 365, label: '1 year', short: '1y' },
 ];
@@ -183,3 +184,56 @@ export const CHEER_KINDS = [
   { kind: 'strong', e: '🔥', l: 'Stay strong' },
   { kind: 'heart', e: '💙', l: 'Thinking of you' },
 ];
+
+// Money milestones (total saved across quits). Buddies hear about these only with "Tell buddies about money saved" on.
+export const MONEY_MILESTONES = [50, 100, 250, 500, 1000, 2000, 5000];
+
+// Tip of the day on Home. Each quit gets its own tips; "any" tips suit everyone. Practical, not medical advice.
+// kind: a quit kind from ADDICTIONS (vape, weed, …), 'nicotine' for vape, snus and smoking, or 'any'.
+export const TIPS = [
+  // vaping and nicotine
+  { kind: 'nicotine', e: '⏱️', t: 'A nicotine craving peaks and fades in about 3 to 5 minutes. You only ever have to outlast this one.' },
+  { kind: 'nicotine', e: '🧠', t: 'Nicotine doesn’t calm you down. It eases the withdrawal it caused. After a few weeks off, most people feel less anxious than before.' },
+  { kind: 'vape', e: '🗑️', t: 'Got a spare vape “just in case”? Bin it. Keeping a backup makes it a plan, not a quit.' },
+  { kind: 'vape', e: '✋', t: 'Your hands miss the habit as much as your brain. Keep something to fiddle with, like a pen, a ring or a stress ball.' },
+  { kind: 'vape', e: '🌬️', t: 'Miss the feeling of the inhale? Take one slow, deep breath through pursed lips. It hits the same reflex.' },
+  { kind: 'vape', e: '🍬', t: 'Mint gum, sugar-free sweets or ice water give your mouth the flavour hit it’s looking for.' },
+  { kind: 'vape', e: '🚗', t: 'Notice where you always vaped: the car, the walk to college, after food. Change one tiny thing about that moment.' },
+  { kind: 'cigarettes', e: '☕', t: 'Smoking makes your body clear caffeine faster. Now that you’ve stopped, your usual coffee can hit harder, so cut back a bit if you feel jittery.' },
+  { kind: 'nicotine', e: '😴', t: 'Sleep may feel strange for the first week or two. It settles, and it’s usually deeper after.' },
+  { kind: 'vape', e: '💬', t: 'Tell people you’ve stopped. Saying it out loud makes it harder to quietly start again.' },
+  // weed
+  { kind: 'weed', e: '🌙', t: 'Can’t sleep without it? Keep a set bedtime, no screens for the last half hour, and get up at the same time every day. It gets easier within a couple of weeks.' },
+  { kind: 'weed', e: '💭', t: 'Vivid dreams are normal after stopping. Your REM sleep is coming back, which is a good sign.' },
+  { kind: 'weed', e: '🍳', t: 'Appetite low? Eat small and often, even if you’re not hungry. It usually comes back within two weeks.' },
+  { kind: 'weed', e: '🏃', t: 'Exercise is one of the best things for weed withdrawal. Even a 15-minute walk helps with restlessness and mood.' },
+  { kind: 'weed', e: '📵', t: 'Delete your dealer’s number, or at least mute it. Taking away the easy option takes away half the craving.' },
+  { kind: 'weed', e: '🎮', t: 'Boredom is a big trigger. Plan your evenings ahead, especially the ones when you used to smoke.' },
+  { kind: 'weed', e: '😤', t: 'Feeling irritable? That’s withdrawal, not you. It usually peaks in the first week and then eases off.' },
+  { kind: 'weed', e: '🧠', t: 'Memory and focus usually sharpen after about a month off. Notice it when it happens.' },
+  { kind: 'weed', e: '👥', t: 'If your mates still smoke, it’s okay to say “not tonight” or leave early. Real friends will get it.' },
+  { kind: 'weed', e: '🛁', t: 'Night sweats are common early on. Keep water by your bed and a spare T-shirt nearby. They pass.' },
+  // smoking, alcohol, others
+  { kind: 'cigarettes', e: '🫁', t: 'A bit more coughing at first is your lungs clearing out. It usually eases after a few weeks.' },
+  { kind: 'alcohol', e: '🍹', t: 'Going out? Order a soft drink first so you have something in your hand. Fewer people ask.' },
+  { kind: 'gambling', e: '🔒', t: 'Use GAMSTOP and your bank’s gambling block. Make it hard for future-you to place a bet on autopilot.' },
+  { kind: 'energy', e: '💧', t: 'Swap the can for cold water or sparkling water. Withdrawal headaches usually pass within a few days.' },
+  // anyone
+  { kind: 'any', e: '🌊', t: 'Urge surfing: notice the craving, rate it from 1 to 10, and watch it rise and fall like a wave. You don’t have to act on it.' },
+  { kind: 'any', e: '🧭', t: 'HALT: when a craving hits, ask whether you’re Hungry, Angry, Lonely or Tired. Fix that first.' },
+  { kind: 'any', e: '📝', t: 'Write your reasons for quitting in Novum. Reading them during a craving works better than willpower.' },
+  { kind: 'any', e: '🏅', t: 'Slipping up doesn’t erase your progress. What counts is what you do in the next hour.' },
+  { kind: 'any', e: '🎯', t: 'Don’t think “forever”. Think “not today”. Today is the only one you have to win.' },
+  { kind: 'any', e: '💷', t: 'Move the money you would have spent into a savings pot each week. Watching it grow is motivating.' },
+  { kind: 'any', e: '🤝', t: 'People who quit with a friend are more likely to stick with it. Add a buddy and cheer each other on.' },
+  { kind: 'any', e: '🔁', t: 'Swap the ritual, not just the substance. Give the times you used to use a new routine: tea, a walk, a game.' },
+  { kind: 'any', e: '☀️', t: 'Get outside in daylight early in the day. It helps your sleep, mood and energy while your body adjusts.' },
+  { kind: 'any', e: '💬', t: '“Ever tried. Ever failed. No matter. Try again. Fail better.” – Samuel Beckett' },
+  { kind: 'any', e: '🔥', t: 'Every craving you ride out weakens the habit a little. Today’s hard moment is building tomorrow’s easier one.' },
+];
+const NICOTINE = new Set(['vape', 'snus', 'cigarettes']);
+// The tips that fit someone's quits (always includes the general ones)
+export function tipsFor(quits) {
+  const kinds = new Set((quits || []).map((q) => q.kind));
+  return TIPS.filter((x) => x.kind === 'any' || kinds.has(x.kind) || (x.kind === 'nicotine' && [...kinds].some((k) => NICOTINE.has(k))));
+}
