@@ -1728,3 +1728,5 @@ input:autofill { background: transparent; }
 .sos-pulse b { color: var(--text); }
 .gc-foot .btn { flex: none; white-space: nowrap; }
 .gc-vis { display: block; font-size: 12px; font-weight: 500; color: var(--text-3); margin-top: 1px; }
+.admin-lock { padding: 24px 8px; display: flex; flex-direction: column; gap: 10px; }
+.admin-lock .wiz-emoji { align-self: center; text-align: center; }

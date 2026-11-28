@@ -165,6 +165,9 @@ export const putShareCard = (card) => call('PUT', '/me/share', { card });
 /* ---------- admin ---------- */
 export const adminOverview = () => call('GET', '/admin/overview');
 export const adminResetPassword = (userId) => call('POST', '/admin/reset-password', { userId });
+// Admin is unlocked with a code emailed to the admin (stays open on this device for 30 minutes)
+export const adminUnlockCode = () => call('POST', '/admin/unlock-code', {});
+export const adminUnlock = (code) => call('POST', '/admin/unlock', { code });
 
 export const authConfig = () => call('GET', '/auth/config');
 

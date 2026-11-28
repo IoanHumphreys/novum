@@ -4,6 +4,7 @@
 import { useState, useEffect } from '../vendor/preact-htm.js';
 import { html, haptic, openSheet, SheetBar, Group, Row, toast, Skeleton } from './ui.js';
 import * as A from './api.js';
+import { CodeInput, JunkHint } from './authkit.js';
 
 const ago = (t) => {
   if (!t) return 'never';
@@ -23,13 +24,15 @@ export function openAdmin() { openSheet((close) => html`<${Admin} close=${close}
 function Admin({ close }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState('');
-  const load = async () => { setErr(''); try { setD(await A.adminOverview()); } catch (e) { setErr(e.message); } };
+  const [locked, setLocked] = useState(false);
+  const load = async () => { setErr(''); try { setD(await A.adminOverview()); setLocked(false); } catch (e) { if (e.data?.adminCode) setLocked(true); else setErr(e.message); } };
   useEffect(() => { load(); }, []);
   return html`
     <${SheetBar} title="Admin" left=${html`<button class="link" onClick=${load}>Refresh</button>`} right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
+      ${locked && html`<${Unlock} onDone=${load} />`}
       ${err && html`<p class="auth-err center">${err}</p>`}
-      ${!d && !err && html`<${Skeleton} rows=${4} avatar />`}
+      ${!d && !err && !locked && html`<${Skeleton} rows=${4} avatar />`}
       ${d && html`
         ${d.health && html`<${Health} h=${d.health} />`}
         <div class="tiles admin-tiles">
@@ -108,13 +111,37 @@ function Health({ h }) {
   </section>`;
 }
 
+// Admin needs a code from your email first, so a stolen password alone can't open it
+function Unlock({ onDone }) {
+  const [hint, setHint] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const send = async () => { setBusy(true); setErr(''); try { const r = await A.adminUnlockCode(); setHint(r.emailHint); haptic(10); } catch (e) { setErr(e.message); } setBusy(false); };
+  const verify = async (c = code) => {
+    if (c.length !== 6 || busy) return;
+    setBusy(true); setErr('');
+    try { await A.adminUnlock(c); haptic(20); toast('Admin unlocked for 30 minutes'); onDone(); } catch (e) { setErr(e.message); setCode(''); }
+    setBusy(false);
+  };
+  return html`<div class="admin-lock">
+    <div class="wiz-emoji">🔐</div>
+    <h2 class="auth-title center">${hint ? 'Check your email' : 'Admin is locked'}</h2>
+    <p class="wiz-sub center">${hint ? html`We sent a 6-digit code to <b class="wiz-em">${hint}</b>.` : 'To keep everyone’s details safe, Admin needs a code from your email. It then stays open on this device for 30 minutes.'}</p>
+    ${hint ? html`<${JunkHint} email=${hint} /><${CodeInput} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
+      <button class="link center-link" disabled=${busy} onClick=${send}>Send a new code</button>`
+    : html`<button class="btn btn-primary block" disabled=${busy} onClick=${send}>${busy ? 'Sending…' : 'Email me a code'}</button>`}
+    ${err && html`<p class="auth-err center">${err}</p>`}
+  </div>`;
+}
+
 function openUser(u) { openSheet((close) => html`<${UserSheet} u=${u} close=${close} />`); }
 function UserSheet({ u, close }) {
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const reset = async () => {
     setBusy(true);
-    try { const r = await A.adminResetPassword(u.id); setPw(r.password); haptic(15); } catch (e) { toast(e.message); }
+    try { const r = await A.adminResetPassword(u.id); setPw(r.password); haptic(15); } catch (e) { toast(e.data?.adminCode ? 'Admin locked again. Close Admin and unlock it.' : e.message); }
     setBusy(false);
   };
   const copy = async () => { try { await navigator.clipboard.writeText(pw); toast('Copied'); } catch { toast(pw); } };
