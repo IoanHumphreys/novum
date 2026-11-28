@@ -1,4 +1,5 @@
-// Profile tab: profile header, body, account, devices, notifications and your data.
+// Profile tab: a compact header with stats, then quits, support, friends, body and settings.
+// Body, notifications and your data each open in their own sheet so the page stays short.
 import { useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, capName, useNow, Icon, openSheet, closeAllSheets, SheetBar, Page, Toggle, Group, Row, Field, toast, Skeleton } from '../ui.js';
@@ -8,14 +9,14 @@ import * as A from '../api.js';
 import { stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from '../sync.js';
 import { CodeInput, Resend, EyeButton, JunkHint } from '../authkit.js';
 import { openInstallGuide, canInstall, installEnv } from '../install.js';
-import { openBuddies, refreshBuddies } from '../social.js';
+import { openBuddies, refreshBuddies, useBuddies } from '../social.js';
 import { refreshActivity } from '../activity.js';
 import { openAdmin } from '../admin.js';
 import { ProfileHeader, openPeople } from '../profile.js';
 import { openPrivacy } from '../privacy.js';
 import { replayTour } from '../tour.js';
 import { firstName, confirmSheet } from '../shared.js';
-import { Home, openWishlist } from './home.js';
+import { openWishlist, savedNow } from './home.js';
 import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
 import { openReasons } from '../sos.js';
 
@@ -30,6 +31,28 @@ export function SyncRow() {
   return html`<${Row} icon=${icon} iconBg=${st.state === 'error' ? '#FF453A' : '#3B9BFF'} title="Account sync" sub=${label} onClick=${() => { haptic(); syncNow(); }} />`;
 }
 
+// Keeps a sheet in step with the app's data (sheets don't get the screen's `s`)
+function useAppState() {
+  const [s, setS] = useState(S.getState());
+  useEffect(() => S.subscribe((st) => setS(st)), []);
+  return s;
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+// Days free (longest current run), money saved and check-in streak, under the header
+function StatsStrip({ s }) {
+  const now = useNow(60000);
+  const started = s.quits.filter((q) => S.quitStart(q).getTime() <= now);
+  const days = started.length ? Math.max(...started.map((q) => Math.floor(S.quitElapsed(q, now) / 864e5))) : 0;
+  const saved = savedNow(s, now);
+  const streak = S.checkinStreak(s);
+  return html`<div class="pstats">
+    <div><b>${days}</b><span>${days === 1 ? 'day free' : 'days free'}</span></div>
+    <div><b>${S.money(saved, 0)}</b><span>saved</span></div>
+    <div><b>${streak}</b><span>check-in streak</span></div>
+  </div>`;
+}
+
 export function Profile({ s }) {
   const [headerKey, setHeaderKey] = useState(0);
   const refreshProfile = async () => {
@@ -42,11 +65,100 @@ export function Profile({ s }) {
   const b = S.bmi(kg, p.heightCm);
   const band = S.bmiBand(b);
   const age = S.ageOf(p);
-  const fileRef = useRef();
-  const pos = b ? Math.max(0, Math.min(100, ((b - 15) / (35 - 15)) * 100)) : 0;
   const withHealth = s.quits.filter((q) => healthFor(q));
-  const initials = `${(user.firstName || '?')[0]}${(user.lastName || '')[0] || ''}`.toUpperCase();
+  const bd = useBuddies();
+  const now = useNow(60000);
+  const dev = deviceState();
+  const gear = html`<button class="icon-btn gear-btn" aria-label="Account settings" onClick=${openAccount}>${Icon.gear()}</button>`;
+  const bodyBits = [age != null && `${age}`, p.heightCm && `${p.heightCm} cm`, kg && `${kg.toFixed(1)} kg`].filter(Boolean);
 
+  return html`<${Page} title="Profile" titleRight=${gear} onRefresh=${refreshProfile}>
+    <${ProfileHeader} key=${headerKey} s=${s} />
+    ${s.quits.length > 0 && html`<${StatsStrip} s=${s} />`}
+
+    <${Group} header="Your quits">
+      ${s.quits.map((q) => {
+        const start = S.quitStart(q).getTime();
+        const d = Math.floor((now - start) / 864e5);
+        return html`<${Row} key=${q.id} icon=${q.emoji} iconBg=${q.color} title=${q.label}
+          detail=${start > now ? 'Quit day soon' : plural(d, 'day')} chevron onClick=${() => openQuitEditor(q.id)} />`;
+      })}
+      ${s.quits.length < ADDICTIONS.length && html`<${Row} icon=${Icon.plus()} iconBg="#3B9BFF" title="Add something to quit" chevron onClick=${openAddQuit} />`}
+    <//>
+
+    <${Group} header="Staying quit">
+      <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" detail=${s.reasons.length || 'Add'} chevron onClick=${openReasons} />
+      ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="Saving for" detail=${s.wishlist.length || 'Add'} chevron onClick=${openWishlist} />`}
+    <//>
+
+    <${Group} header="Health">
+      ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
+      <${Row} icon="⚖️" iconBg="#FF375F" title="Body" chevron onClick=${openBody}
+        detail=${html`<span class="body-detail">${bodyBits.length ? bodyBits.join(' · ') : 'Add'}${b && html` <span class="pill sm ${band.tone}">BMI ${b.toFixed(1)}</span>`}</span>`} />
+    <//>
+
+    <${Group} header="Friends">
+      <${Row} icon="🤝" iconBg="#FF9F0A" title="Buddies" detail=${bd.loaded ? (bd.incoming.length ? `${bd.incoming.length} new` : bd.buddies.length || 'Add') : ''} chevron onClick=${openBuddies} />
+      <${Row} icon="👥" iconBg="#5E5CE6" title="Find people" chevron onClick=${() => openPeople('discover')} />
+    <//>
+
+
+    <${Group} header="Settings">
+      <${Row} icon="🔔" iconBg="#FF453A" title="Notifications" detail=${!pushConfigured() ? 'Not set up' : dev.enabled ? 'On' : 'Off'} chevron onClick=${openNotifications} />
+      <${Row} icon="🔒" iconBg="#8E8E93" title="Your data & privacy" chevron onClick=${openData} />
+      <${Row} icon="🧭" iconBg="#5AC8FA" title="Show the tour again" chevron onClick=${replayTour} />
+      ${user.isAdmin && html`<${Row} icon="🛠️" iconBg="#636366" title="Admin" chevron onClick=${openAdmin} />`}
+    <//>
+
+    <div class="about">
+      <img src="icons/icon-192.png" alt="" width="56" height="56" />
+      <b>NOVUM</b>
+      <span>${SLOGAN}</span>
+      <span class="tiny">Version 2.0</span>
+    </div>
+  <//>`;
+}
+
+/* ---------- body: age, height, weight and BMI ---------- */
+export function openBody() { openSheet((close) => html`<${BodySheet} close=${close} />`, { tall: true }); }
+function BodySheet({ close }) {
+  const s = useAppState();
+  const p = s.profile;
+  const kg = S.latestWeight(p);
+  const b = S.bmi(kg, p.heightCm);
+  const band = S.bmiBand(b);
+  const age = S.ageOf(p);
+  const pos = b ? Math.max(0, Math.min(100, ((b - 15) / (35 - 15)) * 100)) : 0;
+  return html`
+    <${SheetBar} title="Body" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body">
+      <${Group}>
+        <${Row} icon="🎂" iconBg="#BF5AF2" title="Age and height" detail=${`${age ?? '–'} · ${p.heightCm ? `${p.heightCm} cm` : '–'}`} chevron onClick=${openBodyEditor} />
+        <${Row} icon="⚖️" iconBg="#FF375F" title="Weight" detail=${kg ? `${kg.toFixed(1)} kg` : 'Add'} chevron onClick=${openWeightSheet} />
+      <//>
+      <${Group} footer="BMI is a rough guide. It doesn’t tell muscle from fat, so use it alongside how you feel and perform.">
+        <div class="bmi">
+          <div class="bmi-top"><div><div class="kicker">BMI</div><div class="bmi-v">${b ? b.toFixed(1) : '–'}</div></div><span class="pill ${band.tone}">${band.label}</span></div>
+          <div class="bmi-scale"><i class="z1"></i><i class="z2"></i><i class="z3"></i><i class="z4"></i>${b && html`<b style="left:${pos}%"></b>`}</div>
+          <div class="bmi-ticks"><span>15</span><span style="left:17.5%">18.5</span><span style="left:50%">25</span><span style="left:75%">30</span><span>35</span></div>
+        </div>
+      <//>
+    </div>`;
+}
+
+/* ---------- notifications ---------- */
+export function openNotifications() { openSheet((close) => html`<${NotificationsSheet} close=${close} />`, { tall: true }); }
+function NotificationsSheet({ close }) {
+  const s = useAppState();
+  return html`
+    <${SheetBar} title="Notifications" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body"><${NotifySettings} s=${s} header=${null} /></div>`;
+}
+
+/* ---------- your data and privacy ---------- */
+export function openData() { openSheet((close) => html`<${DataSheet} close=${close} />`, { tall: true }); }
+function DataSheet({ close }) {
+  const fileRef = useRef();
   const onImport = async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
@@ -59,64 +171,25 @@ export function Profile({ s }) {
       onConfirm: () => { try { S.importJSON(text); toast('Backup restored'); } catch (err) { toast(err.message); } },
     });
   };
-
-  return html`<${Page} title="Profile" onRefresh=${refreshProfile}>
-    <${ProfileHeader} key=${headerKey} s=${s} onAccount=${openAccount} />
-
-    <${Group} header="Body" footer="BMI is a rough guide. It doesn’t tell muscle from fat, so use it alongside how you feel and perform.">
-      <${Row} icon="🎂" iconBg="#BF5AF2" title="Age and height" detail=${`${age ?? '–'} · ${p.heightCm ? `${p.heightCm} cm` : '–'}`} chevron onClick=${openBodyEditor} />
-      <${Row} icon="⚖️" iconBg="#FF375F" title="Weight" detail=${kg ? `${kg.toFixed(1)} kg` : 'Add'} chevron onClick=${openWeightSheet} />
-      <div class="bmi">
-        <div class="bmi-top"><div><div class="kicker">BMI</div><div class="bmi-v">${b ? b.toFixed(1) : '–'}</div></div><span class="pill ${band.tone}">${band.label}</span></div>
-        <div class="bmi-scale"><i class="z1"></i><i class="z2"></i><i class="z3"></i><i class="z4"></i>${b && html`<b style="left:${pos}%"></b>`}</div>
-        <div class="bmi-ticks"><span>15</span><span style="left:17.5%">18.5</span><span style="left:50%">25</span><span style="left:75%">30</span><span>35</span></div>
-      </div>
-    <//>
-
-    <${Group} header="What you’re quitting" footer="Tap one to change its quit date, what it cost you, or to remove it.">
-      ${s.quits.map((q) => html`<${Row} key=${q.id} icon=${q.emoji} iconBg=${q.color} title=${q.label}
-        sub=${`${S.quitStart(q) > new Date() ? 'Quit day' : 'Since'} ${S.quitStart(q).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
-        detail=${q.monthly ? `${S.money(q.monthly, 0)}/mo` : ''} chevron onClick=${() => openQuitEditor(q.id)} />`)}
-      ${s.quits.length < ADDICTIONS.length && html`<${Row} icon=${Icon.plus()} iconBg="#3B9BFF" title="Add something to quit" chevron onClick=${openAddQuit} />`}
-    <//>
-
-    <${Group} header="Staying quit">
-      <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" sub=${s.reasons.length ? `${s.reasons.length} reason${s.reasons.length === 1 ? '' : 's'} · shown during SOS` : 'Why you quit, for the hard moments'} chevron onClick=${openReasons} />
-      ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" sub="What’s improving, stage by stage" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
-      <${Row} icon="👥" iconBg="#5E5CE6" title="People" sub="Find friends, followers and who you follow" chevron onClick=${() => openPeople('discover')} />
-      <${Row} icon="🤝" iconBg="#FF9F0A" title="Buddies" sub=${s.shareStreaks ? 'Sharing your streaks' : 'Quit with friends and cheer each other on'} chevron onClick=${openBuddies} />
-      ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="What it could buy" sub=${s.wishlist.length ? `${s.wishlist.length} thing${s.wishlist.length === 1 ? '' : 's'} you’re saving for` : 'Turn money saved into something real'} chevron onClick=${openWishlist} />`}
-    <//>
-
-    ${user.isAdmin && html`<${Group} header="Admin">
-      <${Row} icon="🛠️" iconBg="#8E8E93" title="Admin" sub="Health check, people, email delivery and password resets" chevron onClick=${openAdmin} />
-    <//>`}
-
-    <${NotifySettings} s=${s} />
-
-    <${Group} header="Help">
-      <${Row} icon="🧭" iconBg="#5AC8FA" title="Show the tour again" sub="A quick look at what each tab does" chevron onClick=${replayTour} />
-    <//>
-
-    <${Group} header="Your data" footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
-      <${SyncRow} />
-      <${Row} icon="🔒" iconBg="#8E8E93" title="Privacy notice" sub="What’s stored, who can see it, your rights" chevron onClick=${openPrivacy} />
-      <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export a copy" sub="Everything: account, profile, check-ins, goals" chevron onClick=${doExport} />
-      <${Row} icon=${Icon.download()} iconBg="#30D158" title="Restore from a file" sub="Replaces your account’s data" chevron onClick=${() => fileRef.current.click()} />
-      <${Row} icon="↺" iconBg="#FF9F0A" title="Start over" sub="Clears your data and reruns Day Zero" onClick=${() => confirmSheet({
-        title: 'Start over', text: 'This clears every counter, check-in, goal and note in your account and takes you back to Day Zero. Your login stays the same.', confirm: 'Clear and start over',
-        onConfirm: () => { S.replaceState(S.defaultState()); toast('Fresh start'); },
-      })} />
-      <input type="file" accept="application/json,.json" ref=${fileRef} onChange=${onImport} hidden />
-    <//>
-
-    <div class="about">
-      <img src="icons/icon-192.png" alt="" width="56" height="56" />
-      <b>NOVUM</b>
-      <span>${SLOGAN}</span>
-      <span class="tiny">Version 2.0</span>
-    </div>
-  <//>`;
+  return html`
+    <${SheetBar} title="Your data & privacy" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
+    <div class="sheet-body">
+      <${Group} footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
+        <${SyncRow} />
+        <${Row} icon="🔒" iconBg="#8E8E93" title="Privacy notice" sub="What’s stored, who can see it, your rights" chevron onClick=${openPrivacy} />
+      <//>
+      <${Group} header="Backups">
+        <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export a copy" sub="Everything: account, profile, check-ins, goals" chevron onClick=${doExport} />
+        <${Row} icon=${Icon.download()} iconBg="#30D158" title="Restore from a file" sub="Replaces your account’s data" chevron onClick=${() => fileRef.current.click()} />
+        <input type="file" accept="application/json,.json" ref=${fileRef} onChange=${onImport} hidden />
+      <//>
+      <${Group} footer="Clears every counter, check-in, goal and note and takes you back to Day Zero. Your login stays the same.">
+        <${Row} icon="↺" iconBg="#FF453A" title="Start over" danger onClick=${() => confirmSheet({
+          title: 'Start over', text: 'This clears every counter, check-in, goal and note in your account and takes you back to Day Zero. Your login stays the same.', confirm: 'Clear and start over',
+          onConfirm: () => { closeAllSheets(); S.replaceState(S.defaultState()); toast('Fresh start'); },
+        })} />
+      <//>
+    </div>`;
 }
 
 export async function doExport() {
@@ -428,7 +501,7 @@ export function Sessions({ close }) {
 }
 
 /* ============ NOTIFICATIONS ============ */
-export function NotifySettings({ s }) {
+export function NotifySettings({ s, header = 'Notifications' }) {
   const n = s.notifyPrefs;
   const [dev, setDev] = useState(deviceState());
   const [busy, setBusy] = useState(false);
@@ -458,7 +531,7 @@ export function NotifySettings({ s }) {
   else if (permission() === 'denied' && !dev.enabled) footer = blockedMessage('denied');
   else footer = 'On or off for this phone. Reminder times follow your account. Novum’s server only uses your quit times, reminder times and habit ticks to time these.';
 
-  return html`<${Group} header="Notifications" footer=${err ? html`<span class="err">${err}</span>` : footer}>
+  return html`<${Group} header=${header} footer=${err ? html`<span class="err">${err}</span>` : footer}>
     <div class="row">
       <span class="row-ic" style="background:#FF453A">🔔</span>
       <span class="row-main"><span class="row-title">Notifications on this phone</span>${busy && html`<span class="row-sub">Working…</span>`}</span>

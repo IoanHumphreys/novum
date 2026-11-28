@@ -6,7 +6,7 @@ import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented,
 import * as S from './store.js';
 import * as A from './api.js';
 import { CheerBar } from './cheers.js';
-import { refreshBuddies } from './social.js';
+import { refreshBuddies, useBuddies, openBuddies as openBuddiesSheet } from './social.js';
 import { Banner, openBannerPicker } from './banner.js';
 
 const DAY = 864e5;
@@ -81,10 +81,12 @@ export function startProfileSync() {
 export function stopProfileSync() { if (unsubProf) unsubProf(); unsubProf = null; clearTimeout(profTimer); lastProf = null; }
 
 /* ---------- my profile header (Profile tab) ---------- */
-export function ProfileHeader({ s, onAccount }) {
+export function ProfileHeader({ s }) {
   const user = A.getSession()?.user || {};
   const [counts, setCounts] = useState(null);
+  const bd = useBuddies();
   useEffect(() => { A.follows().then((f) => setCounts({ followers: f.followers.length, following: f.following.length, requests: f.requests.length })).catch(() => {}); }, []);
+  const n = (v) => (v == null ? '·' : v);
   return html`<div class="card ph">
     <button class="ph-banner" aria-label="Change banner" onClick=${() => openBannerPicker(s.social.banner, (b) => S.update((d) => { d.social.banner = b; }))}>
       <${Banner} b=${s.social.banner} /><span class="ph-banner-edit">🎨</span>
@@ -96,21 +98,32 @@ export function ProfileHeader({ s, onAccount }) {
       </button>
       <div class="ph-main">
         <div class="pc-name">${user.firstName} ${user.lastName}</div>
-        <div class="row-sub">@${user.username} · ${s.social.visibility === 'public' ? '🌍 Public' : '🔒 Private'}</div>
-        <div class="ph-counts">
-          <button onClick=${() => openPeople('followers')}><b>${counts?.followers ?? '–'}</b> followers</button>
-          <button onClick=${() => openPeople('following')}><b>${counts?.following ?? '–'}</b> following</button>
-        </div>
+        <div class="ph-handle">@${user.username} <span class="ph-vis">${s.social.visibility === 'public' ? '🌍 Public' : '🔒 Private'}</span></div>
       </div>
     </div>
-    <p class="ph-bio ${s.social.bio ? '' : 'empty'}">${s.social.bio || 'Add a short bio so friends know it’s you.'}</p>
-    ${counts?.requests > 0 && html`<button class="ph-req" onClick=${() => openPeople('followers')}>👤 ${counts.requests} follow request${counts.requests === 1 ? '' : 's'}</button>`}
+    ${s.social.bio && html`<p class="ph-bio">${s.social.bio}</p>`}
+    <div class="ph-nums">
+      <button onClick=${() => openPeople('followers')}><b>${n(counts?.followers)}</b><span>Followers</span></button>
+      <button onClick=${() => openPeople('following')}><b>${n(counts?.following)}</b><span>Following</span></button>
+      <button onClick=${openBuddiesSheet}><b>${bd.loaded ? bd.buddies.length : '·'}</b><span>Buddies</span></button>
+    </div>
+    ${counts?.requests > 0 && html`<button class="ph-req" onClick=${() => openPeople('followers')}>👤 ${counts.requests} follow request${counts.requests === 1 ? '' : 's'} waiting</button>`}
     <div class="ph-actions">
       <button class="btn btn-tinted sm" onClick=${openEditProfile}>Edit profile</button>
-      <button class="btn btn-plain sm" onClick=${() => openPeople('discover')}>Find people</button>
-      <button class="btn btn-plain sm" onClick=${onAccount}>Account</button>
+      <button class="btn btn-plain sm" onClick=${() => shareProfile(user)}>Share</button>
     </div>
   </div>`;
+}
+
+// "Add me on Novum": the phone's share sheet, or copy the text where that isn't available
+export async function shareProfile(user) {
+  haptic();
+  const text = `Quit with me on Novum 💙 Add me as a buddy: @${user.username}`;
+  const url = 'https://novumdaily.com/';
+  try {
+    if (navigator.share) { await navigator.share({ title: 'Novum', text, url }); return; }
+  } catch (e) { if (e?.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Copied. Paste it to a friend'); } catch { toast(`Your username is @${user.username}`); }
 }
 
 /* ---------- edit profile ---------- */
