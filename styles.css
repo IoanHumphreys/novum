@@ -1385,8 +1385,20 @@ input:autofill { background: transparent; }
 .wr-grid span { font-size: 12px; opacity: 0.8; }
 .wr-share { position: absolute; bottom: calc(var(--sab) + 24px); left: 24px; right: 24px; z-index: 4; min-height: 52px; border-radius: 16px; background: rgba(255, 255, 255, 0.18);
   -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: #fff; font-weight: 700; font-size: 16px; }
-.wr-peek { display: block; width: 100%; margin: 0 0 14px; padding: 12px 14px; border-radius: var(--r-md); text-align: left; font-weight: 600; font-size: 15px;
-  background: linear-gradient(90deg, rgba(31, 107, 255, 0.2), rgba(125, 92, 255, 0.2)); color: var(--text); }
+.wr-tease { display: block; width: 100%; text-align: left; padding: 18px 18px 14px; margin-bottom: 14px; isolation: isolate;
+  background: linear-gradient(140deg, #1a3fb8 0%, #4b2fb0 55%, #8a1f5c 100%); box-shadow: 0 10px 30px rgba(75, 47, 176, .35); }
+.wr-tease-glow { position: absolute; inset: -40% -20% auto auto; width: 70%; aspect-ratio: 1; border-radius: 50%; z-index: -1;
+  background: radial-gradient(circle, rgba(255, 92, 160, .55), transparent 65%); animation: wrGlow 6s ease-in-out infinite alternate; }
+@keyframes wrGlow { to { transform: translate(-30%, 25%) scale(1.15); } }
+@media (prefers-reduced-motion: reduce) { .wr-tease-glow { animation: none; } }
+.wr-tease-k { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 255, 255, .75); }
+.wr-tease-t { font-size: 26px; font-weight: 900; letter-spacing: -.03em; margin-top: 2px; color: #fff; }
+.wr-tease-n { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 12px; }
+.wr-tease-n div { background: rgba(255, 255, 255, .12); border-radius: 14px; padding: 10px 10px 9px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.wr-tease-n b { display: block; font-size: 24px; font-weight: 900; letter-spacing: -.02em; color: #fff; font-variant-numeric: tabular-nums; }
+.wr-tease-n span { font-size: 12px; color: rgba(255, 255, 255, .78); line-height: 1.2; }
+.wr-tease-f { display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; color: rgba(255, 255, 255, .8); }
+.wr-tease-btn { padding: 7px 14px; border-radius: 999px; background: #fff; color: #3a1f9c; font-weight: 800; font-size: 14px; }
 .wr-card { display: block; width: 100%; text-align: left; padding: 20px; margin-bottom: 14px; background: linear-gradient(140deg, #1f6bff, #7d5cff 60%, #ff375f); }
 .wr-card-k { font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
 .wr-card-y { font-size: 64px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }

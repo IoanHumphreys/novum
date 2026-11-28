@@ -1,30 +1,31 @@
 // Novum service worker: keeps a complete copy of one release of the app for instant, offline starts.
 // Bump VERSION when you deploy changes: phones then download the whole new release and drop the old one.
-const VERSION = 'novum-v51';
+const VERSION = 'novum-v52';
 // Cartoon avatars from DiceBear are kept here (separately, so updates don't wipe them) for instant, offline loading
 const AVATARS = 'novum-avatars-2'; // renamed so any broken copies kept by the old version are dropped
 const ASSETS = [
   // Written by build.mjs: edit the icons here, the rest is replaced on every build
   './',
   'manifest.json',
-  'dist/styles-MKGVAYG3.css',
+  'dist/styles-62HJQXG3.css',
   'dist/boot-ZGDCMZIW.js',
-  'dist/app-LCEFVCG4.js',
+  'dist/app-FXPT3KKK.js',
   'dist/c-24WBN7R7.js',
   'dist/c-2KPLHCVL.js',
   'dist/c-3SMB7GOA.js',
   'dist/c-64SAQGNL.js',
-  'dist/c-6Y37IDUQ.js',
-  'dist/c-7Z6ZGD2Z.js',
+  'dist/c-7VTRXCCN.js',
   'dist/c-B4QY5EBS.js',
-  'dist/c-DR63UHU6.js',
   'dist/c-E7ZIQIMY.js',
   'dist/c-EMBUBGIX.js',
   'dist/c-HECOZTOP.js',
   'dist/c-INGTM4TJ.js',
   'dist/c-IQYF2XYA.js',
   'dist/c-IWTA5PH7.js',
+  'dist/c-KRW4VZP6.js',
+  'dist/c-KUDY72SQ.js',
   'dist/c-LCQCBYH5.js',
+  'dist/c-LCSUY7SK.js',
   'dist/c-O4EGJYLC.js',
   'dist/c-OCZ74QMI.js',
   'dist/c-OVTBWQH5.js',
@@ -32,7 +33,6 @@ const ASSETS = [
   'dist/c-RGFY2C67.js',
   'dist/c-RN6WYK2K.js',
   'dist/c-U6DBJVHK.js',
-  'dist/c-U7DGW46B.js',
   'dist/c-Y7CKH2QH.js',
   'icons/icon-192.png',
   'icons/icon-512.png',

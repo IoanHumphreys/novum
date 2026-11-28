@@ -63,7 +63,7 @@ export function Progress({ s, go }) {
   });
 
   return html`<${Page} title="Progress">
-    <${WrappedCard} />
+    <${WrappedCard} s=${s} />
     ${s.quits.length > 0 && html`<button class="card rc-card tap" onClick=${openRecap}>
       <span class="rc-card-ic">📅</span>
       <span class="row-main"><span class="row-title">Your week</span><span class="row-sub">Check-ins, cravings beaten, money saved and what your body did</span></span>
