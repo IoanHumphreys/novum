@@ -69,6 +69,7 @@ export const Icon = {
   gift: () => I(html`<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8S10.5 3.5 8 4.5 9 8 12 8zM12 8s1.5-4.5 4-3.5S15 8 12 8z"/>`),
   pulse: () => I(html`<path d="M3 12h4l2.5-6 5 12 2.5-6h4"/>`),
   scale: () => I(html`<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M7.5 11a4.5 4.5 0 0 1 9 0z"/><path d="m12 11 1.6-2.4"/>`),
+  dumbbell: () => I(html`<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>`),
   person: () => I(html`<circle cx="12" cy="4.8" r="2.3"/><path d="M6.5 9.5 12 8.5l5.5 1M12 8.5v6.5M12 15l-3 6M12 15l3 6"/>`),
   ruler: () => I(html`<path d="M15.5 3.5 20.5 8.5 8.5 20.5 3.5 15.5z"/><path d="m7 12 2 2M10 9l2 2M13 6l2 2"/>`),
   users: () => I(html`<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M17.5 14.8c2 .8 3.3 2.6 4 5.2"/>`),

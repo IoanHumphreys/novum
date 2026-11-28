@@ -31,6 +31,12 @@ export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().to
 /* ---------- default state ---------- */
 export const DEFAULT_PREFS = { milestones: true, checkin: true, checkinAt: '21:00', habits: true, habitsAt: '18:00', recap: true, recapAt: '19:00', buddies: true, nudges: true };
 
+// Fitness (see js/fitness/data.js for the exercise ids):
+//   workouts: [{ id, start, end, name, rid (routine id or null), note, ex: [{ x: exerciseId, note, sets: [{ kg, r, s (secs), w (warm-up), d (done), pb }] }] }]
+//   routines: [{ id, name, ex: [{ x, sets, reps }] }] · custom: your own exercises [{ id, n, m, s, eq, t, how }]
+//   active: the workout in progress (same shape as a workout, no end; restEnd = when the rest timer ends) · rest: rest timer in seconds
+export const defaultFitness = () => ({ workouts: [], routines: [], custom: [], active: null, rest: 90 });
+
 export function defaultState() {
   return {
     version: 2,
@@ -60,6 +66,7 @@ export function defaultState() {
     // profile: DiceBear avatar { style, seed, bg }, bio, 'buddies' (private) | 'public'
     social: { avatar: null, banner: null, bio: '', visibility: 'buddies' },
     notifyPrefs: { ...DEFAULT_PREFS },
+    fitness: defaultFitness(),
     createdAt: new Date().toISOString(),
     savedAt: 0,
   };
@@ -96,6 +103,7 @@ export function migrate(s) {
     wishlist: s.wishlist || [], plans: s.plans || {}, events: s.events || [], letters: s.letters || [], lungTests: s.lungTests || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
     social: { avatar: null, banner: null, bio: '', visibility: 'buddies', ...(s.social || {}) },
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
+    fitness: { ...defaultFitness(), ...(s.fitness || {}) },
   };
 }
 const pickPrefs = (n) => (n ? Object.fromEntries(Object.keys(DEFAULT_PREFS).filter((k) => k in n).map((k) => [k, n[k]])) : {});

@@ -11,6 +11,8 @@ import { Avatar, openAvatarPicker } from './profile.js';
 import { Banner, openBannerPicker, PALETTES } from './banner.js';
 import { EyeButton, CodeInput, Resend, setNewSignup, JunkHint, suggestEmail } from './authkit.js';
 import { pendingAdd } from './connect.js';
+import { PROGRAMMES } from './fitness/data.js';
+import { addProgramme } from './fitness/routines.js';
 export { EyeButton, CodeInput, Resend, consumeNewSignup } from './authkit.js';
 
 export const MIN_AGE = 16;
@@ -477,7 +479,7 @@ function DobPicker({ value, onChange }) {
 }
 
 /* ============ Day Zero, one step at a time ============ */
-const DZ = ['dob', 'height', 'weight', 'habits', 'details', 'why', 'look', 'ready'];
+const DZ = ['dob', 'height', 'weight', 'habits', 'details', 'why', 'train', 'look', 'ready'];
 const nowInput = () => S.toLocalInput(new Date());
 
 export function DayZero({ user }) {
@@ -506,6 +508,8 @@ export function DayZero({ user }) {
   const [reasons, setReasons] = useState(() => s.reasons.map((r) => r.text));
   const [reasonTxt, setReasonTxt] = useState('');
   const [pushMsg, setPushMsg] = useState('');
+  // A starter training plan to add to Fitness ('' = not now)
+  const [plan, setPlan] = useState('');
   // A random avatar and banner to start with, so no profile starts blank
   const rnd = () => Math.random().toString(36).slice(2, 8);
   const [look, setLook] = useState(() => ({
@@ -524,12 +528,12 @@ export function DayZero({ user }) {
     weight: weightKg >= 30 && weightKg <= 300,
     habits: !picked.includes('other') || otherName.trim(),
     details: picked.every((k) => { const d = detailFor(k); return d.start && !Number.isNaN(S.parseLocal(d.start).getTime()); }),
-    why: true, look: true, ready: true,
+    why: true, train: true, look: true, ready: true,
   }[step];
 
   const go = (n) => { haptic(); setDir(n > i ? 'fwd' : 'back'); setI(n); window.scrollTo(0, 0); };
-  const next = (e) => { e?.preventDefault(); if (!valid) return; if (step === 'habits' && picked.length === 0) { go(DZ.indexOf('why')); return; } go(i + 1); };
-  const prev = () => { if (step === 'why' && picked.length === 0) { go(DZ.indexOf('habits')); return; } go(i - 1); };
+  const next = (e) => { e?.preventDefault(); if (!valid) return; if (step === 'habits' && picked.length === 0) { go(DZ.indexOf('train')); return; } go(i + 1); };
+  const prev = () => { if (step === 'train' && picked.length === 0) { go(DZ.indexOf('habits')); return; } go(i - 1); };
   const toggle = (k) => {
     haptic();
     if (picked.includes(k)) { setPicked(picked.filter((x) => x !== k)); return; }
@@ -566,6 +570,7 @@ export function DayZero({ user }) {
       d.social = { ...d.social, avatar: look.avatar, banner: look.banner };
       d.setupDone = true;
     });
+    if (plan && !S.getState().fitness.routines.some((r) => r.prog === plan)) addProgramme(plan, { quiet: true });
     // The ready step already offered notifications, so skip the "you added it" welcome in the Home Screen app
     if (isStandalone()) markWelcomed();
     if (!user.dob && dob) A.updateMe({ dob }).catch(() => { /* sent again on next open */ });
@@ -574,7 +579,7 @@ export function DayZero({ user }) {
   const turnOnPush = async () => { setPushMsg(''); try { await enablePush(); setPushMsg('on'); haptic(15); } catch (e) { setPushMsg(e.message); } };
 
   const bmiNow = valid && step === 'weight' ? S.bmi(weightKg, heightCm) : null;
-  const cta = step === 'why' && reasons.length === 0 ? 'Skip for now' : step === 'habits' && picked.length === 0 ? 'Nothing right now' : 'Continue';
+  const cta = step === 'why' && reasons.length === 0 ? 'Skip for now' : step === 'habits' && picked.length === 0 ? 'Nothing, I’m here for fitness' : step === 'train' && !plan ? 'Not now' : 'Continue';
 
   return html`<form class="auth" onSubmit=${next} novalidate>
     <${Wizard} step=${i} total=${DZ.length} dir=${dir} onBack=${i > (dobKnown ? 1 : 0) ? prev : null} badge="Day Zero">
@@ -636,6 +641,14 @@ export function DayZero({ user }) {
           <button type="button" class="icon-btn muted" aria-label="Remove" onClick=${() => setReasons(reasons.filter((x) => x !== t))}>${Icon.trash()}</button></div>`)}</div>`}
         <div class="chip-row dz-ideas">${REASON_IDEAS.filter((t) => !reasons.includes(t)).slice(0, 5).map((t) => html`<button type="button" class="chip big" onClick=${() => addReason(t)}>+ ${t}</button>`)}</div>`}
 
+      ${step === 'train' && html`
+        <${Q} emoji="🏋️" title=${picked.length ? 'Want to train too?' : 'Let’s get you training.'} sub="Pick a starter plan and it’ll be waiting in Fitness. You can change it, or build your own, any time." />
+        <div class="dz-plans">
+          ${PROGRAMMES.map((p) => html`<button type="button" key=${p.id} class="card dz-plan ${plan === p.id ? 'on' : ''}" aria-pressed=${plan === p.id} onClick=${() => { haptic(); setPlan(plan === p.id ? '' : p.id); }}>
+            <span class="dz-plan-e">${p.e}</span><span class="row-main"><b>${p.name}</b><small>${p.days} · ${p.d}</small></span><span class="pick-tick">${Icon.check()}</span>
+          </button>`)}
+        </div>`}
+
       ${step === 'look' && html`
         <${Q} emoji="🎨" title="Make it yours." sub="Pick a cartoon avatar and a banner. Only your buddies see your profile unless you make it public later." />
         <div class="ep-top dz-look">
@@ -652,7 +665,7 @@ export function DayZero({ user }) {
         <div class="dz-ready">
           <div class="ready-ring"><span>✓</span></div>
           <h1 class="wiz-q center">You’re set, ${user.firstName}.</h1>
-          <p class="wiz-sub center">${picked.length ? `Tracking ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}. Every hour from here counts.` : 'Head to Goals to plan your 2027.'}</p>
+          <p class="wiz-sub center">${picked.length ? `Tracking ${picked.length} ${picked.length === 1 ? 'thing' : 'things'}. Every hour from here counts.` : `${plan ? 'Your training plan is waiting in Fitness.' : 'Head to Fitness to start your first workout.'}`}</p>
         </div>
         <div class="card list">
           <div class="row"><span class="row-ic" style="background:#FF453A">🔔</span>

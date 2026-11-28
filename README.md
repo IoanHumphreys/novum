@@ -2,7 +2,7 @@
 
 *Turn intentions into transformation.*
 
-Novum is an iPhone-style web app for quitting vaping and weed. It counts time free and money saved, and has a daily check-in, Craving SOS, goals and habits, buddies, a recovery garden and Novum Rewind. It's installed from the browser to the Home Screen and works offline.
+Novum is an iPhone-style web app for quitting vaping and weed. It counts time free and money saved, and has a daily check-in, Craving SOS, a workout logger with an exercise library and starter plans, goals and habits, buddies, a recovery garden and Novum Rewind. People who only want fitness can use it with nothing to quit. It's installed from the browser to the Home Screen and works offline.
 
 - **Live:** <https://novumdaily.com> (Cloudflare Pages project `novum`)
 - **Preview:** <https://preview.novum-8ym.pages.dev> (the `preview` branch, not indexed by search engines)
@@ -77,7 +77,8 @@ Phones pick up the new version the next time Novum is opened. Sometimes it takes
 | `js/store.js` | Data model, dates and calculations (money, streaks, BMI) |
 | `js/sync.js`, `js/api.js` | Encrypted sync and every server call |
 | `js/config.js` | Server address and the public push key |
-| `js/tabs/` | Home, Check-in, Goals, Progress and Profile |
+| `js/tabs/` | Home, Check-in, Fitness, Progress and Profile (`goals.js` holds the goals screens shown inside Fitness) |
+| `js/fitness/` | Exercise library and starter plans (`data.js`), muscle diagram, workout logger, routines |
 | `js/onboarding.js`, `js/authkit.js`, `js/tour.js` | Sign up, log in, Day Zero setup and the first-run tour |
 | `js/quits.js` | Things you're quitting, recovery timeline, slips |
 | `js/sos.js`, `js/game.js`, `js/plans.js` | Craving SOS, the Flow puzzle, if-then plans |

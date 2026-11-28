@@ -90,7 +90,7 @@ export function checkNewBadges(now = Date.now()) {
 const when = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 // Award colours by kind (light top → deep bottom): days free, money, SOS, check-ins, goals, reasons
-const KIND = { d: ['#5BE584', '#12A150'], m: ['#FFE066', '#E89B00'], sos: ['#7AD7FF', '#2F7BEA'], ci: ['#D58CFF', '#8A3FD1'], goal: ['#FF7A93', '#D81E4C'], why: ['#7FB8FF', '#3D5BEA'] };
+const KIND = { d: ['#22D35E', '#08702F'], m: ['#FFC21A', '#B05F00'], sos: ['#22AAFF', '#0F45C8'], ci: ['#B04DFF', '#5214A8'], goal: ['#FF3D63', '#A80B33'], why: ['#4F7DFF', '#2230B8'] };
 const kindOf = (id) => KIND[id.replace(/\d+$/, '')] || KIND.d;
 
 // A hexagon award with the achievement as a number ("30 DAYS", "£50 SAVED"). Drawn in SVG so it's sharp at any size.
@@ -100,9 +100,9 @@ export function Medal({ b, size = 52, locked }) {
   const fs = b.n.length <= 2 ? 34 : b.n.length === 3 ? 28 : 23;
   return html`<svg class="medal ${locked ? 'locked' : ''}" width=${size} height=${size} viewBox="0 0 100 100" aria-hidden="true">
     <defs><linearGradient id=${g} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color=${top} /><stop offset="1" stop-color=${bottom} /></linearGradient></defs>
-    <path d="M50 5 89 27.5v45L50 95 11 72.5v-45z" fill=${`url(#${g})`} stroke=${locked ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.35)'} stroke-width="2.5" stroke-linejoin="round" />
+    <path d="M50 5 89 27.5v45L50 95 11 72.5v-45z" fill=${`url(#${g})`} stroke=${locked ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.28)'} stroke-width="2.5" stroke-linejoin="round" />
     <path d="M50 14 81 32v36L50 86 19 68V32z" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1.5" stroke-linejoin="round" />
-    ${!locked && html`<path d="M50 5 89 27.5V50H11V27.5z" fill="#fff" opacity=".12" />`}
+    ${!locked && html`<path d="M50 5 89 27.5V50H11V27.5z" fill="#fff" opacity=".07" />`}
     <text x="50" y=${54 + fs * 0.12} text-anchor="middle" class="medal-n" font-size=${fs}>${b.n}</text>
     <text x="50" y="71" text-anchor="middle" class="medal-u" font-size=${b.u.length >= 6 ? 8.6 : 10.5}>${b.u}</text>
   </svg>`;

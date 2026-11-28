@@ -8,7 +8,7 @@ import { html, haptic } from './ui.js';
 const STEPS = [
   { tab: 'home', e: '🏠', t: 'Home', d: 'Your streaks, money saved and what your body is doing right now. Craving? The big “Tap here” button gives you five minutes of guided breathing. The 🔔 at the top shows cheers from buddies.' },
   { tab: 'checkin', e: '✍️', t: 'Check-in', d: 'Twenty seconds a day: mood, cravings and sleep. The red dot means you haven’t checked in yet today. It’s how Novum spots your patterns.' },
-  { tab: 'goals', e: '🎯', t: 'Goals', d: 'Habits you tick off, targets to work towards and one-off milestones, for 2027 or any date you choose.' },
+  { tab: 'fitness', e: '🏋️', t: 'Fitness', d: 'Log workouts set by set, follow a starter plan, and keep your goals and habits here too.' },
   { tab: 'progress', e: '📈', t: 'Progress', d: 'Rings, charts and your check-in calendar, so you can see how far you’ve come.' },
   { tab: 'profile', e: '🤝', t: 'Profile', d: 'Add buddies by username, choose what they see, set up notifications and change your avatar. Quitting is easier together.' },
 ];

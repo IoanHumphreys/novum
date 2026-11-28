@@ -87,6 +87,13 @@ export function Profile({ s }) {
     ${s.quits.length > 0 && html`<${StatsStrip} s=${s} />`}
     <section class="group"><${MyGarden} s=${s} waterers=${waterers} /></section>
     <section class="group"><${BadgeShelf} earned=${earnedBadges(s, now)} mine s=${s} /></section>
+    <section class="group">
+      <button class="card find-card tap" onClick=${() => openPeople('discover')}>
+        <span class="row-ic tinted find-ic" style=${`--c:${TINT.social}`}>${Icon.search()}</span>
+        <span class="row-main"><span class="row-title">Find people</span><span class="row-sub">Search by name or @username, or browse public profiles</span></span>
+        <span class="row-chev">${Icon.chevron()}</span>
+      </button>
+    </section>
 
     <${Group} header="Your quits">
       ${s.quits.map((q) => {
@@ -112,9 +119,7 @@ export function Profile({ s }) {
     <//>
 
     <${Group} header="Friends">
-      <${Row} icon=${Icon.users()} tint=${TINT.social} title="Buddies" detail=${bd.loaded ? (bd.incoming.length ? `${bd.incoming.length} new` : bd.buddies.length || 'Add') : ''} chevron onClick=${openBuddies} />
-      <${Row} icon=${Icon.search()} tint=${TINT.social} title="Find people" chevron onClick=${() => openPeople('discover')} />
-    <//>
+      <${Row} icon=${Icon.users()} tint=${TINT.social} title="Buddies" detail=${bd.loaded ? (bd.incoming.length ? `${bd.incoming.length} new` : bd.buddies.length || 'Add') : ''} chevron onClick=${openBuddies} />    <//>
 
 
     <${Group} header="Settings">

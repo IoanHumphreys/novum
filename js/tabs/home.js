@@ -2,7 +2,10 @@
 // milestones, today, body.
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
-import { html, haptic, useNow, Icon, Ring, openSheet, SheetBar, Page, Segmented, Group, Legend } from '../ui.js';
+import { html, haptic, useNow, Icon, Ring, openSheet, SheetBar, Page, Segmented, Group, Legend, lazyOpen } from '../ui.js';
+// The workout logger loads only when a workout is started from Home
+const startWorkout = lazyOpen(() => import('../fitness/logger.js'), 'startWorkout');
+const openLogger = lazyOpen(() => import('../fitness/logger.js'), 'openLogger');
 import { MILESTONES, healthFor, MOODS, WISH_IDEAS, SLOGAN, ADDICTIONS } from '../content.js';
 import { InstallBanner } from '../install.js';
 import { BuddiesSection, refreshBuddies } from '../social.js';
@@ -19,6 +22,24 @@ import { EventsCard, openPlans } from '../plans.js';
 import { openShareSheet, cardFor } from '../celebrate.js';
 
 /* ============ HOME ============ */
+// Today's workout: resume the one in progress, start the routine that's due, or head to Fitness to set one up
+function WorkoutCard({ s, go }) {
+  const f = s.fitness || {};
+  const a = f.active;
+  const last = (r) => Math.max(0, ...(f.workouts || []).filter((w) => w.rid === r.id).map((w) => w.start));
+  const next = [...(f.routines || [])].sort((x, y) => last(x) - last(y))[0];
+  const doneToday = (f.workouts || []).some((w) => S.dayKey(new Date(w.start)) === S.dayKey());
+  const [title, sub, btn, onClick] = a ? [a.name, 'Workout in progress', 'Resume', openLogger]
+    : doneToday ? ['Trained today', next ? `Next up: ${next.name}` : 'Nice work', 'Open', () => go('fitness')]
+      : next ? [next.name, `Up next · ${next.ex.length} exercise${next.ex.length === 1 ? '' : 's'}`, 'Start', () => startWorkout(next)]
+        : ['Start training', 'Pick a starter plan or log a workout', 'Go', () => go('fitness')];
+  return html`<button class="card fx-home tap ${a ? 'live' : ''}" onClick=${onClick}>
+    <span class="row-ic tinted fx-home-ic" style="--c:#30D158">${doneToday && !a ? Icon.check() : Icon.dumbbell()}</span>
+    <span class="row-main"><span class="row-title">${title}</span><span class="row-sub">${sub}</span></span>
+    <span class="btn btn-tinted sm">${btn}</span>
+  </button>`;
+}
+
 export function Home({ s, go }) {
   // Only the counters tick every second (inside QuitCard/MoneyTicker); the rest refreshes each minute
   const now = useNow(60000);
@@ -50,7 +71,9 @@ export function Home({ s, go }) {
     <p class="greet"><button class="greet-av" aria-label="Your profile" onClick=${() => go('profile')}><${Avatar} a=${s.social?.avatar} name=${firstName()} size=${36} /></button><span>${greet}${firstName() ? `, ${firstName()}` : ''}.</span></p>
     <${InstallBanner} />
 
-    <section class="group first">
+    ${!hasQuits && html`<section class="group first"><h2 class="group-h">Training</h2><${WorkoutCard} s=${s} go=${go} /></section>`}
+
+    <section class="group ${hasQuits ? 'first' : ''}">
       ${started.length ? html`<div class="group-h-row"><h2 class="group-h">Your streaks</h2>
         <button class="link sm b share-link" onClick=${shareStreak}>${Icon.share()} Share</button></div>`
       : html`<h2 class="group-h">${hasQuits ? 'Your streaks' : 'Get started'}</h2>`}
@@ -141,6 +164,7 @@ export function Home({ s, go }) {
           <span class="cc-main"><b>How are you today?</b><span>Log mood, cravings and sleep. It takes 20 seconds.</span></span>`}
         <span class="row-chev">${Icon.chevron()}</span>
       </button>
+      ${hasQuits && html`<div class="mt8"><${WorkoutCard} s=${s} go=${go} /></div>`}
       ${habits.length > 0 && html`<div class="card list mt8">
         ${habits.map((g) => html`<${HabitTickRow} key=${g.id} g=${g} />`)}
       </div>`}

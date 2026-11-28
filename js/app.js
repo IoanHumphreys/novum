@@ -11,7 +11,6 @@ import { startShareSync, stopShareSync, resetBuddies } from './social.js';
 import { startProfileSync, stopProfileSync } from './profile.js';
 import { Home } from './tabs/home.js';
 import { CheckIn } from './tabs/checkin.js';
-import { Goals } from './tabs/goals.js';
 import { Progress } from './tabs/progress.js';
 import { Profile } from './tabs/me.js';
 import { openActivity, resetActivity, reloadActivityCache, useActivity, ActivityPopup } from './activity.js';
@@ -34,11 +33,14 @@ captureAddLink();
 const splash = () => html`<div class="boot">NOVUM</div>`;
 const AuthScreen = lazy(() => import('./onboarding.js'), 'AuthScreen', splash);
 const DayZero = lazy(() => import('./onboarding.js'), 'DayZero', splash);
+// The Fitness tab (and its exercise library) loads the first time it's opened
+const Fitness = lazy(() => import('./tabs/fitness.js'), 'Fitness', () => html`<div class="page"><div class="lt"><h1 class="large-title">Fitness</h1></div></div>`);
+const openLogger = lazyOpen(() => import('./fitness/logger.js'), 'openLogger');
 
 const TABS = [
   { id: 'home', label: 'Home', icon: Icon.home },
   { id: 'checkin', label: 'Check-in', icon: Icon.checkin },
-  { id: 'goals', label: 'Goals', icon: Icon.goals },
+  { id: 'fitness', label: 'Fitness', icon: Icon.dumbbell },
   { id: 'progress', label: 'Progress', icon: Icon.progress },
   { id: 'profile', label: 'Profile', icon: Icon.profile },
 ];
@@ -76,7 +78,8 @@ window.addEventListener('unhandledrejection', (e) => report('promise', e.reason?
 
 function App({ s }) {
   // #reset comes from "This wasn't me" in a new-login email: when logged in, Profile has the password and devices settings
-  const initial = location.hash === '#reset' ? 'profile' : location.hash.slice(1);
+  // #goals is the old Goals tab (habit reminders still link to it): goals now live in Fitness
+  const initial = location.hash === '#reset' ? 'profile' : location.hash === '#goals' ? 'fitness' : location.hash.slice(1);
   const [tab, setTab] = useState(TABS.some((t) => t.id === initial) ? initial : 'home');
   useEffect(() => {
     if (initial === 'activity') { history.replaceState(null, '', '#home'); setTimeout(openActivity, 400); }
@@ -112,6 +115,7 @@ function App({ s }) {
       if (h === 'plan') { setTab('home'); history.replaceState(null, '', '#home'); openPlans(); return; }
       if (h === 'letters') { setTab('home'); history.replaceState(null, '', '#home'); openLetters(); return; }
       if (h === 'recap') { setTab('home'); history.replaceState(null, '', '#home'); openRecap(); return; }
+      if (h === 'goals') { setTab('fitness'); history.replaceState(null, '', '#fitness'); return; }
       if (TABS.some((t) => t.id === h)) setTab(h);
     };
     window.addEventListener('hashchange', on);
@@ -133,7 +137,7 @@ function App({ s }) {
     window.addEventListener('hashchange', onHash);
     return () => { clearTimeout(t); window.removeEventListener('hashchange', onHash); };
   }, [s.tourDone]);
-  const Screen = { home: Home, checkin: CheckIn, goals: Goals, progress: Progress, profile: Profile }[tab];
+  const Screen = { home: Home, checkin: CheckIn, fitness: Fitness, progress: Progress, profile: Profile }[tab];
   const needCheckin = !s.checkins[S.dayKey()]?.mood;
   // New milestones get a celebration (checked on open, then every minute)
   useEffect(() => {
@@ -151,6 +155,7 @@ function App({ s }) {
   }, [badgeN]);
   return html`<div class="app">
     <main class="screen" key=${tab}><${Screen} s=${s} go=${go} /></main>
+    ${s.fitness?.active && html`<button class="fx-bar" onClick=${openLogger}><span class="fx-live-dot"></span><span>${s.fitness.active.name}</span><b>Resume</b></button>`}
     <${TabBar} tab=${tab} go=${go} dot=${needCheckin} unread=${act.unread || 0} />
     <${ActivityPopup} />
     <${Tour} s=${s} go=${go} />

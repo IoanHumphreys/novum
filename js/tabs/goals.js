@@ -8,12 +8,16 @@ import { Profile, openWeightSheet } from './me.js';
 
 /* ============ GOALS ============ */
 export function Goals({ s }) {
+  const addBtn = html`<button class="icon-btn accent" onClick=${() => openGoalEditor()} aria-label="New goal">${Icon.plus()}</button>`;
+  return html`<${Page} title="Goals" right=${addBtn}><${GoalsBody} s=${s} /><//>`;
+}
+
+// Everything on the goals screen below the title. The Fitness tab shows it under "Goals & habits".
+export function GoalsBody({ s }) {
   const [filter, setFilter] = useState('active');
   const all = s.goals.map((g) => ({ g, p: S.goalProgress(g, s) }));
   const list = all.filter(({ p }) => (filter === 'done' ? p.pct >= 1 : filter === 'active' ? p.pct < 1 : true));
-  const addBtn = html`<button class="icon-btn accent" onClick=${() => openGoalEditor()} aria-label="New goal">${Icon.plus()}</button>`;
-
-  return html`<${Page} title="Goals" right=${addBtn}>
+  return html`
     <button class="card ny-mini tap" onClick=${openNewYear}>
       <span class="ny-mini-y">2027</span>
       <span class="row-main"><span class="row-title">New Year ideas</span><span class="row-sub">Ready-made goals you can add in one tap</span></span>
@@ -33,8 +37,7 @@ export function Goals({ s }) {
         return html`<${Group} key=${c.id} header=${c.label}>
           ${items.map(({ g, p }) => html`<${GoalRow} key=${g.id} g=${g} p=${p} />`)}
         <//>`;
-      })}`}
-  <//>`;
+      })}`}`;
 }
 
 export function GoalRow({ g, p }) {

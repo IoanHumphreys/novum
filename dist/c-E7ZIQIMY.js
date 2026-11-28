@@ -1,4 +1,4 @@
-import{Ea as l,I as i,Oa as c,Ta as d,f as o}from"./c-GZLUS7TI.js";var g=864e5,p=20,b=30,m=t=>t>=85?"Excellent":t>=70?"Strong":t>=50?"Good":t>=30?"Building up":"Getting started",h=t=>t>=.8?"Powerful":t>=.55?"Strong":t>=.3?"Steady":"Gentle";function f(t,e,s){return Math.round(Math.min(1,t/p)*60+Math.min(1,e)*25+Math.min(1,Math.max(0,s))*15)}function w({s:t}){let e=t.lungTests||[],s=e[e.length-1],a=e[0],n=s?Math.floor((Date.now()-s.t)/g):null;return o`<section class="group">
+import{Ea as l,I as i,Oa as c,Ta as d,f as o}from"./c-3SMB7GOA.js";var g=864e5,p=20,b=30,m=t=>t>=85?"Excellent":t>=70?"Strong":t>=50?"Good":t>=30?"Building up":"Getting started",h=t=>t>=.8?"Powerful":t>=.55?"Strong":t>=.3?"Steady":"Gentle";function f(t,e,s){return Math.round(Math.min(1,t/p)*60+Math.min(1,e)*25+Math.min(1,Math.max(0,s))*15)}function w({s:t}){let e=t.lungTests||[],s=e[e.length-1],a=e[0],n=s?Math.floor((Date.now()-s.t)/g):null;return o`<section class="group">
     <h2 class="group-h">Lung test</h2>
     <div class="card lung-card">
       ${s?o`
@@ -15,4 +15,4 @@ import{Ea as l,I as i,Oa as c,Ta as d,f as o}from"./c-GZLUS7TI.js";var g=864e5,p
         <button class="btn btn-primary block" onClick=${u}>Take the test</button>`}
       <p class="tiny muted">For motivation, not a medical test. Use the same spot and distance each time for a fair comparison.</p>
     </div>
-  </section>`}var $=d(()=>import("./c-KVYEDXPY.js"),"LungTest",()=>o`<div class="lazy-wait" role="status">Getting the test ready…</div>`);function u(){l(t=>o`<${$} close=${t} />`,{tall:!0})}export{p as a,b,m as c,h as d,f as e,w as f};
+  </section>`}var $=d(()=>import("./c-IWTA5PH7.js"),"LungTest",()=>o`<div class="lazy-wait" role="status">Getting the test ready…</div>`);function u(){l(t=>o`<${$} close=${t} />`,{tall:!0})}export{p as a,b,m as c,h as d,f as e,w as f};
