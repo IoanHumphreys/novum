@@ -6,7 +6,6 @@ const openRecap = lazyOpen(() => import('../recap.js'), 'openRecap');
 import { CATEGORIES, MOODS } from '../content.js';
 import { DAY, pad2, NEW_YEAR, SLEEP } from '../shared.js';
 import { Goals, openNewYear } from './goals.js';
-import { openWeightSheet } from './me.js';
 import { LungCard } from '../lungs.js';
 import { WrappedCard } from '../wrapped-card.js';
 import { CravingStats } from '../plans.js';
@@ -33,9 +32,6 @@ export function Progress({ s, go }) {
   const keys = Array.from({ length: range }, (_, i) => S.dayKey(S.addDays(new Date(), i - range + 1)));
   const moodVals = keys.map((k) => s.checkins[k]?.mood ?? null);
   const cravSeries = s.quits.map((q) => ({ name: q.label, color: q.color, values: keys.map((k) => s.checkins[k]?.[q.id] ?? null) }));
-  const ws = [...s.profile.weights].sort((a, b) => a.date.localeCompare(b.date));
-  const wMin = ws.length ? Math.floor(Math.min(...ws.map((w) => w.kg)) - 2) : 60;
-  const wMax = ws.length ? Math.ceil(Math.max(...ws.map((w) => w.kg)) + 2) : 80;
 
   // insight: avg craving, first 7 logged days vs last 7
   const insight = (() => {
@@ -128,16 +124,6 @@ export function Progress({ s, go }) {
     <${CravingStats} s=${s} />
 
     <${CravingPatterns} s=${s} />
-
-    <section class="group">
-      <div class="group-h-row"><h2 class="group-h">Weight</h2><button class="link sm" onClick=${openWeightSheet}>Log weight</button></div>
-      <div class="card chart-card">
-        ${ws.length >= 2
-          ? html`<${LineChart} keys=${ws.map((w) => w.date)} series=${[{ name: 'Weight', color: '#FF375F', values: ws.map((w) => w.kg) }]}
-              yMin=${wMin} yMax=${wMax} yTicks=${[wMin, Math.round((wMin + wMax) / 2), wMax]} unit=" kg" height=${170} />`
-          : html`<p class="muted pad">Log your weight now and then to see a trend. Latest: <b>${S.latestWeight(s.profile)?.toFixed(1) ?? '–'} kg</b>.</p>`}
-      </div>
-    </section>
   <//>`;
 }
 

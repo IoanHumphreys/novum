@@ -1,0 +1,5 @@
+import{Ta as d,b as s,c,f as t,ya as o}from"./c-RJXFU2EW.js";var i=d(()=>import("./c-XRBRJ3HG.js"),"Wrapped",()=>t`<div class="wr"><div class="wr-load">✨</div></div>`);function u(e=new Date){return e.getMonth()===11?{year:e.getFullYear(),season:!0}:e.getMonth()===0?{year:e.getFullYear()-1,season:!0}:{year:e.getFullYear(),season:!1}}var r=null,n=new Set;function p(){r={at:Date.now()},n.forEach(e=>e(r))}var v=()=>{r=null,n.forEach(e=>e(r))};function y(){let[e,a]=s(r);return c(()=>(n.add(a),()=>n.delete(a)),[]),e?t`<${i} key=${e.at} />`:null}function h(){let{year:e,season:a}=u();return a?t`<button class="card wr-card tap" onClick=${()=>{o(),p()}}>
+    <div class="wr-card-k">Novum Rewind</div><div class="wr-card-y">${e}</div>
+    <div class="wr-card-s">Your year in quitting, cravings beaten, money saved and the people who had your back.</div>
+    <span class="btn btn-primary sm">Watch it</span>
+  </button>`:t`<button class="wr-peek" onClick=${()=>{o(),p()}}>✨ Peek at your ${e} Rewind so far</button>`}export{u as a,v as b,y as c,h as d};

@@ -130,7 +130,7 @@ export function ProfileHeader({ s }) {
     </div>
     ${counts?.requests > 0 && html`<button class="ph-req" onClick=${() => openPeople('followers')}>👤 ${counts.requests} follow request${counts.requests === 1 ? '' : 's'} waiting</button>`}
     <div class="ph-actions">
-      <button class="btn btn-tinted sm" onClick=${openEditProfile}>Edit profile</button>
+      <button class="btn btn-plain sm" onClick=${openEditProfile}>Edit profile</button>
       <button class="btn btn-plain sm" onClick=${openShareProfile}>Share</button>
     </div>
   </div>`;

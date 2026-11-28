@@ -63,6 +63,32 @@ export const Icon = {
   pound: () => I(html`<path d="M16 6.5A3.5 3.5 0 0 0 9 7v10M6 12h7M6 19h11"/>`),
   eye: () => I(html`<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>`),
   lock: () => I(html`<rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>`),
+  // settings rows
+  mail: () => I(html`<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>`),
+  calendar: () => I(html`<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2"/>`),
+  gift: () => I(html`<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8S10.5 3.5 8 4.5 9 8 12 8zM12 8s1.5-4.5 4-3.5S15 8 12 8z"/>`),
+  pulse: () => I(html`<path d="M3 12h4l2.5-6 5 12 2.5-6h4"/>`),
+  scale: () => I(html`<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M7.5 11a4.5 4.5 0 0 1 9 0z"/><path d="m12 11 1.6-2.4"/>`),
+  ruler: () => I(html`<path d="M15.5 3.5 20.5 8.5 8.5 20.5 3.5 15.5z"/><path d="m7 12 2 2M10 9l2 2M13 6l2 2"/>`),
+  users: () => I(html`<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M17.5 14.8c2 .8 3.3 2.6 4 5.2"/>`),
+  search: () => I(html`<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>`),
+  bell: () => I(html`<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>`),
+  shield: () => I(html`<path d="M12 3 19.5 6v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/>`),
+  compass: () => I(html`<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>`),
+  sliders: () => I(html`<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>`),
+  doc: () => I(html`<path d="M6 3.5h8l4 4V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20z"/><path d="M14 3.5V8h4M9 12h6M9 15.5h6"/>`),
+  star: () => I(html`<path d="m12 3.5 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z"/>`),
+  undo: () => I(html`<path d="M4 4v5h5"/><path d="M4.5 9A8 8 0 1 1 6 17.5"/>`),
+  key: () => I(html`<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16.5 6.5l2.5 2.5M14 9l2 2"/>`),
+  phone: () => I(html`<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>`),
+  laptop: () => I(html`<rect x="4.5" y="5" width="15" height="10.5" rx="1.5"/><path d="M2.5 19h19"/>`),
+  logout: () => I(html`<path d="M14 4H6.5A1.5 1.5 0 0 0 5 5.5v13A1.5 1.5 0 0 0 6.5 20H14M10 12h10.5M17 8.5l3.5 3.5-3.5 3.5"/>`),
+  cloud: () => I(html`<path d="M7 18.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6A3.8 3.8 0 0 1 17.5 18.5z"/>`),
+  refresh: () => I(html`<path d="M20 5v5h-5M4 19v-5h5"/><path d="M5.5 9.5A7 7 0 0 1 19 9M18.5 14.5A7 7 0 0 1 5 15"/>`),
+  alert: () => I(html`<path d="M12 4 21 19.5H3z"/><path d="M12 10v4M12 17h.01"/>`),
+  wifiOff: () => I(html`<path d="M3 3l18 18M8.5 16a5 5 0 0 1 7 0M5 12.5a10 10 0 0 1 4-2.3M19 12.5a10 10 0 0 0-3-2M2 9a14 14 0 0 1 4.5-2.7M22 9a14 14 0 0 0-10-3.8M12 19.5h.01"/>`),
+  medal: () => I(html`<circle cx="12" cy="15" r="5.5"/><path d="M8.5 10.5 6 3h4l2 5 2-5h4l-2.5 7.5"/>`),
+  pencil: () => I(html`<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>`),
 };
 
 /* Public / Private label with a line icon */
@@ -247,10 +273,12 @@ export function Group({ header, footer, children, className = '' }) {
     ${footer && html`<p class="group-f">${footer}</p>`}
   </section>`;
 }
-export function Row({ icon, iconBg, title, sub, detail, chevron, onClick, children, danger, className = '' }) {
+// iconBg: a solid square behind the icon. tint: a soft square in that colour, with the icon drawn in it.
+export function Row({ icon, iconBg, tint, title, sub, detail, chevron, onClick, children, danger, className = '' }) {
   const Tag = onClick ? 'button' : 'div';
   return html`<${Tag} type=${onClick ? 'button' : undefined} class="row ${onClick ? 'tap' : ''} ${danger ? 'danger' : ''} ${className}" onClick=${onClick}>
-    ${icon && html`<span class="row-ic" style=${iconBg ? `background:${iconBg}` : ''}>${icon}</span>`}
+    ${icon && (tint ? html`<span class="row-ic tinted" style=${`--c:${tint}`}>${icon}</span>`
+      : html`<span class="row-ic" style=${iconBg ? `background:${iconBg}` : ''}>${icon}</span>`)}
     <span class="row-main"><span class="row-title">${title}</span>${sub && html`<span class="row-sub">${sub}</span>`}</span>
     ${detail != null && html`<span class="row-detail">${detail}</span>`}
     ${children}

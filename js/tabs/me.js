@@ -27,14 +27,17 @@ import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
 import { openReasons } from '../sos.js';
 
 /* ============ PROFILE ============ */
+// One colour per section for the soft row icons (your quits use their own colours)
+const TINT = { tools: '#3B9BFF', health: '#30D158', social: '#FF9F0A', settings: '#A2A8B8', danger: '#FF453A' };
+
 export function SyncRow() {
   const [st, setSt] = useState(syncStatus());
   useEffect(() => onSyncStatus(setSt), []);
   useNow(30000);
   const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} hr ago`; };
   const label = { syncing: 'Saving…', synced: `Saved to your account ${ago(st.at)}`, offline: 'Offline. Changes save when you’re back online', error: st.error || 'Couldn’t save. Tap to retry', idle: 'Waiting to save' }[st.state];
-  const icon = { syncing: '🔄', synced: '☁️', offline: '📴', error: '⚠️', idle: '☁️' }[st.state];
-  return html`<${Row} icon=${icon} iconBg=${st.state === 'error' ? '#FF453A' : '#3B9BFF'} title="Account sync" sub=${label} onClick=${() => { haptic(); syncNow(); }} />`;
+  const icon = { syncing: Icon.refresh, synced: Icon.cloud, offline: Icon.wifiOff, error: Icon.alert, idle: Icon.cloud }[st.state]();
+  return html`<${Row} icon=${icon} tint=${st.state === 'error' ? TINT.danger : TINT.settings} title="Account sync" sub=${label} onClick=${() => { haptic(); syncNow(); }} />`;
 }
 
 // Keeps a sheet in step with the app's data (sheets don't get the screen's `s`)
@@ -89,36 +92,36 @@ export function Profile({ s }) {
       ${s.quits.map((q) => {
         const start = S.quitStart(q).getTime();
         const d = Math.floor((now - start) / 864e5);
-        return html`<${Row} key=${q.id} icon=${q.emoji} iconBg=${q.color} title=${q.label}
+        return html`<${Row} key=${q.id} icon=${q.emoji} tint=${q.color} title=${q.label}
           detail=${start > now ? 'Quit day soon' : plural(d, 'day')} chevron onClick=${() => openQuitEditor(q.id)} />`;
       })}
-      ${s.quits.length < ADDICTIONS.length && html`<${Row} icon=${Icon.plus()} iconBg="#3B9BFF" title="Add something to quit" chevron onClick=${openAddQuit} />`}
+      ${s.quits.length < ADDICTIONS.length && html`<${Row} icon=${Icon.plus()} tint=${TINT.tools} title="Add something to quit" chevron onClick=${openAddQuit} />`}
     <//>
 
     <${Group} header="Staying quit">
-      <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" detail=${s.reasons.length || 'Add'} chevron onClick=${openReasons} />
-      <${Row} icon="💌" iconBg="#FF375F" title="Letters to future you" detail=${(s.letters || []).length || 'Write one'} chevron onClick=${openLetters} />
-      <${Row} icon="🧭" iconBg="#5E5CE6" title="Plan ahead" detail=${Object.keys(s.plans || {}).length + (s.events || []).filter((e) => !e.outcome && e.date >= S.dayKey()).length || 'Add'} chevron onClick=${openPlans} />
-      ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="Saving for" detail=${s.wishlist.length || 'Add'} chevron onClick=${openWishlist} />`}
+      <${Row} icon=${Icon.heart()} tint=${TINT.tools} title="My reasons" detail=${s.reasons.length || 'Add'} chevron onClick=${openReasons} />
+      <${Row} icon=${Icon.mail()} tint=${TINT.tools} title="Letters to future you" detail=${(s.letters || []).length || 'Write one'} chevron onClick=${openLetters} />
+      <${Row} icon=${Icon.calendar()} tint=${TINT.tools} title="Plan ahead" detail=${Object.keys(s.plans || {}).length + (s.events || []).filter((e) => !e.outcome && e.date >= S.dayKey()).length || 'Add'} chevron onClick=${openPlans} />
+      ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon=${Icon.gift()} tint=${TINT.tools} title="Saving for" detail=${s.wishlist.length || 'Add'} chevron onClick=${openWishlist} />`}
     <//>
 
     <${Group} header="Health">
-      ${withHealth.length > 0 && html`<${Row} icon="🫁" iconBg="#5AC8FA" title="Recovery timeline" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
-      <${Row} icon="⚖️" iconBg="#FF375F" title="Body" chevron onClick=${openBody}
+      ${withHealth.length > 0 && html`<${Row} icon=${Icon.pulse()} tint=${TINT.health} title="Recovery timeline" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
+      <${Row} icon=${Icon.scale()} tint=${TINT.health} title="Body" chevron onClick=${openBody}
         detail=${html`<span class="body-detail">${kg ? `${kg.toFixed(1)} kg` : 'Add weight'}${b && html`<span class="pill sm ${band.tone}">BMI ${b.toFixed(1)}</span>`}</span>`} />
     <//>
 
     <${Group} header="Friends">
-      <${Row} icon="🤝" iconBg="#FF9F0A" title="Buddies" detail=${bd.loaded ? (bd.incoming.length ? `${bd.incoming.length} new` : bd.buddies.length || 'Add') : ''} chevron onClick=${openBuddies} />
-      <${Row} icon="👥" iconBg="#5E5CE6" title="Find people" chevron onClick=${() => openPeople('discover')} />
+      <${Row} icon=${Icon.users()} tint=${TINT.social} title="Buddies" detail=${bd.loaded ? (bd.incoming.length ? `${bd.incoming.length} new` : bd.buddies.length || 'Add') : ''} chevron onClick=${openBuddies} />
+      <${Row} icon=${Icon.search()} tint=${TINT.social} title="Find people" chevron onClick=${() => openPeople('discover')} />
     <//>
 
 
     <${Group} header="Settings">
-      <${Row} icon="🔔" iconBg="#FF453A" title="Notifications" detail=${!pushConfigured() ? 'Not set up' : dev.enabled ? 'On' : 'Off'} chevron onClick=${openNotifications} />
-      <${Row} icon="🔒" iconBg="#8E8E93" title="Your data & privacy" chevron onClick=${openData} />
-      <${Row} icon="🧭" iconBg="#5AC8FA" title="Show the tour again" chevron onClick=${replayTour} />
-      ${user.isAdmin && html`<${Row} icon="🛠️" iconBg="#636366" title="Admin" chevron onClick=${openAdmin} />`}
+      <${Row} icon=${Icon.bell()} tint=${TINT.settings} title="Notifications" detail=${!pushConfigured() ? 'Not set up' : dev.enabled ? 'On' : 'Off'} chevron onClick=${openNotifications} />
+      <${Row} icon=${Icon.shield()} tint=${TINT.settings} title="Your data & privacy" chevron onClick=${openData} />
+      <${Row} icon=${Icon.compass()} tint=${TINT.settings} title="Show the tour again" chevron onClick=${replayTour} />
+      ${user.isAdmin && html`<${Row} icon=${Icon.sliders()} tint=${TINT.settings} title="Admin" chevron onClick=${openAdmin} />`}
     <//>
 
     <div class="about">
@@ -144,8 +147,8 @@ function BodySheet({ close }) {
     <${SheetBar} title="Body" right=${html`<button class="link b" onClick=${close}>Done</button>`} />
     <div class="sheet-body">
       <${Group}>
-        <${Row} icon="🎂" iconBg="#BF5AF2" title="Age and height" detail=${`${age ?? '–'} · ${p.heightCm ? `${p.heightCm} cm` : '–'}`} chevron onClick=${openBodyEditor} />
-        <${Row} icon="⚖️" iconBg="#FF375F" title="Weight" detail=${kg ? `${kg.toFixed(1)} kg` : 'Add'} chevron onClick=${openWeightSheet} />
+        <${Row} icon=${Icon.ruler()} tint=${TINT.health} title="Age and height" detail=${`${age ?? '–'} · ${p.heightCm ? `${p.heightCm} cm` : '–'}`} chevron onClick=${openBodyEditor} />
+        <${Row} icon=${Icon.scale()} tint=${TINT.health} title="Weight" detail=${kg ? `${kg.toFixed(1)} kg` : 'Add'} chevron onClick=${openWeightSheet} />
       <//>
       <${Group} footer="BMI is a rough guide. It doesn’t tell muscle from fat, so use it alongside how you feel and perform.">
         <div class="bmi">
@@ -187,16 +190,16 @@ function DataSheet({ close }) {
     <div class="sheet-body">
       <${Group} footer="Your data is encrypted and saved to your Novum account, so it follows you to any device you log in on.">
         <${SyncRow} />
-        <${Row} icon="🔒" iconBg="#8E8E93" title="Privacy notice" sub="What’s stored, who can see it, your rights" chevron onClick=${openPrivacy} />
-        <${Row} icon="🙏" iconBg="#5E5CE6" title="Credits & licences" sub="The artists and code Novum is built with" chevron onClick=${openCredits} />
+        <${Row} icon=${Icon.doc()} tint=${TINT.settings} title="Privacy notice" sub="What’s stored, who can see it, your rights" chevron onClick=${openPrivacy} />
+        <${Row} icon=${Icon.star()} tint=${TINT.settings} title="Credits & licences" sub="The artists and code Novum is built with" chevron onClick=${openCredits} />
       <//>
       <${Group} header="Backups">
-        <${Row} icon=${Icon.share()} iconBg="#3B9BFF" title="Export a copy" sub="Everything: account, profile, check-ins, goals" chevron onClick=${doExport} />
-        <${Row} icon=${Icon.download()} iconBg="#30D158" title="Restore from a file" sub="Replaces your account’s data" chevron onClick=${() => fileRef.current.click()} />
+        <${Row} icon=${Icon.share()} tint=${TINT.tools} title="Export a copy" sub="Everything: account, profile, check-ins, goals" chevron onClick=${doExport} />
+        <${Row} icon=${Icon.download()} tint=${TINT.tools} title="Restore from a file" sub="Replaces your account’s data" chevron onClick=${() => fileRef.current.click()} />
         <input type="file" accept="application/json,.json" ref=${fileRef} onChange=${onImport} hidden />
       <//>
       <${Group} footer="Clears every counter, check-in, goal and note and takes you back to Day Zero. Your login stays the same.">
-        <${Row} icon="↺" iconBg="#FF453A" title="Start over" danger onClick=${() => confirmSheet({
+        <${Row} icon=${Icon.undo()} tint=${TINT.danger} title="Start over" danger onClick=${() => confirmSheet({
           title: 'Start over', text: 'This clears every counter, check-in, goal and note in your account and takes you back to Day Zero. Your login stays the same.', confirm: 'Clear and start over',
           onConfirm: () => { closeAllSheets(); S.replaceState(S.defaultState()); toast('Fresh start'); },
         })} />
@@ -274,12 +277,12 @@ export function Account({ close }) {
         <${Row} title="Email" detail=${user.email} chevron onClick=${openChangeEmail} />
       <//>
       <${Group}>
-        <${Row} icon="🔑" iconBg="#8E8E93" title="Change password" chevron onClick=${openPassword} />
-        <${Row} icon="📱" iconBg="#30D158" title="Logged-in devices" chevron onClick=${openSessions} />
-        <${Row} icon="↪" iconBg="#3B9BFF" title="Log out" chevron onClick=${doLogout} />
+        <${Row} icon=${Icon.key()} tint=${TINT.settings} title="Change password" chevron onClick=${openPassword} />
+        <${Row} icon=${Icon.phone()} tint=${TINT.settings} title="Logged-in devices" chevron onClick=${openSessions} />
+        <${Row} icon=${Icon.logout()} tint=${TINT.settings} title="Log out" chevron onClick=${doLogout} />
       <//>
       <${Group} footer="Deletes your account and all your data from Novum’s server. This can’t be undone.">
-        <${Row} icon=${Icon.trash()} iconBg="#FF453A" title="Delete account" danger onClick=${openDeleteAccount} />
+        <${Row} icon=${Icon.trash()} tint=${TINT.danger} title="Delete account" danger onClick=${openDeleteAccount} />
       <//>
     </div>`;
 }
@@ -502,7 +505,7 @@ export function Sessions({ close }) {
       ${!d && !err && html`<${Skeleton} rows=${2} avatar />`}
       ${d && html`<${Group} footer=${d.trusted ? `${d.trusted} device${d.trusted === 1 ? ' is' : 's are'} remembered, so ${d.trusted === 1 ? 'it skips' : 'they skip'} the login code for 30 days.` : 'If you don’t recognise a device, log it out and change your password.'}>
         ${d.sessions.map((x) => html`<div class="row" key=${x.id}>
-          <span class="row-ic" style="background:${x.current ? '#30D158' : 'var(--fill-2)'}">${/iPhone|Android|iPad/.test(x.device) ? '📱' : '💻'}</span>
+          <span class="row-ic tinted" style="--c:${x.current ? TINT.health : TINT.settings}">${/iPhone|Android|iPad/.test(x.device) ? Icon.phone() : Icon.laptop()}</span>
           <span class="row-main"><span class="row-title">${x.device}</span>
             <span class="row-sub">${x.current ? 'This device' : `Last active ${agoText(x.lastSeen)}`} · since ${S.fmtDate(new Date(x.createdAt), { day: 'numeric', month: 'short' })}</span></span>
           ${!x.current && html`<button class="link sm danger" onClick=${() => end(x)}>Log out</button>`}
@@ -545,42 +548,42 @@ export function NotifySettings({ s, header = 'Notifications' }) {
 
   return html`<${Group} header=${header} footer=${err ? html`<span class="err">${err}</span>` : footer}>
     <div class="row">
-      <span class="row-ic" style="background:#FF453A">🔔</span>
+      <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.bell()}</span>
       <span class="row-main"><span class="row-title">Notifications on this phone</span>${busy && html`<span class="row-sub">Working…</span>`}</span>
       ${configured ? html`<${Toggle} on=${dev.enabled} label="Notifications" onChange=${toggleMain} />` : html`<span class="row-detail">Not set up</span>`}
     </div>
-    ${canInstall() && html`<${Row} icon="📲" iconBg="#3B9BFF" title=${installEnv().kind === 'inapp' ? 'Open Novum in Safari' : 'Add to Home Screen'} sub="Needed for notifications. Shows you how" chevron onClick=${openInstallGuide} />`}
+    ${canInstall() && html`<${Row} icon=${Icon.phone()} tint=${TINT.tools} title=${installEnv().kind === 'inapp' ? 'Open Novum in Safari' : 'Add to Home Screen'} sub="Needed for notifications. Shows you how" chevron onClick=${openInstallGuide} />`}
     ${dev.enabled && configured && html`
       <div class="row">
-        <span class="row-ic" style="background:#FFD60A">🏅</span>
+        <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.medal()}</span>
         <span class="row-main"><span class="row-title">Milestones</span><span class="row-sub">1 day, 1 week, 1 month… sent between 9am and 10pm</span></span>
         <${Toggle} on=${n.milestones} label="Milestones" onChange=${(v) => setN({ milestones: v })} />
       </div>
       <div class="row">
-        <span class="row-ic" style="background:#30D158">✍️</span>
+        <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.pencil()}</span>
         <span class="row-main"><span class="row-title">Check-in reminder</span><span class="row-sub">Skipped if you’ve already checked in</span></span>
         ${n.checkin && html`<input type="time" class="time-in" value=${n.checkinAt} onChange=${(e) => e.target.value && setN({ checkinAt: e.target.value })} />`}
         <${Toggle} on=${n.checkin} label="Check-in reminder" onChange=${(v) => setN({ checkin: v })} />
       </div>
       <div class="row">
-        <span class="row-ic" style="background:#BF5AF2">🎯</span>
+        <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.goals()}</span>
         <span class="row-main"><span class="row-title">Habit nudges</span><span class="row-sub">Habits not ticked yet today</span></span>
         ${n.habits && html`<input type="time" class="time-in" value=${n.habitsAt} onChange=${(e) => e.target.value && setN({ habitsAt: e.target.value })} />`}
         <${Toggle} on=${n.habits} label="Habit nudges" onChange=${(v) => setN({ habits: v })} />
       </div>
       <div class="row">
-        <span class="row-ic" style="background:#5AC8FA">📊</span>
+        <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.progress()}</span>
         <span class="row-main"><span class="row-title">Weekly recap</span><span class="row-sub">Sundays: check-ins, cravings and money saved</span></span>
         ${n.recap && html`<input type="time" class="time-in" value=${n.recapAt} onChange=${(e) => e.target.value && setN({ recapAt: e.target.value })} />`}
         <${Toggle} on=${n.recap} label="Weekly recap" onChange=${(v) => setN({ recap: v })} />
       </div>
       <div class="row">
-        <span class="row-ic" style="background:#FF9F0A">🤝</span>
+        <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.users()}</span>
         <span class="row-main"><span class="row-title">Buddies and followers</span><span class="row-sub">Requests, new followers and cheers</span></span>
         <${Toggle} on=${n.buddies} label="Buddy notifications" onChange=${(v) => setN({ buddies: v })} />
       </div>
       <div class="row">
-        <span class="row-ic" style="background:#BF5AF2">🔮</span>
+        <span class="row-ic tinted" style=${`--c:${TINT.tools}`}>${Icon.sparkle()}</span>
         <span class="row-main"><span class="row-title">Heads-up before tough times</span><span class="row-sub">Learns when cravings usually hit and nudges you 20 minutes before</span></span>
         <${Toggle} on=${n.nudges !== false} label="Heads-up before tough times" onChange=${(v) => setN({ nudges: v })} />
       </div>`}

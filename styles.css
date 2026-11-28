@@ -100,6 +100,9 @@ html.scrolled .nav { -webkit-backdrop-filter: saturate(180%) blur(20px); backdro
   display: grid; place-items: center; font-size: 17px; color: #fff; background: var(--fill-2);
 }
 .row-ic .ic { width: 18px; height: 18px; }
+/* Soft tinted square: the icon in the colour, on a pale wash of it */
+.row-ic.tinted { color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 22%, transparent); }
+.row-ic.tinted .ic { width: 19px; height: 19px; stroke-width: 1.9; }
 .row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .row-title { font-size: 17px; }
 .row-sub { font-size: 14px; color: var(--text-2); line-height: 1.35; }
@@ -1108,7 +1111,7 @@ input:autofill { background: transparent; }
 .ph-bio.empty { color: var(--text-3); }
 .ph-req { display: block; width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(59, 155, 255, 0.14); color: var(--accent); font-weight: 600; text-align: left; }
 .ph-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-.ph-actions .btn { padding: 0 8px; }
+.ph-actions .btn { padding: 0 8px; background: var(--fill); color: var(--text); font-weight: 600; }
 
 /* ---------- edit profile, people, person ---------- */
 .story-ed { padding: 12px 0 4px; }

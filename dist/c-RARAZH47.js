@@ -1,4 +1,4 @@
-import{f as r,ya as s,za as a}from"./c-ZPVZNLFL.js";var c=!1,f=t=>{c=t},g=()=>{let t=c;return c=!1,t};function $({on:t,set:i}){return r`<button type="button" class="tf-eye" aria-pressed=${t} aria-label=${t?"Hide password":"Show password"}
+import{f as r,ya as s,za as a}from"./c-RJXFU2EW.js";var c=!1,f=t=>{c=t},g=()=>{let t=c;return c=!1,t};function $({on:t,set:i}){return r`<button type="button" class="tf-eye" aria-pressed=${t} aria-label=${t?"Hide password":"Show password"}
     onPointerDown=${o=>{o.preventDefault(),s(6),i(!t)}}
     onMouseDown=${o=>o.preventDefault()}
     onClick=${o=>{o.detail===0&&i(!t)}}>${t?"Hide":"Show"}</button>`}function b({value:t,onChange:i,onComplete:o,inputRef:e}){return r`<label class="code">
