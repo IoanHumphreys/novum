@@ -1,4 +1,4 @@
-import{Ea as a,Ha as t,f as e}from"./c-RJXFU2EW.js";function r(){a(o=>e`<${s} close=${o} />`,{tall:!0})}var i="27 November 2026";function s({close:o}){return e`
+import{Ea as a,Ha as t,f as e}from"./c-GZLUS7TI.js";function r(){a(o=>e`<${s} close=${o} />`,{tall:!0})}var i="27 November 2026";function s({close:o}){return e`
     <${t} title="Privacy" right=${e`<button class="link b" onClick=${o}>Done</button>`} />
     <div class="sheet-body privacy">
       <p class="pv-lead">Novum is a small, free app run by one person for friends. This explains, in plain English, what it stores and who can see it. Last updated ${i}.</p>

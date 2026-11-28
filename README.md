@@ -91,4 +91,4 @@ Phones pick up the new version the next time Novum is opened. Sometimes it takes
 
 ## Credits
 
-Novum uses other people's work, including Preact, htm, DiceBear avatars and Microsoft Fluent Emoji. Each is credited in the app under **Profile → Your data & privacy → Credits & licences**, and the full licence texts are in `THIRD-PARTY-NOTICES.txt`.
+Novum uses other people's work, including Preact, htm, qrcode-generator, Lucide and Feather icons, and DiceBear avatars. Each is credited in the app under **Profile → Your data & privacy → Credits & licences**, and the full licence texts are in `THIRD-PARTY-NOTICES.txt`.

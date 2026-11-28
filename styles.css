@@ -1544,12 +1544,12 @@ input:autofill { background: transparent; }
 @supports not (background: color-mix(in srgb, red 10%, transparent)) { .status-chip.set, .status-tag { background: var(--fill); } }
 
 /* ---------- badges ---------- */
-.medal { display: grid; place-items: center; flex: none; border-radius: 50%; line-height: 1;
-  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--c) 32%, #1a2130), color-mix(in srgb, var(--c) 12%, #0c1019) 70%);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 6px 18px color-mix(in srgb, var(--c) 22%, transparent); }
-.medal img { display: block; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35)); user-select: none; -webkit-user-drag: none; }
-.medal.locked { background: var(--fill); box-shadow: inset 0 0 0 1.5px var(--sep); }
-.medal.locked img { filter: grayscale(1) brightness(0.8); opacity: 0.35; }
+.medal { display: block; flex: none; overflow: visible; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35)); }
+.medal text { font-family: var(--font); fill: #fff; }
+.medal-n { font-weight: 800; letter-spacing: -0.03em; }
+.medal-u { font-weight: 700; letter-spacing: 0.08em; opacity: 0.9; }
+.medal.locked { filter: none; }
+.medal.locked text { fill: rgba(255, 255, 255, 0.38); }
 .badge-shelf { display: block; width: 100%; text-align: left; padding: 14px 16px 16px; }
 .bs-top { display: flex; justify-content: space-between; align-items: baseline; }
 .bs-h { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-2); }

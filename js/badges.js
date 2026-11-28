@@ -8,22 +8,22 @@ import { html, haptic, openSheet, SheetBar, toast } from './ui.js';
 const DAY = 864e5;
 
 export const BADGES = [
-  { id: 'd1', e: '🌱', t: 'First day', d: '24 hours free', c: '#30D158', days: 1 },
-  { id: 'd7', e: '📅', t: 'One week', d: '7 days free', c: '#30D158', days: 7 },
-  { id: 'd30', e: '🗓️', t: 'One month', d: '30 days free', c: '#30D158', days: 30 },
-  { id: 'd100', e: '💯', t: '100 days', d: '100 days free', c: '#FF453A', days: 100 },
-  { id: 'd182', e: '🌗', t: 'Six months', d: 'Half a year free', c: '#BF5AF2', days: 182 },
-  { id: 'd365', e: '🏆', t: 'One year', d: 'A full year free', c: '#FFD60A', days: 365 },
-  { id: 'm50', e: '💷', t: '£50 saved', d: 'Money you didn’t spend', c: '#FFD60A', money: 50 },
-  { id: 'm100', e: '🪙', t: '£100 saved', d: 'Money you didn’t spend', c: '#FFD60A', money: 100 },
-  { id: 'm500', e: '💰', t: '£500 saved', d: 'Money you didn’t spend', c: '#FF9F0A', money: 500 },
-  { id: 'm1000', e: '💎', t: '£1,000 saved', d: 'Money you didn’t spend', c: '#5AC8FA', money: 1000 },
-  { id: 'sos1', e: '🫁', t: 'Rode it out', d: 'Beat a craving with SOS', c: '#5AC8FA', sos: 1 },
-  { id: 'sos10', e: '🌊', t: 'Wave rider', d: 'Beat 10 cravings with SOS', c: '#3B9BFF', sos: 10 },
-  { id: 'ci7', e: '✍️', t: 'Week of check-ins', d: 'Check in 7 days in a row', c: '#30D158', ci: 7 },
-  { id: 'ci30', e: '📓', t: 'Month of check-ins', d: 'Check in 30 days in a row', c: '#BF5AF2', ci: 30 },
-  { id: 'goal1', e: '🎯', t: 'Goal getter', d: 'Complete a goal', c: '#FF375F', goal: 1 },
-  { id: 'why3', e: '💙', t: 'Know your why', d: 'Write 3 reasons for quitting', c: '#3B9BFF', reasons: 3 },
+  { id: 'd1', n: '1', u: 'DAY', e: '🌱', t: 'First day', d: '24 hours free', c: '#30D158', days: 1 },
+  { id: 'd7', n: '7', u: 'DAYS', e: '📅', t: 'One week', d: '7 days free', c: '#30D158', days: 7 },
+  { id: 'd30', n: '30', u: 'DAYS', e: '🗓️', t: 'One month', d: '30 days free', c: '#30D158', days: 30 },
+  { id: 'd100', n: '100', u: 'DAYS', e: '💯', t: '100 days', d: '100 days free', c: '#FF453A', days: 100 },
+  { id: 'd182', n: '6', u: 'MONTHS', e: '🌗', t: 'Six months', d: 'Half a year free', c: '#BF5AF2', days: 182 },
+  { id: 'd365', n: '1', u: 'YEAR', e: '🏆', t: 'One year', d: 'A full year free', c: '#FFD60A', days: 365 },
+  { id: 'm50', n: '£50', u: 'SAVED', e: '💷', t: '£50 saved', d: 'Money you didn’t spend', c: '#FFD60A', money: 50 },
+  { id: 'm100', n: '£100', u: 'SAVED', e: '🪙', t: '£100 saved', d: 'Money you didn’t spend', c: '#FFD60A', money: 100 },
+  { id: 'm500', n: '£500', u: 'SAVED', e: '💰', t: '£500 saved', d: 'Money you didn’t spend', c: '#FF9F0A', money: 500 },
+  { id: 'm1000', n: '£1K', u: 'SAVED', e: '💎', t: '£1,000 saved', d: 'Money you didn’t spend', c: '#5AC8FA', money: 1000 },
+  { id: 'sos1', n: '1', u: 'BEATEN', e: '🫁', t: 'Rode it out', d: 'Beat a craving with SOS', c: '#5AC8FA', sos: 1 },
+  { id: 'sos10', n: '10', u: 'BEATEN', e: '🌊', t: 'Wave rider', d: 'Beat 10 cravings with SOS', c: '#3B9BFF', sos: 10 },
+  { id: 'ci7', n: '7', u: 'STREAK', e: '✍️', t: 'Week of check-ins', d: 'Check in 7 days in a row', c: '#30D158', ci: 7 },
+  { id: 'ci30', n: '30', u: 'STREAK', e: '📓', t: 'Month of check-ins', d: 'Check in 30 days in a row', c: '#BF5AF2', ci: 30 },
+  { id: 'goal1', n: '1', u: 'GOAL', e: '🎯', t: 'Goal getter', d: 'Complete a goal', c: '#FF375F', goal: 1 },
+  { id: 'why3', n: '3', u: 'REASONS', e: '💙', t: 'Know your why', d: 'Write 3 reasons for quitting', c: '#3B9BFF', reasons: 3 },
 ];
 export const badgeById = (id) => BADGES.find((b) => b.id === id);
 
@@ -89,11 +89,23 @@ export function checkNewBadges(now = Date.now()) {
 
 const when = (t) => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-// Microsoft Fluent Emoji 3D artwork (MIT licence), in icons/badges/<id>.webp
+// Award colours by kind (light top → deep bottom): days free, money, SOS, check-ins, goals, reasons
+const KIND = { d: ['#5BE584', '#12A150'], m: ['#FFE066', '#E89B00'], sos: ['#7AD7FF', '#2F7BEA'], ci: ['#D58CFF', '#8A3FD1'], goal: ['#FF7A93', '#D81E4C'], why: ['#7FB8FF', '#3D5BEA'] };
+const kindOf = (id) => KIND[id.replace(/\d+$/, '')] || KIND.d;
+
+// A hexagon award with the achievement as a number ("30 DAYS", "£50 SAVED"). Drawn in SVG so it's sharp at any size.
 export function Medal({ b, size = 52, locked }) {
-  return html`<span class="medal ${locked ? 'locked' : ''}" style=${`--c:${b.c};width:${size}px;height:${size}px`} aria-hidden="true">
-    <img src=${`icons/badges/${b.id}.webp`} alt="" width=${Math.round(size * 0.74)} height=${Math.round(size * 0.74)} decoding="async" draggable="false" />
-  </span>`;
+  const [top, bottom] = locked ? ['#3A4050', '#262B36'] : kindOf(b.id);
+  const g = `bg-${b.id}${locked ? '-l' : ''}`;
+  const fs = b.n.length <= 2 ? 34 : b.n.length === 3 ? 28 : 23;
+  return html`<svg class="medal ${locked ? 'locked' : ''}" width=${size} height=${size} viewBox="0 0 100 100" aria-hidden="true">
+    <defs><linearGradient id=${g} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color=${top} /><stop offset="1" stop-color=${bottom} /></linearGradient></defs>
+    <path d="M50 5 89 27.5v45L50 95 11 72.5v-45z" fill=${`url(#${g})`} stroke=${locked ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.35)'} stroke-width="2.5" stroke-linejoin="round" />
+    <path d="M50 14 81 32v36L50 86 19 68V32z" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1.5" stroke-linejoin="round" />
+    ${!locked && html`<path d="M50 5 89 27.5V50H11V27.5z" fill="#fff" opacity=".12" />`}
+    <text x="50" y=${54 + fs * 0.12} text-anchor="middle" class="medal-n" font-size=${fs}>${b.n}</text>
+    <text x="50" y="71" text-anchor="middle" class="medal-u" font-size=${b.u.length >= 6 ? 8.6 : 10.5}>${b.u}</text>
+  </svg>`;
 }
 
 // A row of earned badges. Your own profile can tap through to all of them; others' is read-only.

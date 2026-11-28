@@ -107,7 +107,7 @@ export function Profile({ s }) {
 
     <${Group} header="Health">
       ${withHealth.length > 0 && html`<${Row} icon=${Icon.pulse()} tint=${TINT.health} title="Recovery timeline" chevron onClick=${() => openTimeline(withHealth[0].id)} />`}
-      <${Row} icon=${Icon.scale()} tint=${TINT.health} title="Body" chevron onClick=${openBody}
+      <${Row} icon=${Icon.person()} tint=${TINT.health} title="Body" chevron onClick=${openBody}
         detail=${html`<span class="body-detail">${kg ? `${kg.toFixed(1)} kg` : 'Add weight'}${b && html`<span class="pill sm ${band.tone}">BMI ${b.toFixed(1)}</span>`}</span>`} />
     <//>
 

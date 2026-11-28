@@ -27,7 +27,6 @@ const CODE = [
   { n: 'htm', a: 'Google Inc.', l: 'Apache 2.0', u: 'https://github.com/developit/htm' },
   { n: 'qrcode-generator', a: 'Kazuhiko Arase', l: 'MIT', u: 'https://github.com/kazuhikoarase/qrcode-generator' },
   { n: 'Lucide and Feather icons', a: 'Lucide contributors and Cole Bemis', l: 'ISC and MIT', u: 'https://lucide.dev' },
-  { n: 'Fluent Emoji (badge artwork)', a: 'Microsoft Corporation', l: 'MIT', u: 'https://github.com/microsoft/fluentui-emoji' },
 ];
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' };
