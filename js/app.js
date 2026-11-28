@@ -1,6 +1,6 @@
 import { render, useState, useEffect, useLayoutEffect, useRef } from '../vendor/preact-htm.js';
 import * as S from './store.js';
-import { html, haptic, Icon, SheetHost, lazy } from './ui.js';
+import { html, haptic, Icon, SheetHost, lazy, toast } from './ui.js';
 import { startPushSync, stopPushSync, adoptLegacyDevice } from './push.js';
 import * as A from './api.js';
 import { startSync, stopSync } from './sync.js';
@@ -18,6 +18,12 @@ import { openActivity, resetActivity, reloadActivityCache, useActivity, Activity
 import { openSos } from './sos.js';
 import { WrappedHost } from './wrapped-card.js';
 import { Tour } from './tour.js';
+import { checkNewBadges } from './badges.js';
+import { captureAddLink, pendingAdd, clearPendingAdd } from './connect.js';
+import { openPerson } from './profile.js';
+
+// A friend's QR code or link (#add=username) opened Novum: remember who, before anything reads the hash
+captureAddLink();
 
 // The sign-up, log-in and setup screens are only needed when logged out or setting up, so their code
 // (the biggest file in the app) loads then, not on every start. The splash shows while it loads.
@@ -102,11 +108,26 @@ function App({ s }) {
     return () => window.removeEventListener('hashchange', on);
   }, []);
   useEffect(() => { const t = setTimeout(maybeWelcomeInstalled, 700); return () => clearTimeout(t); }, []);
+  // Opened from a friend's QR code or link: show their profile, with "Add buddy" (after the tour, if it's showing)
+  useEffect(() => {
+    const go = () => {
+      const u = pendingAdd();
+      if (!u) return;
+      clearPendingAdd();
+      if (u.toLowerCase() === (A.getSession()?.user?.username || '').toLowerCase()) { toast('That’s your own code. Show it to a friend to scan'); return; }
+      openPerson(u);
+    };
+    if (!s.tourDone) return undefined; // runs again once the tour is finished
+    const t = setTimeout(go, 900);
+    const onHash = () => { captureAddLink(); go(); };
+    window.addEventListener('hashchange', onHash);
+    return () => { clearTimeout(t); window.removeEventListener('hashchange', onHash); };
+  }, [s.tourDone]);
   const Screen = { home: Home, checkin: CheckIn, goals: Goals, progress: Progress, profile: Profile }[tab];
   const needCheckin = !s.checkins[S.dayKey()]?.mood;
   // New milestones get a celebration (checked on open, then every minute)
   useEffect(() => {
-    const run = () => celebrate(checkMilestones());
+    const run = () => { celebrate(checkMilestones()); checkNewBadges(); };
     const t = setTimeout(run, 1200);
     const iv = setInterval(run, 60000);
     return () => { clearTimeout(t); clearInterval(iv); };

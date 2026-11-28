@@ -7,6 +7,8 @@ import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
 import { Avatar, openPerson } from './profile.js';
 import { CheerBar, StreakChips } from './cheers.js';
+import { StatusTag, TogetherTag, isTough } from './connect.js';
+import { earnedBadges } from './badges.js';
 
 const DAY = 864e5;
 
@@ -40,6 +42,7 @@ function myCard(s) {
   return {
     quits: s.quits.map((q) => ({ label: q.label, emoji: q.emoji, color: q.color, startMs: S.quitStart(q).getTime(), bestMs: q.best || 0 })),
     checkinStreak: S.checkinStreak(s),
+    badges: earnedBadges(s),
   };
 }
 let unsubShare = null, shareTimer = null, lastShared = null;
@@ -93,9 +96,10 @@ export function BuddiesSection() {
         ${d.buddies.slice(0, 4).map((b) => html`<div class="row buddy-row" key=${b.username}>
           <button class="buddy-who" onClick=${() => openPerson(b.username)}>
             <${Avatar} a=${b.avatar} name=${b.firstName} size=${40} />
-            <span class="row-main"><span class="row-title">${b.firstName}</span><span class="row-sub"><${StreakChips} card=${b.card} now=${now} /></span></span>
+            <span class="row-main"><span class="row-title">${b.firstName} <${StatusTag} status=${b.status} now=${now} /></span>
+              <span class="row-sub"><span class="schips-row"><${StreakChips} card=${b.card} now=${now} /><${TogetherTag} s=${S.getState()} buddy=${b} now=${now} /></span></span></span>
           </button>
-          <button class="cheer-btn" aria-label=${`Send ${b.firstName} a cheer`} onClick=${() => sendCheer(b, 'keepgoing')}>💪</button>
+          <button class="cheer-btn ${isTough(b.status, now) ? 'hot' : ''}" aria-label=${`Send ${b.firstName} a cheer`} onClick=${() => sendCheer(b, isTough(b.status, now) ? 'heart' : 'keepgoing')}>${isTough(b.status, now) ? '💙' : '💪'}</button>
         </div>`)}
       </div>`}
   </section>`;
@@ -178,7 +182,8 @@ function Buddies({ close }) {
               <${Avatar} a=${b.avatar} name=${b.firstName} size=${44} />
               <span class="bc-main">
                 <span class="bc-name">${b.firstName} <span class="bc-user">@${b.username}</span></span>
-                <${StreakChips} card=${b.card} now=${now} />
+                <${StatusTag} status=${b.status} now=${now} />
+                <span class="schips-row"><${StreakChips} card=${b.card} now=${now} /><${TogetherTag} s=${s} buddy=${b} now=${now} /></span>
                 ${b.card && b.card.quits.some((q) => q.bestMs > 0) && html`<span class="bc-best">Best run ${b.card.quits.filter((q) => q.bestMs > 0).map((q) => `${q.emoji} ${Math.floor(Math.max(q.bestMs, now - q.startMs) / DAY)} days`).join(' · ')}</span>`}
               </span>
             </button>

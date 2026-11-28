@@ -7,6 +7,8 @@ import * as S from './store.js';
 import * as A from './api.js';
 import { CheerBar } from './cheers.js';
 import { refreshBuddies, useBuddies, openBuddies as openBuddiesSheet } from './social.js';
+import { MyStatus, StatusTag, TogetherTag, openShareProfile } from './connect.js';
+import { BadgeShelf } from './badges.js';
 import { Banner, openBannerPicker } from './banner.js';
 
 const DAY = 864e5;
@@ -101,6 +103,7 @@ export function ProfileHeader({ s }) {
         <div class="ph-handle">@${user.username} <span class="ph-vis">${s.social.visibility === 'public' ? '🌍 Public' : '🔒 Private'}</span></div>
       </div>
     </div>
+    <${MyStatus} s=${s} />
     ${s.social.bio && html`<p class="ph-bio">${s.social.bio}</p>`}
     <div class="ph-nums">
       <button onClick=${() => openPeople('followers')}><b>${n(counts?.followers)}</b><span>Followers</span></button>
@@ -110,21 +113,11 @@ export function ProfileHeader({ s }) {
     ${counts?.requests > 0 && html`<button class="ph-req" onClick=${() => openPeople('followers')}>👤 ${counts.requests} follow request${counts.requests === 1 ? '' : 's'} waiting</button>`}
     <div class="ph-actions">
       <button class="btn btn-tinted sm" onClick=${openEditProfile}>Edit profile</button>
-      <button class="btn btn-plain sm" onClick=${() => shareProfile(user)}>Share</button>
+      <button class="btn btn-plain sm" onClick=${openShareProfile}>Share</button>
     </div>
   </div>`;
 }
 
-// "Add me on Novum": the phone's share sheet, or copy the text where that isn't available
-export async function shareProfile(user) {
-  haptic();
-  const text = `Quit with me on Novum 💙 Add me as a buddy: @${user.username}`;
-  const url = 'https://novumdaily.com/';
-  try {
-    if (navigator.share) { await navigator.share({ title: 'Novum', text, url }); return; }
-  } catch (e) { if (e?.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(`${text}\n${url}`); toast('Copied. Paste it to a friend'); } catch { toast(`Your username is @${user.username}`); }
-}
 
 /* ---------- edit profile ---------- */
 export function openEditProfile() { openSheet((close) => html`<${EditProfile} close=${close} />`, { tall: true }); }
@@ -242,6 +235,7 @@ function Person({ username, close, onChange }) {
   const [p, setP] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const bd = useBuddies();
   const load = () => A.person(username).then(setP).catch((e) => setErr(e.message));
   useEffect(() => { load(); }, []);
   const act = async (fn, msg) => { if (busy) return; setBusy(true); haptic(10); try { await fn(); if (msg) toast(msg); } catch (e) { toast(e.message); } setBusy(false); load(); refreshBuddies(); onChange?.(); };
@@ -249,6 +243,8 @@ function Person({ username, close, onChange }) {
   if (!p) return html`<${SheetBar} right=${html`<button class="link b" onClick=${close}>Done</button>`} /><div class="sheet-body"><div class="sk sk-banner"></div><div class="pp-top"><i class="sk sk-av big"></i><i class="sk sk-l" style="width:40%"></i><i class="sk sk-s" style="width:30%"></i></div><${Skeleton} rows=${2} /></div>`;
   const r = p.relation;
   const now = Date.now();
+  const me = S.getState();
+  const bud = r.buddy ? bd.buddies.find((x) => x.username === p.username) : null;
   const followBtn = r.following === 'accepted'
     ? html`<button class="btn btn-plain sm" disabled=${busy} onClick=${() => act(() => A.unfollow(p.username), `Unfollowed ${p.firstName}`)}>Following ✓</button>`
     : r.following === 'pending'
@@ -276,6 +272,7 @@ function Person({ username, close, onChange }) {
         <h2 class="auth-title center">${p.firstName}</h2>
         <div class="row-sub center">@${p.username} · ${p.public ? '🌍 Public' : '🔒 Private'}${r.followsMe === 'accepted' ? ' · Follows you' : ''}</div>
         <div class="ph-counts center"><span><b>${p.counts.followers}</b> followers</span><span><b>${p.counts.following}</b> following</span></div>
+        ${(p.status || bud) && html`<div class="pp-tags"><${StatusTag} status=${p.status} now=${now} />${bud && html`<${TogetherTag} s=${me} buddy=${bud} now=${now} long />`}</div>`}
         ${!r.blockedByMe && html`<div class="pp-actions">${p.canFollow !== false && followBtn}${buddyBtn}</div>`}
       </div>
       ${r.blockedByMe ? html`<p class="muted center">You’ve blocked ${p.firstName}. Tap ••• to unblock.</p>`
@@ -292,10 +289,11 @@ function Person({ username, close, onChange }) {
             </div>`;
           })}
         <//>`}
+        ${p.streaks?.badges?.length > 0 && html`<section class="group"><${BadgeShelf} earned=${p.streaks.badges} name=${p.firstName} /></section>`}
         ${p.stories?.length > 0 && html`<${Group} header="Their story">
           ${p.stories.map((x) => html`<div class="story" key=${x.label}><b>${x.emoji} ${x.label}</b><p>${x.text}</p></div>`)}
         <//>`}
-        ${r.buddy && html`<${Group} header="Send a cheer">
+        ${r.buddy && html`<${Group} header="Send a cheer" footer=${p.status?.kind === 'tough' ? `${p.firstName}’s having a tough day. A cheer now really helps.` : ''}>
           <div class="pad-y"><${CheerBar} who=${p} class="pp-cheers" /></div>
         <//>`}
         ${!p.bio && !p.streaks && !p.stories?.length && html`<p class="muted center">${p.firstName} hasn’t shared anything yet.</p>`}`}

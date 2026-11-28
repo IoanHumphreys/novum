@@ -1506,3 +1506,55 @@ input:autofill { background: transparent; }
 .row-detail { margin-left: 12px; }
 .pill.sm { font-size: 11.5px; padding: 3px 8px; }
 .pill.sm::before { display: none; }
+
+/* ---------- today's status ---------- */
+.status-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; height: 32px; padding: 0 12px; border-radius: 999px; font-size: 14px; font-weight: 600;
+  background: var(--fill); color: var(--text-2); }
+.status-chip.set { background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--text); }
+.status-chip span { font-size: 15px; }
+.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.status-opt { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 18px 10px; border-radius: var(--r-lg); background: var(--card);
+  border: 1.5px solid transparent; transition: transform 0.25s var(--bounce), border-color 0.2s; }
+.status-opt:active { transform: scale(0.95); }
+.status-opt.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--card)); }
+.so-e { font-size: 34px; line-height: 1; }
+.status-opt b { font-size: 15px; font-weight: 600; }
+.status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; vertical-align: 2px;
+  background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--text); }
+.row-title .status-tag { margin-left: 6px; }
+.together { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  background: rgba(255, 159, 10, 0.16); color: #ffb340; }
+.schips-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.schips-row .schips { display: contents; }
+.cheer-btn.hot { background: rgba(59, 155, 255, 0.22); box-shadow: 0 0 0 2px rgba(59, 155, 255, 0.5); animation: pulse 2s ease-in-out infinite; }
+.pp-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 10px; }
+.pp-tags .together { font-size: 13px; padding: 4px 10px; }
+.pp-tags .status-tag { font-size: 13px; padding: 4px 10px; }
+@supports not (background: color-mix(in srgb, red 10%, transparent)) { .status-chip.set, .status-tag { background: var(--fill); } }
+
+/* ---------- badges ---------- */
+.medal { display: grid; place-items: center; flex: none; border-radius: 50%; line-height: 1;
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 55%, #fff 10%), color-mix(in srgb, var(--c) 35%, #0c1019));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c) 70%, transparent), 0 4px 14px color-mix(in srgb, var(--c) 25%, transparent); }
+.medal.locked { background: var(--fill); box-shadow: inset 0 0 0 1.5px var(--sep); filter: grayscale(1); opacity: 0.45; }
+.badge-shelf { display: block; width: 100%; text-align: left; padding: 14px 16px 16px; }
+.bs-top { display: flex; justify-content: space-between; align-items: baseline; }
+.bs-h { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-2); }
+.bs-n { font-size: 13.5px; color: var(--accent); font-weight: 600; }
+.bs-row { display: flex; gap: 14px; margin-top: 12px; overflow: hidden; }
+.bs-item { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 62px; flex: none; }
+.bs-item small { font-size: 11px; color: var(--text-2); text-align: center; line-height: 1.2; }
+.bs-empty { margin: 8px 0 0; font-size: 14px; color: var(--text-2); line-height: 1.4; }
+.badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 10px; margin-bottom: 22px; }
+.bg-item { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.bg-item b { font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.bg-item small { font-size: 12px; color: var(--text-2); line-height: 1.3; }
+
+/* ---------- share: QR code ---------- */
+.share-me { display: flex; flex-direction: column; gap: 10px; }
+.qr-card { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 10px 0 6px; padding: 18px 18px 16px; border-radius: 24px; background: #fff; color: #0b0f19;
+  box-shadow: 0 12px 40px rgba(59, 155, 255, 0.25); }
+.qr-card b { margin-top: 8px; font-size: 18px; }
+.qr-card span { font-size: 14px; color: #5b6475; }
+.qr { display: block; border-radius: 8px; }
+.add-hint { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-md); background: rgba(59, 155, 255, 0.14); border: 0.5px solid rgba(59, 155, 255, 0.35); font-size: 14.5px; line-height: 1.4; text-align: center; }

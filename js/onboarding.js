@@ -10,6 +10,7 @@ import { openPrivacy } from './privacy.js';
 import { Avatar, openAvatarPicker } from './profile.js';
 import { Banner, openBannerPicker, PALETTES } from './banner.js';
 import { EyeButton, CodeInput, Resend, setNewSignup, JunkHint, suggestEmail } from './authkit.js';
+import { pendingAdd } from './connect.js';
 export { EyeButton, CodeInput, Resend, consumeNewSignup } from './authkit.js';
 
 export const MIN_AGE = 16;
@@ -112,6 +113,7 @@ export function AuthScreen() {
     </div>
     <${WelcomeDemo} />
     <div class="wl-actions">
+      ${pendingAdd() && html`<p class="add-hint">🤝 Sign up or log in and you can add <b>@${pendingAdd()}</b> as your buddy straight away.</p>`}
       <button class="btn btn-primary block big glow" onClick=${() => { haptic(); setMode('signup'); }}>Get started. It’s free</button>
       <button class="btn btn-plain block big" onClick=${() => { haptic(); setMode('login'); }}>I already have an account</button>
       <p class="wl-fine">🔒 Private by default · Encrypted · <button type="button" class="link inline" onClick=${openPrivacy}>Privacy</button></p>

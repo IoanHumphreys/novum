@@ -15,6 +15,7 @@ import { openAdmin } from '../admin.js';
 import { ProfileHeader, openPeople } from '../profile.js';
 import { openPrivacy } from '../privacy.js';
 import { replayTour } from '../tour.js';
+import { BadgeShelf, earnedBadges } from '../badges.js';
 import { firstName, confirmSheet } from '../shared.js';
 import { openWishlist, savedNow } from './home.js';
 import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
@@ -73,6 +74,7 @@ export function Profile({ s }) {
   return html`<${Page} title="Profile" titleRight=${gear} onRefresh=${refreshProfile}>
     <${ProfileHeader} key=${headerKey} s=${s} />
     ${s.quits.length > 0 && html`<${StatsStrip} s=${s} />`}
+    <section class="group"><${BadgeShelf} earned=${earnedBadges(s, now)} mine s=${s} /></section>
 
     <${Group} header="Your quits">
       ${s.quits.map((q) => {

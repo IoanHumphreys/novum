@@ -237,3 +237,12 @@ export function tipsFor(quits) {
   const kinds = new Set((quits || []).map((q) => q.kind));
   return TIPS.filter((x) => x.kind === 'any' || kinds.has(x.kind) || (x.kind === 'nicotine' && [...kinds].some((k) => NICOTINE.has(k))));
 }
+
+// Today's status, shown to buddies for 24 hours
+export const STATUSES = [
+  { kind: 'strong', e: '💪', l: 'Feeling strong', c: '#30D158' },
+  { kind: 'okay', e: '🙂', l: 'Doing okay', c: '#5AC8FA' },
+  { kind: 'tough', e: '😮‍💨', l: 'Tough day', c: '#FF9F0A' },
+  { kind: 'distract', e: '🎮', l: 'Need a distraction', c: '#BF5AF2' },
+];
+export const statusOf = (st, now = Date.now()) => (st && now - st.at < 24 * 3600e3 ? STATUSES.find((x) => x.kind === st.kind) || null : null);
