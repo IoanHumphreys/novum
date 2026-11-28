@@ -58,6 +58,8 @@ export function settingsPayload(s) {
     lastCheckin: Object.keys(s.checkins).filter((k) => s.checkins[k].mood).sort().pop() || null,
     habits: s.goals.filter((g) => g.type === 'habit').map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, perWeek: g.perWeek || 7, remindAt: g.remindAt || '', ticks: (g.ticks || []).filter((k) => k >= since) })),
     peaks: cravingPeaks(s),
+    // Tough days you planned for: only the date (never the name or your plan), for the reminders
+    events: (s.events || []).filter((e) => !e.outcome && e.date >= S.dayKey(S.addDays(new Date(), -1))).slice(0, 20).map((e) => ({ id: e.id, date: e.date })),
     // For the Sunday recap: last 2 weeks of moods (m) and average craving (c), nothing else
     days: Object.fromEntries(Object.keys(s.checkins).filter((k) => k >= since).map((k) => {
       const c = s.checkins[k];

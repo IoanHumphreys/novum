@@ -16,6 +16,7 @@ import { ProfileHeader, openPeople } from '../profile.js';
 import { openPrivacy } from '../privacy.js';
 import { replayTour } from '../tour.js';
 import { BadgeShelf, earnedBadges } from '../badges.js';
+import { openPlans } from '../plans.js';
 import { firstName, confirmSheet } from '../shared.js';
 import { openWishlist, savedNow } from './home.js';
 import { openAddQuit, openQuitEditor, openTimeline } from '../quits.js';
@@ -88,6 +89,7 @@ export function Profile({ s }) {
 
     <${Group} header="Staying quit">
       <${Row} icon="💙" iconBg="#3B9BFF" title="My reasons" detail=${s.reasons.length || 'Add'} chevron onClick=${openReasons} />
+      <${Row} icon="🧭" iconBg="#5E5CE6" title="Plan ahead" detail=${Object.keys(s.plans || {}).length + (s.events || []).filter((e) => !e.outcome && e.date >= S.dayKey()).length || 'Add'} chevron onClick=${openPlans} />
       ${s.quits.some((q) => q.monthly > 0) && html`<${Row} icon="🎁" iconBg="#FFD60A" title="Saving for" detail=${s.wishlist.length || 'Add'} chevron onClick=${openWishlist} />`}
     <//>
 
@@ -529,7 +531,7 @@ export function NotifySettings({ s, header = 'Notifications' }) {
   else if (isIOS() && !isStandalone()) footer = 'On iPhone, notifications only work once Novum is on your Home Screen. Open it from there, then switch this on.';
   else if (!pushSupported()) footer = 'This browser doesn’t support push notifications.';
   else if (permission() === 'denied' && !dev.enabled) footer = blockedMessage('denied');
-  else footer = 'On or off for this phone. Reminder times follow your account. Novum’s server only uses your quit times, reminder times and habit ticks to time these.';
+  else footer = 'On or off for this phone. Reminder times follow your account. Novum’s server only uses your quit times, reminder times, habit ticks and the dates of tough days you plan for to time these.';
 
   return html`<${Group} header=${header} footer=${err ? html`<span class="err">${err}</span>` : footer}>
     <div class="row">

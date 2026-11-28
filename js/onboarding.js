@@ -109,7 +109,7 @@ export function AuthScreen() {
         <img src="icons/icon-192.png" alt="" width="84" height="84" class="wl-logo" />
       </div>
       <h1 class="wl-name">NOVUM</h1>
-      <p class="wl-tag">${SLOGAN_WORDS.map((w) => html`<span><b>${w[0]}</b>${w.slice(1)}</span>`)}</p>
+      <p class="wl-tag">${SLOGAN_WORDS.map((w, i) => html`<span>${i === SLOGAN_WORDS.length - 1 ? html`<b>${w}</b>` : w}</span>`)}</p>
     </div>
     <${WelcomeDemo} />
     <div class="wl-actions">

@@ -8,6 +8,7 @@ import * as A from './api.js';
 import { CHEER_KINDS } from './content.js';
 import { useBuddies } from './social.js';
 import { Avatar } from './profile.js';
+import { SosPlan } from './plans.js';
 
 // The puzzle's code loads the first time someone opens it (it's cached for offline use either way)
 const FlowGame = lazy(() => import('./game.js'), 'FlowGame', () => html`<div class="lazy-wait" role="status">Loading the puzzle…</div>`);
@@ -119,6 +120,7 @@ export function Sos({ close }) {
       </div>
       <div class="sos-timer">${left > 0 ? html`<b>${mm}:${ss}</b><span>Cravings peak and fade within 5–10 minutes. Ride the wave.</span>`
         : html`<b>Done</b><span>Five minutes. How’s the craving now?</span>`}</div>
+      <${SosPlan} s=${s} picked=${triggers} onPick=${(t) => setTriggers(triggers.includes(t) ? triggers.filter((x) => x !== t) : [...triggers, t])} />
       <div class="card sos-card" key=${card.t}>
         <span class="sos-card-e">${card.e}</span>
         <div><div class="sos-card-k">${card.k}</div><div class="sos-card-t">${card.t}</div></div>

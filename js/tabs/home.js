@@ -3,7 +3,7 @@
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, useNow, Icon, Ring, openSheet, SheetBar, Page, Segmented, Group, Legend } from '../ui.js';
-import { MILESTONES, healthFor, MOODS, WISH_IDEAS, SLOGAN } from '../content.js';
+import { MILESTONES, healthFor, MOODS, WISH_IDEAS, SLOGAN, ADDICTIONS } from '../content.js';
 import { InstallBanner } from '../install.js';
 import { BuddiesSection, refreshBuddies } from '../social.js';
 import { ActivityBell, refreshActivity } from '../activity.js';
@@ -14,6 +14,7 @@ import { openNewYear } from './goals.js';
 import { openAddQuit, openQuitEditor, openTimeline, openSlip } from '../quits.js';
 import { openSos, openReasons } from '../sos.js';
 import { TipCard, FutureYou } from '../future.js';
+import { EventsCard, openPlans } from '../plans.js';
 
 /* ============ HOME ============ */
 export function Home({ s, go }) {
@@ -44,6 +45,7 @@ export function Home({ s, go }) {
       <h2 class="group-h">${hasQuits ? 'Your streaks' : 'Get started'}</h2>
       ${hasQuits ? html`<div class="stack">
         ${s.quits.map((q) => html`<${QuitCard} key=${q.id} q=${q} />`)}
+        ${s.quits.length < ADDICTIONS.length && html`<${AddQuitCard} />`}
       </div>` : html`<button class="card add-first tap" onClick=${openAddQuit}>
         <span class="row-ic" style="background:#3B9BFF">${Icon.plus()}</span>
         <span class="row-main"><span class="row-title">Track something you’re quitting</span><span class="row-sub">Vaping, smoking, alcohol, gambling and more</span></span>
@@ -62,6 +64,9 @@ export function Home({ s, go }) {
         <button class="sup-slip" onClick=${() => openSlip()}>
           <span class="sup-slip-e">🌱</span><span class="row-main">Slipped up? <b>Reset without the guilt</b></span><span class="row-chev">${Icon.chevron()}</span>
         </button>
+        <button class="sup-slip" onClick=${openPlans}>
+          <span class="sup-slip-e">🧭</span><span class="row-main">Tough day coming? <b>Plan ahead</b></span><span class="row-chev">${Icon.chevron()}</span>
+        </button>
         ${s.reasons.length > 0
           ? html`<button class="sup-why" onClick=${openReasons}>
               <span class="why-k">Remember why</span>
@@ -73,6 +78,8 @@ export function Home({ s, go }) {
             </button>`}
       </div>
     </section>`}
+
+    ${hasQuits && html`<${EventsCard} s=${s} />`}
 
     ${hasQuits && html`<${TipCard} s=${s} />`}
 
@@ -160,6 +167,20 @@ export function Home({ s, go }) {
 export function MoneyTicker({ quits }) {
   const now = useNow(1000);
   return html`<div class="mc-big">${S.money(quits.reduce((a, q) => a + S.savedFor(q, S.quitElapsed(q, now)), 0))}</div>`;
+}
+
+// Same shape as a quit card, under your counters: tap to start another one
+export function AddQuitCard() {
+  return html`<button class="card quit-card qc-add tap" onClick=${openAddQuit} aria-label="Add something else to quit">
+    <div class="qc-head"><span class="qc-add-ic">${Icon.plus()}</span><span class="qc-label">Quitting something else?</span></div>
+    <div class="qc-body">
+      <div class="qc-time" aria-hidden="true">
+        <span><b>0</b><small>days</small></span><span><b>00</b><small>hrs</small></span><span><b>00</b><small>min</small></span>
+      </div>
+      <span class="qc-add-ring" aria-hidden="true">${Icon.plus()}</span>
+    </div>
+    <div class="qc-foot">Smoking, alcohol, gambling, energy drinks and more. Each gets its own counter.</div>
+  </button>`;
 }
 
 export function QuitCard({ q }) {

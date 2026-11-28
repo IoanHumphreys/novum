@@ -45,6 +45,10 @@ export function defaultState() {
     cravings: [],
     // lung tests: { t, score, dur (s), strength (0-1), steady (0-1) }
     lungTests: [],
+    // if-then plans: { '<trigger>': 'what I’ll do instead' }
+    plans: {},
+    // tough days coming up: { id, date: 'YYYY-MM-DD', title, emoji, trigger, plan, outcome: null | 'quit' | 'slip' }
+    events: [],
     // things you're saving for: { id, emoji, name, price }
     wishlist: [],
     // milestones already celebrated: { '<quitId>@<start>': days }
@@ -80,7 +84,7 @@ export function migrate(s) {
     profile: { ...d.profile, ...(s.profile || {}) },
     quits, checkins: s.checkins || {}, goals,
     reasons: s.reasons || [], cravings: s.cravings || [],
-    wishlist: s.wishlist || [], lungTests: s.lungTests || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
+    wishlist: s.wishlist || [], plans: s.plans || {}, events: s.events || [], lungTests: s.lungTests || [], celebrated: s.celebrated || {}, shareStreaks: !!s.shareStreaks,
     social: { avatar: null, banner: null, bio: '', visibility: 'buddies', ...(s.social || {}) },
     notifyPrefs: { ...DEFAULT_PREFS, ...(s.notifyPrefs || {}), ...pickPrefs(s.notify) },
   };

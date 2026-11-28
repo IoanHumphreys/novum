@@ -16,6 +16,7 @@ import { Progress } from './tabs/progress.js';
 import { Profile } from './tabs/me.js';
 import { openActivity, resetActivity, reloadActivityCache, useActivity, ActivityPopup } from './activity.js';
 import { openSos } from './sos.js';
+import { openPlans } from './plans.js';
 import { WrappedHost } from './wrapped-card.js';
 import { Tour } from './tour.js';
 import { checkNewBadges } from './badges.js';
@@ -77,6 +78,7 @@ function App({ s }) {
   useEffect(() => {
     if (initial === 'activity') { history.replaceState(null, '', '#home'); setTimeout(openActivity, 400); }
     if (initial === 'sos') { history.replaceState(null, '', '#home'); setTimeout(openSos, 400); }
+    if (initial === 'plan') { history.replaceState(null, '', '#home'); setTimeout(openPlans, 400); }
   }, []);
   const scrolls = useRef({});
   const go = (t, { quiet } = {}) => {
@@ -102,6 +104,7 @@ function App({ s }) {
       const h = location.hash.slice(1);
       if (h === 'activity') { setTab('home'); history.replaceState(null, '', '#home'); openActivity(); return; }
       if (h === 'sos') { setTab('home'); history.replaceState(null, '', '#home'); openSos(); return; }
+      if (h === 'plan') { setTab('home'); history.replaceState(null, '', '#home'); openPlans(); return; }
       if (TABS.some((t) => t.id === h)) setTab(h);
     };
     window.addEventListener('hashchange', on);

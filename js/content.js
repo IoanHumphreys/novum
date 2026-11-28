@@ -1,5 +1,5 @@
-// Novum's slogan: each word starts with a letter of NOVUM
-export const SLOGAN_WORDS = ['Notice.', 'Overcome.', 'Vitality.', 'Understand.', 'Master.'];
+// Novum's slogan
+export const SLOGAN_WORDS = ['Turn', 'intentions', 'into', 'transformation.'];
 export const SLOGAN = SLOGAN_WORDS.join(' ');
 
 // Static content: milestones, health timelines, goal presets, pickers.
@@ -246,3 +246,19 @@ export const STATUSES = [
   { kind: 'distract', e: '🎮', l: 'Need a distraction', c: '#BF5AF2' },
 ];
 export const statusOf = (st, now = Date.now()) => (st && now - st.at < 24 * 3600e3 ? STATUSES.find((x) => x.kind === st.kind) || null : null);
+
+// If-then plan ideas for each trigger (Profile → Plan ahead, and SOS)
+export const PLAN_IDEAS = {
+  Stress: ['Do the 5-minute breathing in SOS', 'Go for a 10-minute walk', 'Write down what’s stressing me', 'Text a buddy'],
+  Boredom: ['Play the SOS puzzle', 'Go outside for 10 minutes', 'Put a song on and tidy one thing', 'Start something with my hands'],
+  Friends: ['Say “I’ve stopped” and change the subject', 'Hold a drink or chew gum', 'Step away for 5 minutes', 'Leave early if it gets too much'],
+  'After food': ['Get up and brush my teeth', 'Have a mint or gum', 'Wash up straight away', 'Go for a short walk'],
+  Alcohol: ['Have a soft drink between each drink', 'Tell a mate to call me out', 'Keep my hands busy', 'Go home before I’m drunk'],
+  Evening: ['Plan something for 9pm', 'Have a hot drink', 'Do the breathing in SOS', 'Go to bed a bit earlier'],
+  Tired: ['Have a glass of cold water', 'Take a 20-minute nap', 'Go to bed instead', 'Step outside for fresh air'],
+  Routine: ['Change one small part of the routine', 'Take a different route', 'Do 20 squats instead', 'Have a drink of water first'],
+  Anxious: ['Breathe in for 4, out for 6', 'Name 5 things I can see', 'Message someone I trust', 'Go for a walk'],
+  Celebrating: ['Treat myself with the money I saved', 'Celebrate with food or a film instead', 'Tell a buddy my win', 'Remind myself how far I’ve come'],
+  Other: ['Do the 5-minute breathing in SOS', 'Go for a walk', 'Text a buddy', 'Read my reasons'],
+};
+export const EVENT_EMOJIS = ['🎉', '🍻', '🎓', '📚', '✈️', '🎵', '⚽', '💼', '🏠', '😬'];

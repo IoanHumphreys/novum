@@ -8,6 +8,7 @@ import { Goals, openNewYear } from './goals.js';
 import { openWeightSheet } from './me.js';
 import { LungCard } from '../lungs.js';
 import { WrappedCard } from '../wrapped-card.js';
+import { CravingStats } from '../plans.js';
 
 /* ============ PROGRESS ============ */
 export function Progress({ s, go }) {
@@ -117,6 +118,8 @@ export function Progress({ s, go }) {
         ${insight && html`<p class="insight">${insight}</p>`}
       </div>
     </section>`}
+
+    <${CravingStats} s=${s} />
 
     <${CravingPatterns} s=${s} />
 
