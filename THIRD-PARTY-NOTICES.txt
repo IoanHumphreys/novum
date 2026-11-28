@@ -259,7 +259,9 @@ THE SOFTWARE.
 The word "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.
 
 ==============================================================================
-4. Icons: some of the line icons in js/ui.js are based on Lucide and Feather
+4. Icons: Lucide (goal icons in js/goal-icons.js, copied unchanged from
+   lucide-static 1.83.0; some of the line icons in js/ui.js are based on
+   Lucide and Feather)
    https://lucide.dev  https://feathericons.com
 ==============================================================================
 ISC License

@@ -2,6 +2,7 @@
 // milestones, today, body.
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
+import { GoalIcon } from '../goal-icons.js';
 import { html, haptic, useNow, Icon, Ring, openSheet, SheetBar, Page, Segmented, Group, Legend, lazyOpen } from '../ui.js';
 // The workout logger loads only when a workout is started from Home
 const startWorkout = lazyOpen(() => import('../fitness/logger.js'), 'startWorkout');
@@ -264,7 +265,7 @@ export function HabitTickRow({ g }) {
   const done = (g.ticks || []).includes(S.dayKey());
   const st = S.habitStreak(g);
   return html`<div class="row">
-    <span class="row-ic" style="background:${g.color}">${g.emoji}</span>
+    <span class="row-ic tinted" style=${`--c:${g.color}`}><${GoalIcon} g=${g} /></span>
     <span class="row-main"><span class="row-title">${g.name}</span>
       <span class="row-sub">${st.value > 0 ? `🔥 ${st.value} ${st.unit} streak` : typeText(g)}</span></span>
     <button class="tick ${done ? 'on' : ''}" style="--c:${g.color}" aria-pressed=${done} aria-label=${`Mark ${g.name} done today`}

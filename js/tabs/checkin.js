@@ -1,6 +1,7 @@
 // Check-in tab: mood, cravings, sleep, notes, habits and the mood calendar.
 import { useState, useEffect } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
+import { GoalIcon } from '../goal-icons.js';
 import { html, haptic, Icon, Page, Segmented, Group } from '../ui.js';
 import { MOODS, MOOD_COLORS } from '../content.js';
 import { pad2, typeText, toggleTick, NoteBox, SLEEP } from '../shared.js';
@@ -55,7 +56,7 @@ export function CheckIn({ s }) {
       ${habits.map((g) => {
         const done = (g.ticks || []).includes(day);
         return html`<div class="row" key=${g.id}>
-          <span class="row-ic" style="background:${g.color}">${g.emoji}</span>
+          <span class="row-ic tinted" style=${`--c:${g.color}`}><${GoalIcon} g=${g} /></span>
           <span class="row-main"><span class="row-title">${g.name}</span><span class="row-sub">${typeText(g)}</span></span>
           <button class="tick ${done ? 'on' : ''}" style="--c:${g.color}" aria-pressed=${done} onClick=${() => toggleTick(g.id, day)}>${Icon.check()}</button>
         </div>`;

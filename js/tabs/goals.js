@@ -2,7 +2,8 @@
 import { useState } from '../../vendor/preact-htm.js';
 import * as S from '../store.js';
 import { html, haptic, Icon, Ring, openSheet, SheetBar, Page, Segmented, Toggle, Group, Field, Empty, toast } from '../ui.js';
-import { quitPresets, CATEGORIES, catById, COLORS, EMOJIS, PRESETS } from '../content.js';
+import { quitPresets, CATEGORIES, catById, COLORS, PRESETS } from '../content.js';
+import { GOAL_ICONS, GoalIcon, iconFor } from '../goal-icons.js';
 import { DAY, NEW_YEAR, deadlineText, typeText, toggleTick, confirmSheet } from '../shared.js';
 import { Profile, openWeightSheet } from './me.js';
 
@@ -43,7 +44,7 @@ export function GoalsBody({ s }) {
 export function GoalRow({ g, p }) {
   const today = (g.ticks || []).includes(S.dayKey());
   return html`<div class="row tap goal-row" role="button" tabindex="0" onClick=${() => openGoalDetail(g.id)}>
-    <${Ring} pct=${p.pct} size=${46} stroke=${5} color=${g.color}><span class="ring-emoji">${g.emoji}</span><//>
+    <${Ring} pct=${p.pct} size=${46} stroke=${5} color=${g.color}><span class="ring-emoji ring-gi" style=${`color:${g.color}`}><${GoalIcon} g=${g} /></span><//>
     <span class="row-main">
       <span class="row-title">${g.name}</span>
       <span class="row-sub">${S.goalStartsLater(g) ? `Counts from ${S.fmtDate(S.goalWindow(g).start, { day: 'numeric', month: 'short' })}` : p.label} · ${deadlineText(g)}</span>
@@ -140,7 +141,7 @@ export function GoalDetail({ id, close }) {
     <div class="sheet-body">
       <div class="detail-hero">
         <${Ring} pct=${p.pct} size=${168} stroke=${18} color=${g.color}>
-          <div class="dh-in"><span class="dh-e">${g.emoji}</span><b>${Math.round(p.pct * 100)}%</b></div>
+          <div class="dh-in"><span class="dh-e dh-gi" style=${`color:${g.color}`}><${GoalIcon} g=${g} /></span><b>${Math.round(p.pct * 100)}%</b></div>
         <//>
         <h2 class="dh-name">${g.name}</h2>
         <div class="dh-label">${p.label} <span class="muted">${p.sub}</span></div>
@@ -157,7 +158,7 @@ export function openGoalEditor(goal) { openSheet((close) => html`<${GoalEditor} 
 export function GoalEditor({ goal = {}, close }) {
   const isEdit = !!goal.id;
   const [f, setF] = useState(() => ({
-    name: '', emoji: '🎯', color: '#3B9BFF', category: 'habits', type: 'habit', perWeek: 7, remindAt: '', period: '2027', end: '2027-12-31',
+    name: '', icon: 'target', emoji: '🎯', color: '#3B9BFF', category: 'habits', type: 'habit', perWeek: 7, remindAt: '', period: '2027', end: '2027-12-31',
     mode: 'sum', auto: '', unit: '', target: '', startValue: '', quitId: S.getState().quits[0]?.id || '', ...goal,
   }));
   const set = (patch) => setF((x) => ({ ...x, ...patch }));
@@ -187,12 +188,12 @@ export function GoalEditor({ goal = {}, close }) {
       right=${html`<button class="link b" disabled=${!valid} onClick=${save}>${isEdit ? 'Save' : 'Add'}</button>`} />
     <div class="sheet-body">
       <div class="editor-hero">
-        <div class="eh-icon" style="background:${f.color}">${f.emoji}</div>
+        <div class="eh-icon" style="background:${f.color}"><${GoalIcon} g=${f} /></div>
         <input class="eh-name" placeholder="Goal name" value=${f.name} onInput=${(e) => set({ name: e.target.value })} maxlength="60" />
       </div>
 
       <${Group} header="Icon">
-        <div class="emoji-grid">${EMOJIS.map((e) => html`<button class="emo ${f.emoji === e ? 'on' : ''}" onClick=${() => { haptic(); set({ emoji: e }); }}>${e}</button>`)}</div>
+        <div class="icon-grid" style=${`--c:${f.color}`}>${GOAL_ICONS.map((x) => html`<button key=${x.k} class="gi-btn ${iconFor(f)?.k === x.k ? 'on' : ''}" aria-label=${x.l} aria-pressed=${iconFor(f)?.k === x.k} onClick=${() => { haptic(); set({ icon: x.k, emoji: x.e }); }}>${x.s()}</button>`)}</div>
       <//>
       <${Group} header="Colour">
         <div class="swatches">${COLORS.map((c) => html`<button class="sw ${f.color === c ? 'on' : ''}" style="--c:${c}" aria-label=${c} onClick=${() => { haptic(); set({ color: c }); }}></button>`)}</div>
@@ -276,7 +277,7 @@ export function NewYear({ close }) {
             const has = added.has(p.key);
             const mine = s.goals.find((x) => x.preset === p.key);
             return html`<div class="row tap" key=${p.key} role="button" onClick=${() => (mine ? openGoalDetail(mine.id) : openGoalEditor({ ...g, preset: p.key }))}>
-              <span class="row-ic" style="background:${g.color}">${g.emoji}</span>
+              <span class="row-ic tinted" style=${`--c:${g.color}`}><${GoalIcon} g=${g} /></span>
               <span class="row-main"><span class="row-title">${g.name}</span><span class="row-sub">${desc(g)}</span></span>
               <button class="add-pill ${has ? 'on' : ''}" aria-pressed=${has} aria-label=${has ? `Remove ${g.name}` : `Add ${g.name}`}
                 onClick=${(e) => { e.stopPropagation(); has ? removePreset(p) : quickAdd(p); }}>${has ? Icon.check() : Icon.plus()}</button>

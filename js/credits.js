@@ -26,7 +26,7 @@ const CODE = [
   { n: 'Preact', a: 'Jason Miller and contributors', l: 'MIT', u: 'https://preactjs.com' },
   { n: 'htm', a: 'Google Inc.', l: 'Apache 2.0', u: 'https://github.com/developit/htm' },
   { n: 'qrcode-generator', a: 'Kazuhiko Arase', l: 'MIT', u: 'https://github.com/kazuhikoarase/qrcode-generator' },
-  { n: 'Lucide and Feather icons', a: 'Lucide contributors and Cole Bemis', l: 'ISC and MIT', u: 'https://lucide.dev' },
+  { n: 'Lucide icons (goal icons and line icons)', a: 'Lucide Icons and Contributors; some shapes from Feather by Cole Bemis', l: 'ISC and MIT', u: 'https://lucide.dev' },
 ];
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' };

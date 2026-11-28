@@ -1945,3 +1945,14 @@ html.sheet-open .fx-bar { opacity: 0; pointer-events: none; }
 .dz-plan b { display: block; }
 .dz-plan small { color: var(--text-2); font-size: 13px; line-height: 1.35; display: block; }
 .ready-ring.fx-ring { background: radial-gradient(circle at 35% 30%, #5BE584, #12A150); box-shadow: 0 0 60px rgba(48, 209, 88, .35); }
+
+/* goal icons (Lucide) */
+.ring-gi .ic { width: 22px; height: 22px; }
+.dh-gi .ic { width: 40px; height: 40px; }
+.eh-icon { color: #fff; }
+.eh-icon .ic { width: 42px; height: 42px; }
+.row-ic .gi-emoji { font-size: 17px; }
+.icon-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 10px; }
+.gi-btn { aspect-ratio: 1; min-height: 44px; border-radius: 14px; display: grid; place-items: center; color: var(--text-2); transition: transform .3s var(--bounce), background .2s, color .2s; }
+.gi-btn .ic { width: 24px; height: 24px; }
+.gi-btn.on { background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--c); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 55%, transparent); transform: scale(1.06); }

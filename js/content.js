@@ -95,13 +95,14 @@ export const CATEGORIES = [
 export const catById = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[4];
 
 export const COLORS = ['#3B9BFF', '#5AC8FA', '#30D158', '#FFD60A', '#FF9F0A', '#FF453A', '#FF375F', '#BF5AF2'];
+// Old emoji picker list (goals now pick from GOAL_ICONS in goal-icons.js); kept for older data
 export const EMOJIS = ['🎯', '💨', '🌿', '💪', '🏋️', '🏃', '🚴', '🧘', '💧', '😴', '🥗', '🍎', '💷', '🏦', '📚', '📖', '🎓', '🧠', '✍️', '🎸', '🧹', '☀️', '🌙', '❤️', '🔥', '⭐', '🏆', '✈️'];
 
 // Presets for the New Year screen. f(state) => goal fields
 // "Stay quit" presets are generated per addiction (see quitPresets)
 export const quitPresets = (s) => s.quits.map((q) => ({
   key: `stay-${q.id}`,
-  make: () => ({ name: `Stay ${q.label.toLowerCase()}-free through 2027`, emoji: q.emoji, color: q.color, category: 'health', type: 'quit', quitId: q.id, period: '2027' }),
+  make: () => ({ name: `Stay ${q.label.toLowerCase()}-free through 2027`, icon: 'shield-check', emoji: q.emoji, color: q.color, category: 'health', type: 'quit', quitId: q.id, period: '2027' }),
 }));
 
 export const PRESETS = [
@@ -110,23 +111,23 @@ export const PRESETS = [
       // You log what you put away; the target suggests what quitting frees up
       const yearly = s.quits.reduce((a, q) => a + (q.monthly || 0) * 12, 0);
       const target = yearly > 0 ? Math.max(100, Math.floor(yearly / 100) * 100) : 500;
-      return { name: `Save £${target.toLocaleString('en-GB')}`, emoji: '💷', color: '#FFD60A', category: 'money', type: 'numeric', mode: 'sum', unit: '£', target, period: '2027' };
+      return { name: `Save £${target.toLocaleString('en-GB')}`, icon: 'piggy-bank', emoji: '💷', color: '#FFD60A', category: 'money', type: 'numeric', mode: 'sum', unit: '£', target, period: '2027' };
     },
   },
-  { key: 'gym', make: () => ({ name: 'Gym 3× a week', emoji: '🏋️', color: '#30D158', category: 'fitness', type: 'habit', perWeek: 3, period: '2027' }) },
-  { key: 'run', make: () => ({ name: 'Run 500 km', emoji: '🏃', color: '#FF9F0A', category: 'fitness', type: 'numeric', mode: 'sum', unit: 'km', target: 500, period: '2027' }) },
-  { key: 'water', make: () => ({ name: 'Drink 2 litres of water', emoji: '💧', color: '#5AC8FA', category: 'health', type: 'habit', perWeek: 7, period: '2027' }) },
-  { key: 'sleep', make: () => ({ name: 'In bed by 11pm', emoji: '🌙', color: '#BF5AF2', category: 'habits', type: 'habit', perWeek: 5, period: '2027' }) },
-  { key: 'study', make: () => ({ name: 'Study for an hour', emoji: '📖', color: '#BF5AF2', category: 'study', type: 'habit', perWeek: 5, period: '2027' }) },
-  { key: 'read', make: () => ({ name: 'Read 12 books', emoji: '📚', color: '#FF9F0A', category: 'study', type: 'numeric', mode: 'sum', unit: 'books', target: 12, period: '2027' }) },
+  { key: 'gym', make: () => ({ name: 'Gym 3× a week', icon: 'dumbbell', emoji: '🏋️', color: '#30D158', category: 'fitness', type: 'habit', perWeek: 3, period: '2027' }) },
+  { key: 'run', make: () => ({ name: 'Run 500 km', icon: 'footprints', emoji: '🏃', color: '#FF9F0A', category: 'fitness', type: 'numeric', mode: 'sum', unit: 'km', target: 500, period: '2027' }) },
+  { key: 'water', make: () => ({ name: 'Drink 2 litres of water', icon: 'droplet', emoji: '💧', color: '#5AC8FA', category: 'health', type: 'habit', perWeek: 7, period: '2027' }) },
+  { key: 'sleep', make: () => ({ name: 'In bed by 11pm', icon: 'moon', emoji: '🌙', color: '#BF5AF2', category: 'habits', type: 'habit', perWeek: 5, period: '2027' }) },
+  { key: 'study', make: () => ({ name: 'Study for an hour', icon: 'book-open', emoji: '📖', color: '#BF5AF2', category: 'study', type: 'habit', perWeek: 5, period: '2027' }) },
+  { key: 'read', make: () => ({ name: 'Read 12 books', icon: 'book', emoji: '📚', color: '#FF9F0A', category: 'study', type: 'numeric', mode: 'sum', unit: 'books', target: 12, period: '2027' }) },
   {
     key: 'weight', make: (s) => {
       const w = s.profile.weights.length ? s.profile.weights[s.profile.weights.length - 1].kg : 70;
-      return { name: 'Reach my target weight', emoji: '💪', color: '#FF375F', category: 'fitness', type: 'numeric', auto: 'weight', mode: 'level', unit: 'kg', startValue: +w.toFixed(1), target: Math.round(w + 3), period: '2027' };
+      return { name: 'Reach my target weight', icon: 'weight', emoji: '⚖️', color: '#FF375F', category: 'fitness', type: 'numeric', auto: 'weight', mode: 'level', unit: 'kg', startValue: +w.toFixed(1), target: Math.round(w + 3), period: '2027' };
     },
   },
-  { key: 'meditate', make: () => ({ name: 'Meditate 10 minutes', emoji: '🧘', color: '#5AC8FA', category: 'habits', type: 'habit', perWeek: 7, period: '2027' }) },
-  { key: '10k', make: () => ({ name: 'Run a 10K', emoji: '🏆', color: '#FF9F0A', category: 'fitness', type: 'milestone', period: '2027' }) },
+  { key: 'meditate', make: () => ({ name: 'Meditate 10 minutes', icon: 'brain', emoji: '🧠', color: '#5AC8FA', category: 'habits', type: 'habit', perWeek: 7, period: '2027' }) },
+  { key: '10k', make: () => ({ name: 'Run a 10K', icon: 'trophy', emoji: '🏆', color: '#FF9F0A', category: 'fitness', type: 'milestone', period: '2027' }) },
 ];
 
 export const TRIGGERS = ['Stress', 'Boredom', 'Friends', 'After food', 'Alcohol', 'Evening', 'Tired', 'Routine', 'Anxious', 'Celebrating', 'Other'];
