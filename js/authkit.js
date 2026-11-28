@@ -32,3 +32,44 @@ export function Resend({ sentAt, onResend }) {
   const left = Math.max(0, 30 - Math.floor((now - sentAt) / 1000));
   return html`<button type="button" class="link center-link" disabled=${left > 0} onClick=${onResend}>${left > 0 ? `Send a new code in ${left}s` : 'Didn’t get it? Send a new code'}</button>`;
 }
+
+// Hotmail, Outlook, Live and MSN put mail from new senders in Junk more often than other providers,
+// so people using them get a nudge to look there. Works with masked addresses too ("jo••@hotmail.com").
+const MICROSOFT = /@(hotmail|outlook|live|msn|windowslive|passport)\.[a-z.]+$/i;
+export const isMicrosoftMail = (email) => MICROSOFT.test(String(email || '').trim());
+export function JunkHint({ email }) {
+  if (!isMicrosoftMail(email)) return null;
+  return html`<div class="junk-hint" role="note">
+    <span class="junk-ic" aria-hidden="true">📥</span>
+    <span><b>Using Hotmail or Outlook?</b> Check your <b>Junk</b> folder. If the code is there, tap <b>Not junk</b> so the next one lands in your inbox.</span>
+  </div>`;
+}
+
+// "Did you mean …@gmail.com?" for common email domain typos (gmial.com, hotmail.co, outlok.com…).
+// Only suggests a fix when the domain is one letter or two away from a well-known provider.
+const DOMAINS = ['gmail.com', 'googlemail.com', 'hotmail.com', 'hotmail.co.uk', 'outlook.com', 'live.com', 'live.co.uk', 'msn.com',
+  'yahoo.com', 'yahoo.co.uk', 'icloud.com', 'me.com', 'aol.com', 'btinternet.com', 'sky.com', 'virginmedia.com', 'protonmail.com', 'proton.me'];
+function editDistance(a, b) {
+  // Damerau–Levenshtein (adjacent swaps count as one edit, so "gmial" is one away from "gmail")
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length];
+}
+export function suggestEmail(email) {
+  const m = String(email || '').trim().toLowerCase().match(/^([^\s@]+)@([^\s@]+\.[^\s@]+)$/);
+  if (!m || DOMAINS.includes(m[2])) return null;
+  let best = null, bestD = 3;
+  for (const dom of DOMAINS) {
+    const dist = editDistance(m[2], dom);
+    if (dist < bestD) { best = dom; bestD = dist; }
+  }
+  // Short domains (me.com, sky.com) only match a one-letter slip
+  if (!best || (bestD === 2 && best.length < 9)) return null;
+  return `${m[1]}@${best}`;
+}

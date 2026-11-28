@@ -9,7 +9,7 @@ import { InstallGuide, HomeScreenTip, guideFirst, skipGuide, markWelcomed, insta
 import { openPrivacy } from './privacy.js';
 import { Avatar, openAvatarPicker } from './profile.js';
 import { Banner, openBannerPicker, PALETTES } from './banner.js';
-import { EyeButton, CodeInput, Resend, setNewSignup } from './authkit.js';
+import { EyeButton, CodeInput, Resend, setNewSignup, JunkHint, suggestEmail } from './authkit.js';
 export { EyeButton, CodeInput, Resend, consumeNewSignup } from './authkit.js';
 
 export const MIN_AGE = 16;
@@ -270,10 +270,13 @@ function SignUp({ back, toLogin }) {
       ${step === 'email' && html`
         <${Q} emoji="✉️" title="What’s your email?" sub="Used to log in. Novum won’t send you marketing." />
         <${BigInput} inputRef=${focusRef} type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" value=${f.email} onInput=${set('email')} />
+        ${suggestEmail(f.email) && html`<button type="button" class="email-fix" onClick=${() => { haptic(10); setErr(''); setF({ ...f, email: suggestEmail(f.email) }); }}>
+          Did you mean <b>${suggestEmail(f.email)}</b>? <span>Use it</span></button>`}
         ${!noCodes && verifiedEmail !== email && html`<p class="wiz-hint">We’ll email you a 6-digit code to confirm it’s you.</p>`}`}
 
       ${step === 'code' && html`
         <${Q} emoji="📬" title="Check your email." sub=${html`We sent a 6-digit code to <b class="wiz-em">${email}</b>. It can take a minute, so check spam too.`} />
+        <${JunkHint} email=${email} />
         <${CodeInput} inputRef=${focusRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
         <${Resend} sentAt=${sentAt} onResend=${async () => { setErr(''); try { await sendCode(); toast('New code sent'); } catch (x) { setErr(x.message); } }} />
         <p class="wiz-hint center">Already have a Novum account with this email? We’ll have emailed you to log in instead.</p>
@@ -347,6 +350,7 @@ function ResetPassword({ back }) {
       ${i === 0 && html`<${Q} emoji="🔐" title="Forgot your password?" sub="Enter your account’s email and we’ll send you a code to set a new one." />
         <${BigInput} inputRef=${focusRef} type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" value=${email} onInput=${(e) => { setErr(''); setEmail(e.target.value); }} />`}
       ${i === 1 && html`<${Q} emoji="📬" title="Check your email." sub=${html`If there’s an account for <b class="wiz-em">${em}</b>, a 6-digit code is on its way. Check spam too.`} />
+        <${JunkHint} email=${em} />
         <${CodeInput} inputRef=${focusRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${() => go(2)} />
         <${Resend} sentAt=${sentAt} onResend=${async () => { try { await send(); toast('New code sent'); } catch (x) { setErr(x.message); } }} />`}
       ${i === 2 && html`<${Q} emoji="🔒" title="Choose a new password." sub="At least 8 characters. You’ll be logged out on other devices." />
@@ -406,6 +410,7 @@ function LogInForm({ back, toSignup, forgot }) {
       <div class="wiz-top"><button class="icon-btn" type="button" onClick=${() => { setPending(null); setErr(''); setBusy(false); }} aria-label="Back">${Icon.left()}</button></div>
       <div class="wiz-body fwd" key="code">
         <${Q} emoji="📬" title="Check your email." sub=${html`To keep your account safe, we sent a 6-digit code to <b class="wiz-em">${pending.emailHint}</b>. Check spam too.`} />
+        <${JunkHint} email=${pending.emailHint} />
         <${CodeInput} inputRef=${codeRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} onComplete=${verify} />
         <div class="card list remember"><div class="row">
           <span class="row-main"><span class="row-title">Remember this device</span><span class="row-sub">Skip the code here for 30 days. Your password is still needed.</span></span>

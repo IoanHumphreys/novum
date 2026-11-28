@@ -6,7 +6,7 @@ import { healthFor, ADDICTIONS, SLOGAN } from '../content.js';
 import { pushConfigured, pushSupported, isStandalone, isIOS, permission, blockedMessage, enablePush, disablePush, stopPushSync, deviceState } from '../push.js';
 import * as A from '../api.js';
 import { stopSync, flush, forgetMeta, syncStatus, onSyncStatus, syncNow } from '../sync.js';
-import { CodeInput, Resend, EyeButton } from '../authkit.js';
+import { CodeInput, Resend, EyeButton, JunkHint } from '../authkit.js';
 import { openInstallGuide, canInstall, installEnv } from '../install.js';
 import { openBuddies, refreshBuddies } from '../social.js';
 import { refreshActivity } from '../activity.js';
@@ -342,6 +342,7 @@ export function DeleteAccount({ close }) {
           <div class="wiz-emoji">📬</div>
           <h2 class="auth-title center">Check your email</h2>
           <p class="wiz-sub center">Step 2 of 2. We sent a 6-digit code to <b class="wiz-em">${codeFor.emailHint}</b>. Enter it to delete your account for good.</p>
+          <${JunkHint} email=${codeFor.emailHint} />
           <${CodeInput} inputRef=${codeRef} value=${code} onChange=${(v) => { setErr(''); setCode(v); }} />
           <${Resend} sentAt=${sentAt} onResend=${async () => { try { await A.deleteCode(pw); setSentAt(Date.now()); setCode(''); toast('New code sent'); } catch (e) { setErr(e.message); } }} />
           ${err && html`<p class="auth-err center">${err}</p>`}
