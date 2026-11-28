@@ -1104,7 +1104,7 @@ input:autofill { background: transparent; }
 .ph-counts { display: flex; gap: 14px; margin-top: 8px; font-size: 14px; color: var(--text-2); }
 .ph-counts.center { justify-content: center; }
 .ph-counts b { color: var(--text); font-weight: 700; }
-.ph-bio { margin: 12px 0 0; font-size: 15px; line-height: 1.45; white-space: pre-wrap; }
+.ph-bio { margin: 12px 0 0; }
 .ph-bio.empty { color: var(--text-3); }
 .ph-req { display: block; width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(59, 155, 255, 0.14); color: var(--accent); font-weight: 600; text-align: left; }
 .ph-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
@@ -1125,7 +1125,7 @@ input:autofill { background: transparent; }
 .pp-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
 .pp-actions .btn { min-width: 120px; }
 .pp-actions .pill { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; }
-.pp-bio { text-align: center; font-size: 16px; line-height: 1.45; margin: 0 8px 8px; white-space: pre-wrap; }
+.pp-bio { margin: 0 0 16px; }
 .pp-private { text-align: center; line-height: 1.5; color: var(--text-2); }
 .pp-private b { color: var(--text); }
 .story { padding: 12px 16px; }
@@ -1736,3 +1736,19 @@ input:autofill { background: transparent; }
 
 /* Soft tinted circle for quit and body icons (instead of a solid colour square) */
 .tint-ic { border-radius: 50%; background: color-mix(in srgb, var(--c) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); }
+
+/* Bio card: tinted with the person's banner colours, with a big soft quote mark and #hashtag pills */
+.bio-card { position: relative; overflow: hidden; border-radius: var(--r-lg); padding: 14px 16px 14px 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--b1) 26%, transparent), color-mix(in srgb, var(--b2) 10%, transparent) 70%), var(--fill);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b2) 22%, transparent); }
+.bio-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--b1), var(--b2)); }
+.bio-q { position: absolute; right: 10px; top: -14px; font-size: 76px; line-height: 1; font-family: Georgia, serif; font-weight: 700; color: var(--b2); opacity: .22; pointer-events: none; }
+.bio-text { position: relative; margin: 0; font-size: 15.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bio-tag { display: inline-block; padding: 0 7px; margin: 1px 0; border-radius: 999px; font-size: 13.5px; font-weight: 600; line-height: 1.6;
+  color: #fff; background: color-mix(in srgb, var(--b2) 32%, transparent); }
+
+/* Future you: gradient stat tiles instead of flat grey */
+.fy-stat { position: relative; overflow: hidden; }
+.fy-saved { background: linear-gradient(135deg, rgba(48, 209, 88, .30), rgba(0, 199, 190, .12) 75%); box-shadow: inset 0 0 0 1px rgba(48, 209, 88, .22); }
+.fy-free { background: linear-gradient(135deg, rgba(59, 155, 255, .32), rgba(132, 94, 247, .14) 75%); box-shadow: inset 0 0 0 1px rgba(90, 200, 250, .22); }
+.fy-free small { color: var(--accent-2); }

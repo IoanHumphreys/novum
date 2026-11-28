@@ -11,7 +11,7 @@ import { MyStatus, StatusTag, TogetherTag, openShareProfile } from './connect.js
 import { BadgeShelf } from './badges.js';
 import { openCredits } from './credits.js';
 import { BuddyGarden, gardenOf } from './garden.js';
-import { Banner, openBannerPicker } from './banner.js';
+import { Banner, openBannerPicker, PALETTES, DEFAULT_BANNER } from './banner.js';
 
 const DAY = 864e5;
 
@@ -89,6 +89,17 @@ export function startProfileSync() {
 let lastGarden = null;
 export function stopProfileSync() { if (unsubProf) unsubProf(); unsubProf = null; clearTimeout(profTimer); lastProf = null; lastGarden = null; }
 
+/* ---------- bio card ---------- */
+// The bio in a card tinted with the person's banner colours. #hashtags show as small pills.
+function Bio({ text, banner, className = '' }) {
+  const [, c1, c2] = PALETTES[banner?.palette] || PALETTES[DEFAULT_BANNER.palette];
+  const parts = String(text).split(/(#[\p{L}\p{N}_]+)/u);
+  return html`<div class="bio-card ${className}" style=${`--b1:${c1};--b2:${c2}`}>
+    <span class="bio-q" aria-hidden="true">“</span>
+    <p class="bio-text">${parts.map((x, i) => (i % 2 ? html`<span class="bio-tag" key=${i}>${x}</span>` : x))}</p>
+  </div>`;
+}
+
 /* ---------- my profile header (Profile tab) ---------- */
 export function ProfileHeader({ s }) {
   const user = A.getSession()?.user || {};
@@ -112,7 +123,7 @@ export function ProfileHeader({ s }) {
       </div>
     </div>
     <${MyStatus} s=${s} />
-    ${s.social.bio && html`<p class="ph-bio">${s.social.bio}</p>`}
+    ${s.social.bio && html`<${Bio} text=${s.social.bio} banner=${s.social.banner} className="ph-bio" />`}
     <div class="ph-nums">
       <button onClick=${() => openPeople('followers')}><b>${n(counts?.followers)}</b><span>Followers</span></button>
       <button onClick=${() => openPeople('following')}><b>${n(counts?.following)}</b><span>Following</span></button>
@@ -286,7 +297,7 @@ function Person({ username, close, onChange }) {
         ${(p.status || bud) && html`<div class="pp-tags"><${StatusTag} status=${p.status} now=${now} />${bud && html`<${TogetherTag} s=${me} buddy=${bud} now=${now} long />`}</div>`}
         ${!r.blockedByMe && html`<div class="pp-actions">${p.canFollow !== false && followBtn}${buddyBtn}</div>`}
       </div>
-      ${!r.blockedByMe && !p.private && p.bio && html`<p class="pp-bio">${p.bio}</p>`}
+      ${!r.blockedByMe && !p.private && p.bio && html`<${Bio} text=${p.bio} banner=${p.banner} className="pp-bio" />`}
       ${!r.blockedByMe && p.garden && html`<${BuddyGarden} g=${p.garden} person=${p} />`}
       ${r.blockedByMe ? html`<p class="muted center">You’ve blocked ${p.firstName}. Tap ••• to unblock.</p>`
       : p.private ? html`<div class="card pad pp-private">🔒 <b>${p.firstName}’s profile is private.</b><br />Follow to send a request, or become buddies to see their streaks and story.</div>`

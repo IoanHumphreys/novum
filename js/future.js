@@ -58,8 +58,8 @@ export function FutureYou({ s }) {
     <div class="card fy-card">
       <p class="fy-when">On <b>${date}</b>, if you keep going:</p>
       <div class="fy-stats">
-        ${p.savedThen > 0 && html`<div class="fy-stat"><span class="fy-k">💷 Saved</span><b>${S.money(p.savedThen, 0)}</b><small>+${S.money(p.gain, 0)} from today</small></div>`}
-        <div class="fy-stat"><span class="fy-k">🗓️ Free for</span><b>${p.days} days</b><small>${p.milestones.length ? `${p.milestones[p.milestones.length - 1].m.label} badge earned` : 'and counting'}</small></div>
+        ${p.savedThen > 0 && html`<div class="fy-stat fy-saved"><span class="fy-k">💷 Saved</span><b>${S.money(p.savedThen, 0)}</b><small>+${S.money(p.gain, 0)} from today</small></div>`}
+        <div class="fy-stat fy-free"><span class="fy-k">🗓️ Free for</span><b>${p.days} days</b><small>${p.milestones.length ? `${p.milestones[p.milestones.length - 1].m.label} badge earned` : 'and counting'}</small></div>
       </div>
       ${show.length > 0 && html`<div class="fy-list">
         <div class="fy-lh">What your body will have done</div>
