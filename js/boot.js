@@ -19,15 +19,17 @@ if (window.top !== window.self) {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
     body: JSON.stringify({ place, version: v, message: String(message || 'Unknown').slice(0, 300), detail: `${String(detail || '').slice(0, 900)}\n${location.href}` }),
   })).catch(() => {});
+  // Not Novum's bugs: browser extensions (crypto wallets etc.), other sites' scripts, Cloudflare's analytics beacon
+  const noise = (m, d = '') => /window\.ethereum|\bethereum\b|^Script error\.?$|cloudflareinsights\.com/i.test(String(m || '').trim()) || /-extension:\/\//i.test(String(d));
   const report = (message, detail) => {
-    if (window.__novumBooted || sent >= 3) return;
+    if (window.__novumBooted || sent >= 3 || noise(message, detail)) return;
     sent++;
     try { send('startup', message, detail); } catch { /* never let reporting break anything */ }
   };
   // Anything the security policy blocks (at most 3 per page load), so a too-strict rule is noticed quickly
   let csp = 0;
   addEventListener('securitypolicyviolation', (e) => {
-    if (csp++ >= 3) return;
+    if (noise(e.blockedURI, e.sourceFile) || /-extension$/i.test(e.blockedURI || '') || csp++ >= 3) return;
     try { send('csp', `Blocked ${e.effectiveDirective || e.violatedDirective}: ${String(e.blockedURI || 'inline').slice(0, 120)}`, `${e.sourceFile || ''}:${e.lineNumber || 0} ${String(e.sample || '').slice(0, 80)}`); } catch { /* ignore */ }
   });
   addEventListener('error', (e) => {

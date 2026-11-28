@@ -1180,6 +1180,9 @@ input:autofill { background: transparent; }
 .pp-av-wrap { position: relative; }
 .owner-badge { position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: .2px; color: #3a2600; background: linear-gradient(135deg, #ffe58a, #ffc53d 55%, #f0a400); border: 3px solid #0c1019; box-shadow: 0 2px 10px rgba(255, 190, 40, .35); pointer-events: none; }
 .owner-badge.sm { left: -8px; bottom: -6px; transform: none; padding: 2px 7px; font-size: 10px; border-color: var(--card); }
+.owner-badge.inline { position: static; transform: none; padding: 2px 8px; font-size: 11px; border: 0; box-shadow: 0 1px 6px rgba(255, 190, 40, .3); }
+.vis { display: inline-flex; align-items: center; gap: 4px; vertical-align: -0.12em; }
+.vis .ic { width: 1.05em; height: 1.05em; stroke-width: 2.2; }
 .bp-hero { height: 130px; border-radius: 18px; margin-bottom: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
 .bp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
 .bp-opt { height: 64px; border-radius: 14px; overflow: hidden; transition: transform 0.3s var(--bounce), box-shadow 0.2s; }

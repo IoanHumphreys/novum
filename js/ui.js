@@ -61,7 +61,12 @@ export const Icon = {
   sparkle: () => I(html`<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>`),
   clock: () => I(html`<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`),
   pound: () => I(html`<path d="M16 6.5A3.5 3.5 0 0 0 9 7v10M6 12h7M6 19h11"/>`),
+  eye: () => I(html`<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>`),
+  lock: () => I(html`<rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>`),
 };
+
+/* Public / Private label with a line icon */
+export const Vis = ({ pub }) => html`<span class="vis">${pub ? Icon.eye() : Icon.lock()}${pub ? 'Public' : 'Private'}</span>`;
 
 /* ---------- progress rings ---------- */
 export function Ring({ pct = 0, size = 64, stroke = 8, color = '#3B9BFF', children, className = '' }) {

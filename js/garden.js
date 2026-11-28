@@ -5,7 +5,7 @@
 import { useState } from '../vendor/preact-htm.js';
 import * as S from './store.js';
 import * as A from './api.js';
-import { html, haptic, openSheet, SheetBar, toast, Toggle } from './ui.js';
+import { html, haptic, openSheet, SheetBar, toast, Toggle, Icon } from './ui.js';
 import { MILESTONES } from './content.js';
 
 const DAY = 864e5;
@@ -100,7 +100,7 @@ export function MyGarden({ s, waterers = [] }) {
   const shown = s.social?.showGarden !== false;
   return html`<button class="card garden-card tap" onClick=${() => openGarden(g, user.username, waterers)}>
     <${Garden} g=${g} seed=${user.username} watered=${waterers.length > 0} height=${150} />
-    <div class="gc-foot"><b>Your garden <small class="gc-vis">${shown ? '🌍 On your profile' : '🔒 Hidden'}</small></b><span>${waterers.length ? `💧 Watered by ${waterers.slice(0, 2).join(' and ')}${waterers.length > 2 ? ` and ${waterers.length - 2} more` : ''}` : `${g.flowers} flower${g.flowers === 1 ? '' : 's'} · ${g.trees.length} tree${g.trees.length === 1 ? '' : 's'}`}</span></div>
+    <div class="gc-foot"><b>Your garden <small class="gc-vis"><span class="vis">${shown ? Icon.eye() : Icon.lock()}${shown ? 'On your profile' : 'Hidden'}</span></small></b><span>${waterers.length ? `💧 Watered by ${waterers.slice(0, 2).join(' and ')}${waterers.length > 2 ? ` and ${waterers.length - 2} more` : ''}` : `${g.flowers} flower${g.flowers === 1 ? '' : 's'} · ${g.trees.length} tree${g.trees.length === 1 ? '' : 's'}`}</span></div>
   </button>`;
 }
 function openGarden(g, seed, waterers) {
@@ -118,9 +118,9 @@ function openGarden(g, seed, waterers) {
 // Show or hide the garden on your profile (it's on by default, for anyone who opens your profile)
 function ShowToggle() {
   const [on, setOn] = useState(S.getState().social?.showGarden !== false);
-  const set = (v) => { setOn(v); S.update((d) => { d.social = { ...d.social, showGarden: v }; }); toast(v ? 'Your garden is on your profile 🌍' : 'Garden hidden from your profile'); };
+  const set = (v) => { setOn(v); S.update((d) => { d.social = { ...d.social, showGarden: v }; }); toast(v ? 'Your garden is on your profile' : 'Garden hidden from your profile'); };
   return html`<div class="card list"><div class="row">
-    <span class="row-ic" style="background:#30D158">🌍</span>
+    <span class="row-ic" style="background:#30D158;color:#fff">${Icon.eye()}</span>
     <span class="row-main"><span class="row-title">Show on my profile</span><span class="row-sub">Anyone who opens your profile can see it, even if it’s private: flowers for cravings beaten, trees for milestones.</span></span>
     <${Toggle} on=${on} label="Show my garden on my profile" onChange=${set} />
   </div></div>`;

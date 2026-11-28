@@ -2,7 +2,7 @@
 // addiction, and people: search, Discover, following, followers, blocking and reporting.
 // Profiles are private by default: only buddies and approved followers see them.
 import { useState, useEffect, useRef } from '../vendor/preact-htm.js';
-import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast, Skeleton, lazyOpen } from './ui.js';
+import { html, haptic, Icon, openSheet, SheetBar, Group, Row, Toggle, Segmented, toast, Skeleton, lazyOpen, Vis } from './ui.js';
 import * as S from './store.js';
 import * as A from './api.js';
 import { CheerBar } from './cheers.js';
@@ -115,11 +115,10 @@ export function ProfileHeader({ s }) {
       <button class="ph-av" aria-label="Change avatar" onClick=${() => openAvatarPicker(s.social.avatar, (a) => S.update((d) => { d.social.avatar = a; }))}>
         <${Avatar} a=${s.social.avatar} name=${user.firstName} size=${76} />
         <span class="ph-av-edit">${Icon.plus()}</span>
-        ${user.isAdmin && html`<span class="owner-badge sm">👑 Owner</span>`}
       </button>
       <div class="ph-main">
         <div class="pc-name">${user.firstName} ${user.lastName}</div>
-        <div class="ph-handle">@${user.username} <span class="ph-vis">${s.social.visibility === 'public' ? '🌍 Public' : '🔒 Private'}</span></div>
+        <div class="ph-handle">@${user.username} <span class="ph-vis"><${Vis} pub=${s.social.visibility === 'public'} /></span>${user.isAdmin && html`<span class="owner-badge inline" title="Novum’s owner">👑 Owner</span>`}</div>
       </div>
     </div>
     <${MyStatus} s=${s} />
@@ -175,8 +174,8 @@ function EditProfile({ close }) {
       <${Group} header="Who can see my profile" footer=${vis === 'public'
         ? 'Anyone on Novum can find you in Discover and follow you straight away.'
         : 'Only your buddies and people you’ve approved to follow you. Others just see your name and avatar.'}>
-        ${adult ? html`<div class="pad"><${Segmented} options=${[{ value: 'buddies', label: '🔒 Private' }, { value: 'public', label: '🌍 Public' }]} value=${vis} onChange=${setVis} /></div>`
-          : html`<div class="row"><span class="row-main"><span class="row-title">🔒 Private</span><span class="row-sub">Under-18 profiles always stay private. Only your buddies can see them.</span></span></div>`}
+        ${adult ? html`<div class="pad"><${Segmented} options=${[{ value: 'buddies', label: html`<${Vis} pub=${false} />` }, { value: 'public', label: html`<${Vis} pub />` }]} value=${vis} onChange=${setVis} /></div>`
+          : html`<div class="row"><span class="row-main"><span class="row-title"><${Vis} pub=${false} /></span><span class="row-sub">Under-18 profiles always stay private. Only your buddies can see them.</span></span></div>`}
         <div class="row">
           <span class="row-main"><span class="row-title">Show my streaks</span><span class="row-sub">How long you’ve been free of each thing</span></span>
           <${Toggle} on=${share} label="Show my streaks" onChange=${setShare} />
@@ -234,7 +233,7 @@ function People({ tab0, close }) {
           : rows.length === 0 ? html`<div class="row"><span class="row-main"><span class="row-sub">${tab === 'discover' ? (q ? 'No one found.' : 'No public profiles yet.') : tab === 'following' ? 'You’re not following anyone yet.' : 'No followers yet.'}</span></span></div>`
           : rows.map((p) => html`<button class="row tap" key=${p.username} onClick=${() => openPerson(p.username, loadFollows)}>
               <${Avatar} a=${p.avatar} name=${p.firstName} size=${40} />
-              <span class="row-main"><span class="row-title">${p.firstName}${p.buddy ? ' 🤝' : ''}</span><span class="row-sub">@${p.username} · ${p.public ? '🌍 Public' : '🔒 Private'}</span></span>
+              <span class="row-main"><span class="row-title">${p.firstName}${p.buddy ? ' 🤝' : ''}</span><span class="row-sub">@${p.username} · <${Vis} pub=${p.public} /></span></span>
               <span class="row-chev">${Icon.chevron()}</span>
             </button>`)}
       <//>
@@ -292,7 +291,7 @@ function Person({ username, close, onChange }) {
           ${p.owner && html`<span class="owner-badge" title="Novum’s owner">👑 Owner</span>`}
         </div>
         <h2 class="auth-title center">${p.firstName}</h2>
-        <div class="row-sub center">@${p.username} · ${p.public ? '🌍 Public' : '🔒 Private'}${r.followsMe === 'accepted' ? ' · Follows you' : ''}</div>
+        <div class="row-sub center">@${p.username} · <${Vis} pub=${p.public} />${r.followsMe === 'accepted' ? ' · Follows you' : ''}</div>
         <div class="ph-counts center"><span><b>${p.counts.followers}</b> followers</span><span><b>${p.counts.following}</b> following</span></div>
         ${(p.status || bud) && html`<div class="pp-tags"><${StatusTag} status=${p.status} now=${now} />${bud && html`<${TogetherTag} s=${me} buddy=${bud} now=${now} long />`}</div>`}
         ${!r.blockedByMe && html`<div class="pp-actions">${p.canFollow !== false && followBtn}${buddyBtn}</div>`}

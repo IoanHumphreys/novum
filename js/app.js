@@ -67,7 +67,7 @@ window.addEventListener('scroll', onScroll, { passive: true });
 const reported = new Set();
 function report(place, message, detail) {
   if (!message || reported.size >= 5 || reported.has(message)) return;
-  if (/Script error|ResizeObserver|Load failed|NetworkError|Failed to fetch|AbortError/i.test(message)) return; // noise, offline or extensions
+  if (/Script error|ResizeObserver|Load failed|NetworkError|Failed to fetch|AbortError|ethereum|cloudflareinsights/i.test(message) || /-extension:\/\//i.test(detail || '')) return; // noise, offline or extensions
   reported.add(message);
   A.reportError(place, message, detail);
 }
